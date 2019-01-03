@@ -1,9 +1,12 @@
 package io.bspk.oauth.xyz.data;
 
+import org.springframework.data.annotation.Id;
+
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
 
 import lombok.Data;
+import lombok.NonNull;
 import lombok.experimental.Accessors;
 
 /**
@@ -34,13 +37,13 @@ public class Transaction {
 
 	}
 
-	private String id;
+	private @Id String id;
 	private Client client;
 	private User user;
 	private Interact interact;
 	private Resource resource;
-	private HandleSet handles = new HandleSet();
+	private @NonNull HandleSet handles = new HandleSet();
 	private Handle accessToken;
-	private State state = State.NEW;
+	private @NonNull State state = State.NEW;
 
 }
