@@ -1,6 +1,7 @@
 const React = require('react');
 const ReactDOM = require('react-dom');
 const client = require('./client');
+const Reactstrap = require('reactstrap');
 
 class App extends React.Component {
 	
@@ -25,12 +26,30 @@ class App extends React.Component {
 	
 	render() {
 		return (
-			<TransactionList transactions={this.state.transactions} />
+			<div>
+				<TransactionList transactions={this.state.transactions} />
+				<LoggingButton />
+			</div>
 		);
 	}
 
 }
 
+class LoggingButton extends React.Component {
+	// This syntax ensures `this` is bound within handleClick.
+	// Warning: this is *experimental* syntax.
+	handleClick(e) {
+		console.log('this is:', this);
+	}
+
+	render() {
+		return (
+			<Reactstrap.Button color="danger" onClick={(e) => this.handleClick(e)}>
+				Click me
+			</Reactstrap.Button>
+		);
+	}
+}
 
 class TransactionList extends React.Component{
 	render() {
