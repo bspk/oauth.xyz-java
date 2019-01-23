@@ -1,7 +1,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom';
-import client from './client';
-import { Button, Badge } from 'reactstrap';
+import http from './client';
+import { Button, Badge, Row, Col, Container, Card, CardImg, CardText, CardBody, CardTitle, CardSubtitle } from 'reactstrap';
 import { BrowserRouter, Switch, Route } from 'react-router-dom';
 
 class AuthServer extends React.Component {
@@ -15,7 +15,7 @@ class AuthServer extends React.Component {
 	}
 	
 	componentDidMount() {
-		client({
+		http({
 			method: 'GET',
 			path: '/api/transactions'
 		}).done(response => {
@@ -57,14 +57,11 @@ class TransactionList extends React.Component{
 			transaction =>
 				<Transaction key={transaction._links.self.href} transaction={transaction} />
 		);
-		
 		return (
-			<div className="card">
-				<div className="card-body">
-					<h3 className="card-title">Transactions</h3>
-					{transactions}
-				</div>
-			</div>
+			<Container>
+				<h3>Transactions</h3>
+				{transactions}
+			</Container>
 		);
 		
 	}
@@ -73,24 +70,21 @@ class TransactionList extends React.Component{
 class Transaction extends React.Component{
 	render() {
 		return (
-			<div className="card">
-				<div className="card-body">
-					<dl className="row">
-						<dt className="col-sm-3">State</dt>
-						<dd className="col-sm-9"><TransactionState state={this.props.transaction.state} /></dd>
-						<dt className="col-sm-3">Transaction Handle</dt>
-						<dd className="col-sm-9">{this.props.transaction.handles.transaction.value}</dd>
-						{this.props.transaction.interact && this.props.transaction.interact.url &&
-						<React.Fragment>
-							<dt className="col-sm-3">Interaction</dt>
-							<dd className="col-sm-9"><a href="{this.props.transaction.interact.url}">{this.props.transaction.interact.url}</a></dd>
-						</React.Fragment>
-						}
-						<dt className="col-sm-3">Interact</dt>
-					</dl>
-				</div>
-			</div>
-			
+			<Card body>
+				<dl className="row">
+					<dt className="col-sm-3">State</dt>
+					<dd className="col-sm-9"><TransactionState state={this.props.transaction.state} /></dd>
+					<dt className="col-sm-3">Transaction Handle</dt>
+					<dd className="col-sm-9">{this.props.transaction.handles.transaction.value}</dd>
+					{this.props.transaction.interact && this.props.transaction.interact.url &&
+					<React.Fragment>
+						<dt className="col-sm-3">Interaction</dt>
+						<dd className="col-sm-9"><a href="{this.props.transaction.interact.url}">{this.props.transaction.interact.url}</a></dd>
+					</React.Fragment>
+					}
+					<dt className="col-sm-3">Interact</dt>
+				</dl>
+			</Card>
 		);
 	}
 }
@@ -113,11 +107,38 @@ class TransactionState extends React.Component {
 }
 
 class Client extends React.Component {
+	constructor(props) {
+		super(props);
+		
+		this.state = {
+			transactions: []
+		};
+	}
+	
+	newTransaction(e) {
+		http({
+			method: 'POST',
+			path: '/api/client/authcode'
+		}).done(response => {
+			
+			console.log(response);
+			
+		});
+	}
+	
 	render() {
+		const pending = this.props.transactions.map(
+				transaction =>
+					<PendingTransaction key={transaction._links.self.href} transaction={transaction} />
+		);
 		return (
-			<div>Client stuff here</div>
+			<div>
+				<Button color="success" onClick={this.newTransaction}>New Transaction</Button>
+				
+			</div>
 		);
 	}
+	
 }
 
 ReactDOM.render((

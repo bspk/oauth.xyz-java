@@ -35,7 +35,7 @@ public class TransactionEndpoint {
 	private TransactionRepository transactionRepository;
 
 	@Value("${oauth.xyz.root}api/as/")
-	String baseUrl;
+	private String baseUrl;
 
 	@PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
 	public ResponseEntity<TransactionResponse> transaction(@RequestBody TransactionRequest incoming) {
