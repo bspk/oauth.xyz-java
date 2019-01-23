@@ -1,9 +1,10 @@
-const React = require('react');
-const ReactDOM = require('react-dom');
-const client = require('./client');
-const Reactstrap = require('reactstrap');
+import React from 'react';
+import ReactDOM from 'react-dom';
+import client from './client';
+import { Button, Badge } from 'reactstrap';
+import { BrowserRouter, Switch, Route } from 'react-router-dom';
 
-class App extends React.Component {
+class AuthServer extends React.Component {
 	
 	constructor(props) {
 		super(props);
@@ -28,7 +29,6 @@ class App extends React.Component {
 		return (
 			<div>
 				<TransactionList transactions={this.state.transactions} />
-				<LoggingButton />
 			</div>
 		);
 	}
@@ -44,9 +44,9 @@ class LoggingButton extends React.Component {
 
 	render() {
 		return (
-			<Reactstrap.Button color="danger" onClick={(e) => this.handleClick(e)}>
+			<Button color="danger" onClick={(e) => this.handleClick(e)}>
 				Click me
-			</Reactstrap.Button>
+			</Button>
 		);
 	}
 }
@@ -99,7 +99,7 @@ class TransactionState extends React.Component {
 	render() {
 		switch (this.props.state) {
 			case 'new':
-				return <span className="badge badge-info">{this.props.state}</span>
+				return <Badge color="info">{this.props.state}</Badge>
 			case 'issued':
 				return <span className="badge badge-success">{this.props.state}</span>
 			case 'authorized':
@@ -112,7 +112,21 @@ class TransactionState extends React.Component {
 	}
 }
 
-ReactDOM.render(
-	<App />,
+class Client extends React.Component {
+	render() {
+		return (
+			<div>Client stuff here</div>
+		);
+	}
+}
+
+ReactDOM.render((
+	<BrowserRouter>
+		<Switch>
+			<Route path='/as' component={AuthServer} />
+			<Route path='/c' component={Client} />
+		</Switch>
+	</BrowserRouter>
+	),
 	document.getElementById('react')
 );

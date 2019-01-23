@@ -28,13 +28,13 @@ import io.bspk.oauth.xyz.data.api.TransactionResponse;
  *
  */
 @Controller
-@RequestMapping("/transaction")
+@RequestMapping("/api/as/transaction")
 public class TransactionEndpoint {
 
 	@Autowired
 	private TransactionRepository transactionRepository;
 
-	@Value("${oauth.xyz.root}")
+	@Value("${oauth.xyz.root}api/as/")
 	String baseUrl;
 
 	@PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
