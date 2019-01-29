@@ -1,4 +1,7 @@
-package io.bspk.oauth.xyz.client;
+package io.bspk.oauth.xyz.client.api;
+
+import java.util.ArrayList;
+import java.util.List;
 
 import javax.servlet.http.HttpSession;
 
@@ -7,11 +10,13 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.client.RestTemplate;
 
 import io.bspk.oauth.xyz.data.Interact.Type;
+import io.bspk.oauth.xyz.data.PendingTransaction;
 import io.bspk.oauth.xyz.data.api.ClientRequest;
 import io.bspk.oauth.xyz.data.api.InteractRequest;
 import io.bspk.oauth.xyz.data.api.ResourceRequest;
@@ -53,8 +58,36 @@ public class ClientAPI {
 
 		ResponseEntity<TransactionResponse> responseEntity = restTemplate.postForEntity(asEndpoint, request, TransactionResponse.class);
 
-		return responseEntity;
+		TransactionResponse response = responseEntity.getBody();
 
+		PendingTransaction pending = new PendingTransaction()
+			.add(request, response);
+
+		savePendingTransactionToSession(session, pending);
+
+		return ResponseEntity.noContent().build();
+
+	}
+
+	@GetMapping(path = "/pending", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
+	public ResponseEntity<?> getPendingTransactions(HttpSession session) {
+		return ResponseEntity.ok(getPendingTransactions(session));
+	}
+
+	private void savePendingTransactionToSession(HttpSession session, PendingTransaction pending) {
+		List<PendingTransaction> allPending = getPendingTransactionsFromSession(session);
+		allPending.add(pending);
+		session.setAttribute("pending", allPending);
+	}
+
+	private List<PendingTransaction> getPendingTransactionsFromSession(HttpSession session) {
+		@SuppressWarnings("unchecked")
+		List<PendingTransaction> allPending = (List<PendingTransaction>) session.getAttribute("pending");
+		if (allPending == null) {
+			allPending = new ArrayList<>();
+			session.setAttribute("pending", allPending);
+		}
+		return allPending;
 	}
 
 }

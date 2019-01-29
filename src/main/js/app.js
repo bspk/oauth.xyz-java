@@ -115,6 +115,17 @@ class Client extends React.Component {
 		};
 	}
 	
+	componentDidMount() {
+		http({
+			method: 'GET',
+			path: '/api/pendingtransactions'
+		}).done(response => {
+			this.setState({
+				transactions: response.entity._embedded.transactions
+			});
+		});
+	}
+	
 	newTransaction(e) {
 		http({
 			method: 'POST',
