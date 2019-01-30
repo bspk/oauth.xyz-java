@@ -15,4 +15,6 @@ import lombok.experimental.Accessors;
 @JsonNaming(PropertyNamingStrategy.SnakeCaseStrategy.class)
 public class User {
 
+	private String id;
+
 }

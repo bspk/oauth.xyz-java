@@ -14,3 +14,5 @@ rewrite:
       target: /
     - sourceUrl: /c
       target: /
+
+# spring.devtools.restart.exclude: 

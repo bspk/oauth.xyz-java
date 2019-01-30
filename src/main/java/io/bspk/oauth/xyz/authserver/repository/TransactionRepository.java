@@ -15,4 +15,6 @@ public interface TransactionRepository extends CrudRepository<Transaction, Strin
 	// TODO: this only works for bearer tokens
 	List<Transaction> findByHandlesTransactionValue(String value);
 
+	List<Transaction> findByInteractInteractId(String id);
+
 }

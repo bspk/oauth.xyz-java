@@ -1,22 +1,27 @@
 package io.bspk.oauth.xyz.client.api;
 
-import java.util.ArrayList;
 import java.util.List;
 
 import javax.servlet.http.HttpSession;
 
 import org.apache.commons.lang3.RandomStringUtils;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.web.util.UriComponentsBuilder;
 
+import io.bspk.oauth.xyz.client.repository.PendingTransactionRepository;
 import io.bspk.oauth.xyz.data.Interact.Type;
 import io.bspk.oauth.xyz.data.PendingTransaction;
+import io.bspk.oauth.xyz.data.PendingTransaction.Entry;
 import io.bspk.oauth.xyz.data.api.ClientRequest;
 import io.bspk.oauth.xyz.data.api.InteractRequest;
 import io.bspk.oauth.xyz.data.api.ResourceRequest;
@@ -32,11 +37,17 @@ import io.bspk.oauth.xyz.data.api.UserRequest;
 @RequestMapping("/api/client")
 public class ClientAPI {
 
-	@Value("${oauth.xyz.root}c/callback")
-	private String clientBaseUrl;
+	@Value("${oauth.xyz.root}api/client/callback")
+	private String callbackBaseUrl;
 
 	@Value("${oauth.xyz.root}api/as/transaction")
 	private String asEndpoint;
+
+	@Value("${oauth.xyz.root}c")
+	private String clientPage;
+
+	@Autowired
+	private PendingTransactionRepository pendingTransactionRepository;
 
 	@PostMapping(path = "/authcode", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
 	public ResponseEntity<?> startAuthorizationCodeFlow(HttpSession session) {
@@ -50,7 +61,7 @@ public class ClientAPI {
 		TransactionRequest request = new TransactionRequest()
 			.setClient(new ClientRequest())
 			.setInteract(new InteractRequest()
-				.setCallback(clientBaseUrl + "/" + callbackId)
+				.setCallback(callbackBaseUrl + "/" + callbackId)
 				.setState(state)
 				.setType(Type.REDIRECT))
 			.setResource(new ResourceRequest())
@@ -61,9 +72,11 @@ public class ClientAPI {
 		TransactionResponse response = responseEntity.getBody();
 
 		PendingTransaction pending = new PendingTransaction()
-			.add(request, response);
+			.add(request, response)
+			.setCallbackId(callbackId)
+			.setOwner(session.getId());
 
-		savePendingTransactionToSession(session, pending);
+		pendingTransactionRepository.save(pending);
 
 		return ResponseEntity.noContent().build();
 
@@ -71,23 +84,48 @@ public class ClientAPI {
 
 	@GetMapping(path = "/pending", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
 	public ResponseEntity<?> getPendingTransactions(HttpSession session) {
-		return ResponseEntity.ok(getPendingTransactions(session));
+		return ResponseEntity.ok(pendingTransactionRepository.findByOwner(session.getId()));
 	}
 
-	private void savePendingTransactionToSession(HttpSession session, PendingTransaction pending) {
-		List<PendingTransaction> allPending = getPendingTransactionsFromSession(session);
-		allPending.add(pending);
-		session.setAttribute("pending", allPending);
-	}
+	@GetMapping(path = "/callback/{id}")
+	public ResponseEntity<?> callbackEndpoint(@PathVariable("id") String callbackId, HttpSession session) {
 
-	private List<PendingTransaction> getPendingTransactionsFromSession(HttpSession session) {
-		@SuppressWarnings("unchecked")
-		List<PendingTransaction> allPending = (List<PendingTransaction>) session.getAttribute("pending");
-		if (allPending == null) {
-			allPending = new ArrayList<>();
-			session.setAttribute("pending", allPending);
+		List<PendingTransaction> transactions = pendingTransactionRepository.findByCallbackIdAndOwner(callbackId, session.getId());
+
+		if (transactions != null && transactions.size() == 1) {
+
+			PendingTransaction pending = transactions.get(0);
+
+			List<Entry> entries = pending.getEntries();
+
+			Entry lastEntry = entries.get(entries.size() - 1); // get the most recent entry
+
+			TransactionResponse lastResponse = lastEntry.getResponse();
+
+			// get the handle
+
+			TransactionRequest request = new TransactionRequest()
+				.setTransactionHandle(lastResponse.getHandles().getTransaction().getValue())
+				;
+
+			RestTemplate restTemplate = new RestTemplate();
+
+			ResponseEntity<TransactionResponse> responseEntity = restTemplate.postForEntity(asEndpoint, request, TransactionResponse.class);
+
+			TransactionResponse response = responseEntity.getBody();
+
+			pending.add(request, response);
+
+			pendingTransactionRepository.save(pending);
+
+			return ResponseEntity.status(HttpStatus.FOUND)
+				.location(UriComponentsBuilder.fromUriString(clientPage).build().toUri())
+				.build();
+
+		} else {
+			return ResponseEntity.notFound().build();
 		}
-		return allPending;
+
 	}
 
 }

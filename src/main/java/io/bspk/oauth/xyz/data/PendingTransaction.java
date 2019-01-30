@@ -3,12 +3,14 @@ package io.bspk.oauth.xyz.data;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.bson.types.ObjectId;
+import org.springframework.data.annotation.Id;
+
 import com.fasterxml.jackson.databind.PropertyNamingStrategy;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
 
 import io.bspk.oauth.xyz.data.api.TransactionRequest;
 import io.bspk.oauth.xyz.data.api.TransactionResponse;
-import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.experimental.Accessors;
 
@@ -24,16 +26,19 @@ public class PendingTransaction {
 	@Data
 	@Accessors(chain = true)
 	@JsonNaming(PropertyNamingStrategy.SnakeCaseStrategy.class)
-	@AllArgsConstructor
 	public class Entry {
+		private @Id String id = new ObjectId().toHexString();
 		private TransactionRequest request;
 		private TransactionResponse response;
 	}
 
+	private @Id String id;
 	private List<Entry> entries = new ArrayList<>();
+	private String owner;
+	private String callbackId;
 
 	public PendingTransaction add (TransactionRequest request, TransactionResponse response) {
-		entries.add(new Entry(request, response));
+		entries.add(new Entry().setRequest(request).setResponse(response));
 		return this;
 	}
 
