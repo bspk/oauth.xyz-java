@@ -46,4 +46,5 @@ public class Transaction {
 	private Handle accessToken;
 	private @NonNull State state = State.NEW;
 
+
 }

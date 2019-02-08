@@ -36,6 +36,8 @@ public class Interact {
 	private String interactId;
 	private String callback;
 	private String state;
+	private String interactHandle;
+
 	/**
 	 * @param interact
 	 * @return

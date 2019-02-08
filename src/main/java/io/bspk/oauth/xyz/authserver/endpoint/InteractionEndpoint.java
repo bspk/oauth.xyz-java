@@ -1,9 +1,11 @@
 package io.bspk.oauth.xyz.authserver.endpoint;
 
+import java.net.URI;
 import java.util.List;
 
 import javax.servlet.http.HttpSession;
 
+import org.apache.commons.lang3.RandomStringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
@@ -15,6 +17,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import io.bspk.oauth.xyz.authserver.repository.TransactionRepository;
+import io.bspk.oauth.xyz.crypto.Hash;
 import io.bspk.oauth.xyz.data.Transaction;
 import io.bspk.oauth.xyz.data.Transaction.State;
 import io.bspk.oauth.xyz.data.User;
@@ -50,8 +53,13 @@ public class InteractionEndpoint {
 
 			// burn this interaction
 			transaction.getInteract().setInteractId(null);
-
 			transaction.getInteract().setUrl(null);
+
+			// set up an interaction handle
+			String interactHandle = RandomStringUtils.randomAlphanumeric(30);
+			transaction.getInteract().setInteractHandle(interactHandle);
+
+			String state = transaction.getInteract().getState();
 
 			transaction.setState(State.AUTHORIZED);
 
@@ -59,8 +67,13 @@ public class InteractionEndpoint {
 
 			transactionRepository.save(transaction);
 
+			URI callbackUri = UriComponentsBuilder.fromUriString(callback)
+				.queryParam("state", Hash.SHA3_512_encode(state))
+				.queryParam("interact", interactHandle)
+				.build().toUri();
+
 			return ResponseEntity.status(HttpStatus.FOUND)
-				.location(UriComponentsBuilder.fromUriString(callback).build().toUri())
+				.location(callbackUri)
 				.build();
 
 		} else {

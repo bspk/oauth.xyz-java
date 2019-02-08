@@ -15,10 +15,12 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import io.bspk.oauth.xyz.client.repository.PendingTransactionRepository;
+import io.bspk.oauth.xyz.crypto.Hash;
 import io.bspk.oauth.xyz.data.Interact.Type;
 import io.bspk.oauth.xyz.data.PendingTransaction;
 import io.bspk.oauth.xyz.data.PendingTransaction.Entry;
@@ -74,6 +76,7 @@ public class ClientAPI {
 		PendingTransaction pending = new PendingTransaction()
 			.add(request, response)
 			.setCallbackId(callbackId)
+			.setState(state)
 			.setOwner(session.getId());
 
 		pendingTransactionRepository.save(pending);
@@ -88,7 +91,7 @@ public class ClientAPI {
 	}
 
 	@GetMapping(path = "/callback/{id}")
-	public ResponseEntity<?> callbackEndpoint(@PathVariable("id") String callbackId, HttpSession session) {
+	public ResponseEntity<?> callbackEndpoint(@PathVariable("id") String callbackId, @RequestParam("state") String stateHash, @RequestParam("interact") String interact, HttpSession session) {
 
 		List<PendingTransaction> transactions = pendingTransactionRepository.findByCallbackIdAndOwner(callbackId, session.getId());
 
@@ -96,16 +99,25 @@ public class ClientAPI {
 
 			PendingTransaction pending = transactions.get(0);
 
+			// check the state
+			String expectedStateHash = Hash.SHA3_512_encode(pending.getState());
+
+			if (!expectedStateHash.equals(stateHash)) {
+				return ResponseEntity.badRequest().build(); // TODO: redirect this someplace useful?
+			}
+
 			List<Entry> entries = pending.getEntries();
 
 			Entry lastEntry = entries.get(entries.size() - 1); // get the most recent entry
 
 			TransactionResponse lastResponse = lastEntry.getResponse();
 
+
 			// get the handle
 
 			TransactionRequest request = new TransactionRequest()
 				.setTransactionHandle(lastResponse.getHandles().getTransaction().getValue())
+				.setInteractionHandle(Hash.SHA3_512_encode(interact))
 				;
 
 			RestTemplate restTemplate = new RestTemplate();

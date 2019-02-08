@@ -12,10 +12,12 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import io.bspk.oauth.xyz.authserver.repository.TransactionRepository;
+import io.bspk.oauth.xyz.crypto.Hash;
 import io.bspk.oauth.xyz.data.Handle;
 import io.bspk.oauth.xyz.data.Interact;
 import io.bspk.oauth.xyz.data.Transaction;
@@ -38,7 +40,8 @@ public class TransactionEndpoint {
 	private String baseUrl;
 
 	@PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
-	public ResponseEntity<TransactionResponse> transaction(@RequestBody TransactionRequest incoming) {
+	public ResponseEntity<TransactionResponse> transaction(@RequestBody TransactionRequest incoming,
+		@RequestHeader(name = "Authentication", required = false) String auth) {
 
 		Transaction t = null;
 
@@ -89,6 +92,15 @@ public class TransactionEndpoint {
 			*/
 		}
 
+		// make sure the interaction handle matches
+
+		if (t.getInteract().getInteractHandle() != null) {
+
+			if (!incoming.getInteractionHandle().equals(Hash.SHA3_512_encode(t.getInteract().getInteractHandle()))) {
+				return ResponseEntity.badRequest().build(); // bad interaction handle
+			}
+
+		}
 
 		switch (t.getState()) {
 			case AUTHORIZED:
