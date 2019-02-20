@@ -19,7 +19,7 @@ import org.springframework.web.util.UriComponentsBuilder;
 import io.bspk.oauth.xyz.authserver.repository.TransactionRepository;
 import io.bspk.oauth.xyz.crypto.Hash;
 import io.bspk.oauth.xyz.data.Transaction;
-import io.bspk.oauth.xyz.data.Transaction.State;
+import io.bspk.oauth.xyz.data.Transaction.Status;
 import io.bspk.oauth.xyz.data.User;
 
 /**
@@ -61,7 +61,7 @@ public class InteractionEndpoint {
 
 			String state = transaction.getInteract().getState();
 
-			transaction.setState(State.AUTHORIZED);
+			transaction.setStatus(Status.AUTHORIZED);
 
 			transaction.setUser(new User().setId(session.getId()));
 

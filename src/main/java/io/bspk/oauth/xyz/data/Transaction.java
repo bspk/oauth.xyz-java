@@ -17,7 +17,7 @@ import lombok.experimental.Accessors;
 @Accessors(chain = true)
 public class Transaction {
 
-	public enum State {
+	public enum Status {
 
 		NEW,		// newly created transaction, nothing's been done to it yet
 		ISSUED,		// an access token has been issued
@@ -25,7 +25,7 @@ public class Transaction {
 		WAITING;	// we are waiting for the user
 
 		@JsonCreator
-		public static State fromJson(String key) {
+		public static Status fromJson(String key) {
 			return key == null ? null :
 				valueOf(key.toUpperCase());
 		}
@@ -44,7 +44,7 @@ public class Transaction {
 	private Resource resource;
 	private @NonNull HandleSet handles = new HandleSet();
 	private Handle accessToken;
-	private @NonNull State state = State.NEW;
+	private @NonNull Status status = Status.NEW;
 
 
 }

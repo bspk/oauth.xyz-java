@@ -21,7 +21,7 @@ import io.bspk.oauth.xyz.crypto.Hash;
 import io.bspk.oauth.xyz.data.Handle;
 import io.bspk.oauth.xyz.data.Interact;
 import io.bspk.oauth.xyz.data.Transaction;
-import io.bspk.oauth.xyz.data.Transaction.State;
+import io.bspk.oauth.xyz.data.Transaction.Status;
 import io.bspk.oauth.xyz.data.api.TransactionRequest;
 import io.bspk.oauth.xyz.data.api.TransactionResponse;
 
@@ -102,12 +102,12 @@ public class TransactionEndpoint {
 
 		}
 
-		switch (t.getState()) {
+		switch (t.getStatus()) {
 			case AUTHORIZED:
 
 				// it's been authorized so we can issue a token now
 
-				t.setState(State.ISSUED);
+				t.setStatus(Status.ISSUED);
 
 				t.setAccessToken(Handle.create(Duration.ofHours(1)));
 
@@ -143,13 +143,13 @@ public class TransactionEndpoint {
 							String interactId = RandomStringUtils.randomAlphanumeric(10);
 
 							String interactionEndpoint = UriComponentsBuilder.fromHttpUrl(baseUrl)
-								.path("/interact/" + interactId)
+								.path("/interact/" + interactId) // this is unique per transaction
 								.build().toUriString();
 
 							t.getInteract().setUrl(interactionEndpoint);
 							t.getInteract().setInteractId(interactId);
 
-							t.setState(State.WAITING);
+							t.setStatus(Status.WAITING);
 
 							break;
 						default:
