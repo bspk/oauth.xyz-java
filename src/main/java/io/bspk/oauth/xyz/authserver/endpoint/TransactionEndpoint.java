@@ -1,7 +1,6 @@
 package io.bspk.oauth.xyz.authserver.endpoint;
 
 import java.time.Duration;
-import java.util.List;
 
 import org.apache.commons.lang3.RandomStringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -33,6 +32,8 @@ import io.bspk.oauth.xyz.data.api.TransactionResponse;
 @RequestMapping("/api/as/transaction")
 public class TransactionEndpoint {
 
+	private static final String USER_CODE_CHARS = "123456789ABCDEFGHJKLMNOPQRSTUVWXYZ";
+
 	@Autowired
 	private TransactionRepository transactionRepository;
 
@@ -48,11 +49,9 @@ public class TransactionEndpoint {
 		if (incoming.getTransactionHandle() != null) {
 			// load a transaction in progress
 
-			List<Transaction> transactions = transactionRepository.findByHandlesTransactionValue(incoming.getTransactionHandle());
+			t = transactionRepository.findFirstByHandlesTransactionValue(incoming.getTransactionHandle());
 
-			if (transactions.size() == 1) {
-				t = transactions.get(0);
-			} else {
+			if (t == null) {
 				return ResponseEntity.notFound().build();
 			}
 
@@ -102,6 +101,8 @@ public class TransactionEndpoint {
 
 		}
 
+		t.getHandles().setTransaction(Handle.create());
+
 		switch (t.getStatus()) {
 			case AUTHORIZED:
 
@@ -118,6 +119,7 @@ public class TransactionEndpoint {
 
 				// FIXME: this is where a refresh token would come into play, right?
 
+				transactionRepository.save(t);
 				return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
 
 				//break;
@@ -127,6 +129,7 @@ public class TransactionEndpoint {
 
 				// TODO: see if the client should back off
 
+				transactionRepository.save(t);
 				return ResponseEntity.status(HttpStatus.ACCEPTED).body(TransactionResponse.of(t));
 
 				//break;
@@ -152,6 +155,22 @@ public class TransactionEndpoint {
 							t.setStatus(Status.WAITING);
 
 							break;
+						case DEVICE:
+
+							String userCode = RandomStringUtils.random(8, USER_CODE_CHARS);
+
+							t.getInteract().setUserCode(userCode);
+
+							String deviceInteractionEndpoint = UriComponentsBuilder.fromHttpUrl(baseUrl)
+								.path("/interact/device") // this is the same every time
+								.build().toUriString();
+
+
+							t.getInteract().setUrl(deviceInteractionEndpoint);
+
+							t.setStatus(Status.WAITING);
+
+							break;
 						default:
 
 							// this isn't an interaction we can handle
@@ -170,11 +189,7 @@ public class TransactionEndpoint {
 
 		// rotate the transaction's own handle every time it's used (this creates one on the first time through
 
-		t.getHandles().setTransaction(Handle.create());
-
-
 		transactionRepository.save(t);
-
 		return ResponseEntity.ok(TransactionResponse.of(t));
 	}
 

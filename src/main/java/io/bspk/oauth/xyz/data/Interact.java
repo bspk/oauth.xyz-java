@@ -16,7 +16,8 @@ import lombok.experimental.Accessors;
 public class Interact {
 
 	public enum Type {
-		REDIRECT;
+		REDIRECT,
+		DEVICE;
 
 		@JsonCreator
 		public static Type fromJson(String key) {
@@ -37,6 +38,7 @@ public class Interact {
 	private String callback;
 	private String state;
 	private String interactHandle;
+	private String userCode;
 
 	/**
 	 * @param interact

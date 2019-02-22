@@ -10,6 +10,8 @@ oauth.xyz.root: http://host.docker.internal:9834/
 
 rewrite:
   entries:
+    - sourceUrl: /as/interact
+      target: /
     - sourceUrl: /as
       target: /
     - sourceUrl: /c

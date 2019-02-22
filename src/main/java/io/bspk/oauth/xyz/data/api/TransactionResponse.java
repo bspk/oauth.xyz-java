@@ -21,6 +21,8 @@ public class TransactionResponse {
 	private Handle accessToken;
 	private HandleSet handles;
 	private String interactionUrl;
+	private String userCode;
+
 	/**
 	 * @param t
 	 * @return
@@ -29,6 +31,7 @@ public class TransactionResponse {
 		return new TransactionResponse()
 			.setAccessToken(t.getAccessToken())
 			.setInteractionUrl(t.getInteract().getUrl())
+			.setUserCode(t.getInteract().getUserCode())
 			.setHandles(t.getHandles());
 	}
 

@@ -1,6 +1,7 @@
 package io.bspk.oauth.xyz.client.api;
 
 import java.util.List;
+import java.util.Optional;
 
 import javax.servlet.http.HttpSession;
 
@@ -85,6 +86,32 @@ public class ClientAPI {
 
 	}
 
+	@PostMapping(path = "/device", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
+	public ResponseEntity<?> startDeviceFlow(HttpSession session) {
+
+		RestTemplate restTemplate = new RestTemplate();
+
+		TransactionRequest request = new TransactionRequest()
+			.setClient(new ClientRequest())
+			.setInteract(new InteractRequest()
+				.setType(Type.DEVICE))
+			.setResource(new ResourceRequest())
+			.setUser(new UserRequest());
+
+		ResponseEntity<TransactionResponse> responseEntity = restTemplate.postForEntity(asEndpoint, request, TransactionResponse.class);
+
+		TransactionResponse response = responseEntity.getBody();
+
+		PendingTransaction pending = new PendingTransaction()
+			.add(request, response)
+			.setOwner(session.getId());
+
+		pendingTransactionRepository.save(pending);
+
+		return ResponseEntity.noContent().build();
+	}
+
+
 	@GetMapping(path = "/pending", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
 	public ResponseEntity<?> getPendingTransactions(HttpSession session) {
 		return ResponseEntity.ok(pendingTransactionRepository.findByOwner(session.getId()));
@@ -133,6 +160,45 @@ public class ClientAPI {
 			return ResponseEntity.status(HttpStatus.FOUND)
 				.location(UriComponentsBuilder.fromUriString(clientPage).build().toUri())
 				.build();
+
+		} else {
+			return ResponseEntity.notFound().build();
+		}
+
+	}
+
+
+	@PostMapping("/poll/{id}")
+	public ResponseEntity<?> poll(@PathVariable("id") String id, HttpSession session) {
+
+		Optional<PendingTransaction> maybe = pendingTransactionRepository.findFirstByIdAndOwner(id, session.getId());
+
+		if (maybe.isPresent()) {
+			PendingTransaction pending = maybe.get();
+
+			List<Entry> entries = pending.getEntries();
+
+			Entry lastEntry = entries.get(entries.size() - 1); // get the most recent entry
+
+			TransactionResponse lastResponse = lastEntry.getResponse();
+
+
+			TransactionRequest request = new TransactionRequest()
+				.setTransactionHandle(lastResponse.getHandles().getTransaction().getValue())
+				;
+
+			RestTemplate restTemplate = new RestTemplate();
+
+			ResponseEntity<TransactionResponse> responseEntity = restTemplate.postForEntity(asEndpoint, request, TransactionResponse.class);
+
+			TransactionResponse response = responseEntity.getBody();
+
+			pending.add(request, response);
+
+			pendingTransactionRepository.save(pending);
+
+			return ResponseEntity
+				.ok(pending);
 
 		} else {
 			return ResponseEntity.notFound().build();
