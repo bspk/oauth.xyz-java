@@ -1,4 +1,6 @@
-package io.bspk.oauth.xyz.data;
+package io.bspk.oauth.xyz.authserver.data.api;
+
+import java.net.URI;
 
 import com.fasterxml.jackson.databind.PropertyNamingStrategy;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
@@ -13,10 +15,9 @@ import lombok.experimental.Accessors;
 @Data
 @Accessors(chain = true)
 @JsonNaming(PropertyNamingStrategy.SnakeCaseStrategy.class)
-public class Client {
+public class ApprovalResponse {
 
-	private String name;
-	private String uri;
-	private String logoUri;
+	private URI uri;
+	private boolean approved;
 
 }

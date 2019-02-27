@@ -18,7 +18,7 @@ class AuthServer extends React.Component {
 	}
 	
 	componentDidMount() {
-		document.title = "OAuth.XYZ AS";
+		document.title = "XYZ Auth Server";
 		
 		http({
 			method: 'GET',
@@ -105,8 +105,10 @@ class TransactionStatus extends React.Component {
 				return (<Badge color="warning">{this.props.status}</Badge>);
 			case 'waiting':
 				return (<Badge color="dark">{this.props.status}</Badge>);
+			case 'denied':
+				return (<Badge color="error">{this.props.status}</Badge>);
 			default:
-				return (<Badge color="error">UNKNOWN</Badge>);
+				return (<Badge color="primary">UNKNOWN</Badge>);
 		}
 	}
 }

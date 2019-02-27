@@ -22,7 +22,8 @@ public class Transaction {
 		NEW,		// newly created transaction, nothing's been done to it yet
 		ISSUED,		// an access token has been issued
 		AUTHORIZED,	// the user has authorized but a token has not been issued yet
-		WAITING;	// we are waiting for the user
+		WAITING,	// we are waiting for the user
+		DENIED; 	// the user denied the transaction
 
 		@JsonCreator
 		public static Status fromJson(String key) {

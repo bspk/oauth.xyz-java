@@ -19,12 +19,14 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.util.UriComponentsBuilder;
 
+import io.bspk.oauth.xyz.authserver.data.api.ApprovalResponse;
 import io.bspk.oauth.xyz.authserver.repository.TransactionRepository;
 import io.bspk.oauth.xyz.crypto.Hash;
 import io.bspk.oauth.xyz.data.PendingApproval;
 import io.bspk.oauth.xyz.data.Transaction;
 import io.bspk.oauth.xyz.data.Transaction.Status;
 import io.bspk.oauth.xyz.data.User;
+import io.bspk.oauth.xyz.data.api.ApprovalRequest;
 import io.bspk.oauth.xyz.data.api.UserInteractionFormSubmission;
 
 /**
@@ -49,34 +51,70 @@ public class InteractionEndpoint {
 
 		if (transaction != null) {
 
-			// TODO: add some kind of policy matching and ask the user and stuff
+			PendingApproval pending = new PendingApproval()
+				.setTransaction(transaction);
 
-			String callback = transaction.getInteract().getCallback();
+			session.setAttribute("_pending_approval", pending);
+		}
+
+		return redirectToInteractionPage();
+
+	}
+
+
+	@PostMapping("approve")
+	public ResponseEntity<?> approve(@RequestBody ApprovalRequest approve, HttpSession session) {
+
+		PendingApproval pending = (PendingApproval) session.getAttribute("_pending_approval");
+
+		session.removeAttribute("_pending_approval");
+
+		if (pending != null && pending.getTransaction() != null) {
+			Transaction transaction = pending.getTransaction();
 
 			// burn this interaction
 			transaction.getInteract().setInteractId(null);
 			transaction.getInteract().setUrl(null);
 
-			// set up an interaction handle
-			String interactHandle = RandomStringUtils.randomAlphanumeric(30);
-			transaction.getInteract().setInteractHandle(interactHandle);
+			if (approve.isApproved()) {
+				transaction.setStatus(Status.AUTHORIZED);
 
-			String state = transaction.getInteract().getState();
+				transaction.setUser(new User().setId(session.getId()));
+			} else {
 
-			transaction.setStatus(Status.AUTHORIZED);
+				transaction.setStatus(Status.DENIED);
 
-			transaction.setUser(new User().setId(session.getId()));
+			}
+
+			ApprovalResponse res = new ApprovalResponse();
+
+			switch (transaction.getInteract().getType()) {
+				case DEVICE:
+					res.setApproved(true);
+					break;
+				case REDIRECT:
+					// set up an interaction handle
+					String interactHandle = RandomStringUtils.randomAlphanumeric(30);
+					transaction.getInteract().setInteractHandle(interactHandle);
+
+					String state = transaction.getInteract().getState();
+
+					String callback = transaction.getInteract().getCallback();
+					URI callbackUri = UriComponentsBuilder.fromUriString(callback)
+						.queryParam("state", Hash.SHA3_512_encode(state))
+						.queryParam("interact", interactHandle)
+						.build().toUri();
+
+					res.setUri(callbackUri);
+					break;
+				default:
+					res.setApproved(false);
+					break;
+			}
 
 			transactionRepository.save(transaction);
 
-			URI callbackUri = UriComponentsBuilder.fromUriString(callback)
-				.queryParam("state", Hash.SHA3_512_encode(state))
-				.queryParam("interact", interactHandle)
-				.build().toUri();
-
-			return ResponseEntity.status(HttpStatus.FOUND)
-				.location(callbackUri)
-				.build();
+			return ResponseEntity.ok(res);
 
 		} else {
 			return ResponseEntity.notFound().build();
@@ -125,19 +163,21 @@ public class InteractionEndpoint {
 
 			// TODO: add some kind of policy matching and ask the user and stuff
 
+
 			transaction.getInteract().setUserCode(null); // burn the user code
 			transaction.getInteract().setUrl(null);
 
+			/*
 			transaction.setStatus(Status.AUTHORIZED);
 
 			transactionRepository.save(transaction);
-
+			 */
 			// TODO: if we need to set up the approval page
-			//pending.setRequireCode(false);
-			//pending.setTransaction(transaction);
+			pending.setRequireCode(false);
+			pending.setTransaction(transaction);
 
-			//session.setAttribute("_pending_approval", pending);
-			session.removeAttribute("_pending_approval");
+			session.setAttribute("_pending_approval", pending);
+			//session.removeAttribute("_pending_approval");
 
 			return ResponseEntity.noContent().build();
 

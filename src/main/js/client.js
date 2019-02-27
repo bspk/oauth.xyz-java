@@ -20,7 +20,7 @@ class Client extends React.Component {
 	}
 	
 	componentDidMount() {
-		document.title = "OAuth.XYZ Client";
+		document.title = "XYZ Client";
 		
 		this.loadPending();
 	}
@@ -64,11 +64,11 @@ class Client extends React.Component {
 			).reverse(); // newest first
 	
 		return (
-			<div>
+			<Container>
 				<Button color="success" onClick={this.newTransaction}>New Auth Code Transaction</Button>
 				<Button color="warning" onClick={this.newDevice}>New Device Transaction</Button>
 				{pending}
-			</div>
+			</Container>
 		);
 	}
 	

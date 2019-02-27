@@ -133,6 +133,13 @@ public class TransactionEndpoint {
 				return ResponseEntity.status(HttpStatus.ACCEPTED).body(TransactionResponse.of(t));
 
 				//break;
+			case DENIED:
+
+				// the user said no, not much to do here
+
+				transactionRepository.save(t);
+				return ResponseEntity.ok(TransactionResponse.of(t));
+
 			case NEW:
 
 				// it's a new transaction, see if we need interaction
