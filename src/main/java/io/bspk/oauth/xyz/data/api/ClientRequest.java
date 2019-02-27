@@ -15,4 +15,8 @@ import lombok.experimental.Accessors;
 @JsonNaming(PropertyNamingStrategy.SnakeCaseStrategy.class)
 public class ClientRequest {
 
+	private String name;
+	private String uri;
+	private String logoUri;
+
 }
