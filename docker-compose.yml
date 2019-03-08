@@ -3,6 +3,6 @@ services:
   mongodb:
     image: mongo
     volumes:
-     - ./mongo/data:/data/db
+     - ./mongo/data:/data/db:delegated
     ports:
      - "27017:27017"
