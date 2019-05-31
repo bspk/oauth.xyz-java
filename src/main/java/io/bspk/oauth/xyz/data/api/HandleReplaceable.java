@@ -4,7 +4,6 @@ import com.fasterxml.jackson.databind.PropertyNamingStrategy;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
 
 import lombok.Data;
-import lombok.EqualsAndHashCode;
 import lombok.experimental.Accessors;
 
 /**
@@ -12,13 +11,25 @@ import lombok.experimental.Accessors;
  *
  */
 @Data
-@EqualsAndHashCode(callSuper = true)
 @Accessors(chain = true)
 @JsonNaming(PropertyNamingStrategy.SnakeCaseStrategy.class)
-public class ClientRequest extends HandleReplaceable<ClientRequest> {
+public class HandleReplaceable<T> {
+	private String handle;
 
-	private String name;
-	private String uri;
-	private String logoUri;
+	/**
+	 * @return the handle
+	 */
+	public String getHandle() {
+		return handle;
+	}
+
+	/**
+	 * @param handle the handle to set
+	 */
+	public T setHandle(String handle) {
+		this.handle = handle;
+		return (T) this;
+	}
+
 
 }

@@ -1,9 +1,13 @@
 package io.bspk.oauth.xyz.data.api;
 
+import java.net.URI;
+import java.security.cert.X509Certificate;
+
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
 import com.fasterxml.jackson.databind.PropertyNamingStrategy;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
+import com.nimbusds.jose.jwk.JWK;
 
 import lombok.Data;
 import lombok.experimental.Accessors;
@@ -15,17 +19,16 @@ import lombok.experimental.Accessors;
 @Data
 @Accessors(chain = true)
 @JsonNaming(PropertyNamingStrategy.SnakeCaseStrategy.class)
-public class UserRequest {
+public class KeyRequest extends HandleReplaceable<KeyRequest> {
 
-	private String handle;
-	private String assertion;
-	private AssertionType type;
-
-	public enum AssertionType {
-		OIDC_ID_TOKEN;
+	public enum Type {
+		JWSD,
+		MTLS,
+		DID
+		;
 
 		@JsonCreator
-		public static AssertionType fromJson(String key) {
+		public static Type fromJson(String key) {
 			return key == null ? null :
 				valueOf(key.toUpperCase());
 		}
@@ -36,5 +39,10 @@ public class UserRequest {
 		}
 
 	}
+
+	private Type type;
+	private JWK jwk;
+	private X509Certificate cert;
+	private URI did;
 
 }

@@ -62,12 +62,14 @@ public class ClientAPI {
 		String state = RandomStringUtils.randomAlphanumeric(20);
 
 		TransactionRequest request = new TransactionRequest()
-			.setClient(new ClientRequest())
+			.setClient(new ClientRequest()
+				.setName("XYZ Redirect Client")
+				.setUri("http://host.docker.internal:9834/c"))
 			.setInteract(new InteractRequest()
 				.setCallback(callbackBaseUrl + "/" + callbackId)
 				.setState(state)
 				.setType(Type.REDIRECT))
-			.setResource(new ResourceRequest())
+			.setResources(List.of(new ResourceRequest()))
 			.setUser(new UserRequest());
 
 		ResponseEntity<TransactionResponse> responseEntity = restTemplate.postForEntity(asEndpoint, request, TransactionResponse.class);
@@ -92,10 +94,12 @@ public class ClientAPI {
 		RestTemplate restTemplate = new RestTemplate();
 
 		TransactionRequest request = new TransactionRequest()
-			.setClient(new ClientRequest())
+			.setClient(new ClientRequest()
+				.setName("XYZ Device Client")
+				.setUri("http://host.docker.internal:9834/c"))
 			.setInteract(new InteractRequest()
 				.setType(Type.DEVICE))
-			.setResource(new ResourceRequest())
+			.setResources(List.of(new ResourceRequest()))
 			.setUser(new UserRequest());
 
 		ResponseEntity<TransactionResponse> responseEntity = restTemplate.postForEntity(asEndpoint, request, TransactionResponse.class);
@@ -143,8 +147,8 @@ public class ClientAPI {
 			// get the handle
 
 			TransactionRequest request = new TransactionRequest()
-				.setTransactionHandle(lastResponse.getHandles().getTransaction().getValue())
-				.setInteractionHandle(Hash.SHA3_512_encode(interact))
+				.setHandle(lastResponse.getHandles().getTransaction().getValue())
+				.setInteract(new InteractRequest().setHandle(Hash.SHA3_512_encode(interact)))
 				;
 
 			RestTemplate restTemplate = new RestTemplate();
@@ -184,7 +188,7 @@ public class ClientAPI {
 
 
 			TransactionRequest request = new TransactionRequest()
-				.setTransactionHandle(lastResponse.getHandles().getTransaction().getValue())
+				.setHandle(lastResponse.getHandles().getTransaction().getValue())
 				;
 
 			RestTemplate restTemplate = new RestTemplate();

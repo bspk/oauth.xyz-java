@@ -22,6 +22,7 @@ public class TransactionResponse {
 	private HandleSet handles;
 	private String interactionUrl;
 	private String userCode;
+	private Integer wait;
 
 	/**
 	 * @param t

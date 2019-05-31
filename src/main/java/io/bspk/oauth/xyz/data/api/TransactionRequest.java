@@ -1,5 +1,7 @@
 package io.bspk.oauth.xyz.data.api;
 
+import java.util.List;
+
 import com.fasterxml.jackson.databind.PropertyNamingStrategy;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
 
@@ -15,16 +17,12 @@ import lombok.experimental.Accessors;
 @JsonNaming(PropertyNamingStrategy.SnakeCaseStrategy.class)
 public class TransactionRequest {
 
-	private String transactionHandle;
-	private String clientHandle;
-	private String userHandle;
-	private String interactionHandle;
-	private String resourceHandle;
+	private String handle;
 
 	private InteractRequest interact;
 	private ClientRequest client;
 	private UserRequest user;
-	private ResourceRequest resource;
-
+	private List<ResourceRequest> resources;
+	private KeyRequest keys;
 
 }

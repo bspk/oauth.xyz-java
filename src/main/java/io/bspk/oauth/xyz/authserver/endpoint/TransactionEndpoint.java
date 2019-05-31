@@ -15,12 +15,16 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.util.UriComponentsBuilder;
 
+import com.google.common.base.Strings;
+
 import io.bspk.oauth.xyz.authserver.repository.TransactionRepository;
 import io.bspk.oauth.xyz.crypto.Hash;
+import io.bspk.oauth.xyz.data.Client;
 import io.bspk.oauth.xyz.data.Handle;
 import io.bspk.oauth.xyz.data.Interact;
 import io.bspk.oauth.xyz.data.Transaction;
 import io.bspk.oauth.xyz.data.Transaction.Status;
+import io.bspk.oauth.xyz.data.api.ClientRequest;
 import io.bspk.oauth.xyz.data.api.TransactionRequest;
 import io.bspk.oauth.xyz.data.api.TransactionResponse;
 
@@ -46,10 +50,10 @@ public class TransactionEndpoint {
 
 		Transaction t = null;
 
-		if (incoming.getTransactionHandle() != null) {
+		if (incoming.getHandle() != null) {
 			// load a transaction in progress
 
-			t = transactionRepository.findFirstByHandlesTransactionValue(incoming.getTransactionHandle());
+			t = transactionRepository.findFirstByHandlesTransactionValue(incoming.getHandle());
 
 			if (t == null) {
 				return ResponseEntity.notFound().build();
@@ -58,6 +62,12 @@ public class TransactionEndpoint {
 		} else {
 			// create a new one
 			t = new Transaction();
+
+			ClientRequest clientRequest = processClientRequest(incoming.getClient());
+
+			if (clientRequest != null) {
+				t.setClient(Client.of(clientRequest));
+			}
 
 			/*
 			t.setClient(null) // process client
@@ -95,7 +105,7 @@ public class TransactionEndpoint {
 
 		if (t.getInteract().getInteractHandle() != null) {
 
-			if (!incoming.getInteractionHandle().equals(Hash.SHA3_512_encode(t.getInteract().getInteractHandle()))) {
+			if (!incoming.getInteract().getHandle().equals(Hash.SHA3_512_encode(t.getInteract().getInteractHandle()))) {
 				return ResponseEntity.badRequest().build(); // bad interaction handle
 			}
 
@@ -198,6 +208,26 @@ public class TransactionEndpoint {
 
 		transactionRepository.save(t);
 		return ResponseEntity.ok(TransactionResponse.of(t));
+	}
+
+	/**
+	 * @param client
+	 * @return
+	 */
+	private ClientRequest processClientRequest(ClientRequest client) {
+
+		if (client == null) {
+			return null;
+		} else if (!Strings.isNullOrEmpty(client.getHandle())) {
+			// client passed by reference, try to look it up
+			// TODO
+			return null;
+		} else {
+			// otherwise it's an incoming client request
+			return client;
+		}
+
+
 	}
 
 }

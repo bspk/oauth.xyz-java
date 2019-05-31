@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.annotation.JsonNaming;
 
 import io.bspk.oauth.xyz.data.Interact.Type;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 import lombok.experimental.Accessors;
 
 /**
@@ -12,12 +13,14 @@ import lombok.experimental.Accessors;
  *
  */
 @Data
+@EqualsAndHashCode(callSuper = true)
 @Accessors(chain = true)
 @JsonNaming(PropertyNamingStrategy.SnakeCaseStrategy.class)
-public class InteractRequest {
+public class InteractRequest extends HandleReplaceable<InteractRequest> {
 
 	private Type type;
 	private String callback;
 	private String state;
+
 
 }
