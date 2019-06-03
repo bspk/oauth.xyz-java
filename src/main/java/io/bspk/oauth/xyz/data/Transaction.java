@@ -42,6 +42,7 @@ public class Transaction {
 	private Client client;
 	private User user;
 	private Interact interact;
+	private String interactHandle;
 	private Resource resource;
 	private @NonNull HandleSet handles = new HandleSet();
 	private Handle accessToken;

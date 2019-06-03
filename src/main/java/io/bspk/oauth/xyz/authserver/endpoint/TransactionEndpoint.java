@@ -101,11 +101,15 @@ public class TransactionEndpoint {
 			*/
 		}
 
-		// make sure the interaction handle matches
+		// make sure the interaction handle matches if we're expecting one
 
 		if (t.getInteract().getInteractHandle() != null) {
 
-			if (!incoming.getInteract().getHandle().equals(Hash.SHA3_512_encode(t.getInteract().getInteractHandle()))) {
+			if (Strings.isNullOrEmpty(incoming.getInteractHandle())) {
+				return ResponseEntity.badRequest().build(); // missing interaction handle (one is required)
+			}
+
+			if (!incoming.getInteractHandle().equals(Hash.SHA3_512_encode(t.getInteract().getInteractHandle()))) {
 				return ResponseEntity.badRequest().build(); // bad interaction handle
 			}
 

@@ -52,10 +52,11 @@ public class ClientAPI {
 	@Autowired
 	private PendingTransactionRepository pendingTransactionRepository;
 
+	@Autowired
+	private RestTemplate restTemplate;
+
 	@PostMapping(path = "/authcode", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
 	public ResponseEntity<?> startAuthorizationCodeFlow(HttpSession session) {
-
-		RestTemplate restTemplate = new RestTemplate();
 
 		String callbackId = RandomStringUtils.randomAlphanumeric(30);
 
@@ -69,7 +70,8 @@ public class ClientAPI {
 				.setCallback(callbackBaseUrl + "/" + callbackId)
 				.setState(state)
 				.setType(Type.REDIRECT))
-			.setResources(List.of(new ResourceRequest()))
+			.setResources(List.of(new ResourceRequest()
+				.setHandle("foo")))
 			.setUser(new UserRequest());
 
 		ResponseEntity<TransactionResponse> responseEntity = restTemplate.postForEntity(asEndpoint, request, TransactionResponse.class);
@@ -90,8 +92,6 @@ public class ClientAPI {
 
 	@PostMapping(path = "/device", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
 	public ResponseEntity<?> startDeviceFlow(HttpSession session) {
-
-		RestTemplate restTemplate = new RestTemplate();
 
 		TransactionRequest request = new TransactionRequest()
 			.setClient(new ClientRequest()
@@ -147,11 +147,9 @@ public class ClientAPI {
 			// get the handle
 
 			TransactionRequest request = new TransactionRequest()
-				.setHandle(lastResponse.getHandles().getTransaction().getValue())
-				.setInteract(new InteractRequest().setHandle(Hash.SHA3_512_encode(interact)))
+				.setHandle(lastResponse.getHandle().getValue())
+				.setInteractHandle(Hash.SHA3_512_encode(interact))
 				;
-
-			RestTemplate restTemplate = new RestTemplate();
 
 			ResponseEntity<TransactionResponse> responseEntity = restTemplate.postForEntity(asEndpoint, request, TransactionResponse.class);
 
@@ -188,10 +186,8 @@ public class ClientAPI {
 
 
 			TransactionRequest request = new TransactionRequest()
-				.setHandle(lastResponse.getHandles().getTransaction().getValue())
+				.setHandle(lastResponse.getHandle().getValue())
 				;
-
-			RestTemplate restTemplate = new RestTemplate();
 
 			ResponseEntity<TransactionResponse> responseEntity = restTemplate.postForEntity(asEndpoint, request, TransactionResponse.class);
 
@@ -209,5 +205,7 @@ public class ClientAPI {
 		}
 
 	}
+
+
 
 }

@@ -4,7 +4,6 @@ import com.fasterxml.jackson.databind.PropertyNamingStrategy;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
 
 import io.bspk.oauth.xyz.data.Handle;
-import io.bspk.oauth.xyz.data.HandleSet;
 import io.bspk.oauth.xyz.data.Transaction;
 import lombok.Data;
 import lombok.experimental.Accessors;
@@ -18,8 +17,13 @@ import lombok.experimental.Accessors;
 @JsonNaming(PropertyNamingStrategy.SnakeCaseStrategy.class)
 public class TransactionResponse {
 
+	private Handle handle;
+	private Handle clientHandle;
+	private Handle interactHandle;
+	private Handle resourceHandle;
+	private Handle userHandle;
+	private Handle keyHandle;
 	private Handle accessToken;
-	private HandleSet handles;
 	private String interactionUrl;
 	private String userCode;
 	private Integer wait;
@@ -33,7 +37,13 @@ public class TransactionResponse {
 			.setAccessToken(t.getAccessToken())
 			.setInteractionUrl(t.getInteract().getUrl())
 			.setUserCode(t.getInteract().getUserCode())
-			.setHandles(t.getHandles());
+			.setHandle(t.getHandles().getTransaction())
+			.setClientHandle(t.getHandles().getClient())
+			.setInteractHandle(t.getHandles().getInteract())
+			.setResourceHandle(t.getHandles().getResource())
+			.setUserHandle(t.getHandles().getUser())
+			.setKeyHandle(t.getHandles().getKey());
+
 	}
 
 }

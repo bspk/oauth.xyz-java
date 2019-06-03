@@ -21,7 +21,8 @@ import lombok.experimental.Accessors;
 public class Handle {
 
 	public enum Presentation {
-		BEARER;
+		BEARER,
+		SHA3;
 
 		@JsonCreator
 		public static Presentation fromJson(String key) {
@@ -53,6 +54,11 @@ public class Handle {
 	public static Handle create() {
 		return new Handle().setValue(RandomStringUtils.randomAlphanumeric(64))
 			.setPresentation(Presentation.BEARER);
+	}
+
+	public static Handle createSha3() {
+		return new Handle().setValue(RandomStringUtils.randomAlphanumeric(64))
+			.setPresentation(Presentation.SHA3);
 	}
 
 	/**

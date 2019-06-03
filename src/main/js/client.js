@@ -141,7 +141,7 @@ class PendingTransactionEntry extends React.Component {
 					<dt className="col-sm-3">Token</dt>
 					<dd className="col-sm-9"><AccessToken token={this.props.entry.response.access_token} /></dd>
 					<dt className="col-sm-3">Transaction Handle</dt>
-					<dd className="col-sm-9">{this.props.entry.response.handles.transaction.value}</dd>
+					<dd className="col-sm-9">{this.props.entry.response.handle.value}</dd>
 					<dt className="col-sm-3">Interaction</dt>
 					<dd className="col-sm-9"><a href={this.props.entry.response.interaction_url}>{this.props.entry.response.interaction_url}</a></dd>
 					<dt className="col-sm-3">User Code</dt>

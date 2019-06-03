@@ -106,9 +106,9 @@ class TransactionStatus extends React.Component {
 			case 'waiting':
 				return (<Badge color="dark">{this.props.status}</Badge>);
 			case 'denied':
-				return (<Badge color="error">{this.props.status}</Badge>);
+				return (<Badge color="danger">{this.props.status}</Badge>);
 			default:
-				return (<Badge color="primary">UNKNOWN</Badge>);
+				return (<Badge color="primary">UNKNOWN : {this.props.status}</Badge>);
 		}
 	}
 }

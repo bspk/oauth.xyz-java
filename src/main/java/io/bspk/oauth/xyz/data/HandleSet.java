@@ -14,5 +14,6 @@ public class HandleSet {
 	private Handle user;
 	private Handle resource;
 	private Handle interact;
+	private Handle key;
 
 }

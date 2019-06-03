@@ -17,9 +17,9 @@ import io.bspk.oauth.xyz.data.api.HandleReplaceable;
  * @author jricher
  *
  */
-public class HandleDeserializer<T extends HandleReplaceable> extends DelegatingDeserializer {
+public class HandleAwareDeserializer<T extends HandleReplaceable> extends DelegatingDeserializer {
 
-	public HandleDeserializer(JsonDeserializer<?> defaultDeserializer) {
+	public HandleAwareDeserializer(JsonDeserializer<?> defaultDeserializer) {
 		super(defaultDeserializer);
 	}
 
@@ -52,7 +52,7 @@ public class HandleDeserializer<T extends HandleReplaceable> extends DelegatingD
 	 */
 	@Override
 	protected JsonDeserializer<?> newDelegatingInstance(JsonDeserializer<?> newDelegatee) {
-		return new HandleDeserializer<>(newDelegatee);
+		return new HandleAwareDeserializer<>(newDelegatee);
 
 	}
 
