@@ -13,19 +13,15 @@ class Client extends React.Component {
 		this.state = {
 			transactions: []
 		};
-		
-		this.loadPending = this.loadPending.bind(this);
-		this.newTransaction = this.newTransaction.bind(this);
-		this.newDevice = this.newDevice.bind(this);
 	}
 	
-	componentDidMount() {
+	componentDidMount = () => {
 		document.title = "XYZ Client";
 		
 		this.loadPending();
 	}
 	
-	newTransaction(e) {
+	newTransaction = (e) => {
 		http({
 			method: 'POST',
 			path: '/api/client/authcode'
@@ -34,7 +30,7 @@ class Client extends React.Component {
 		});
 	}
 	
-	newDevice(e) {
+	newDevice = (e) => {
 		http({
 			method: 'POST',
 			path: '/api/client/device'
@@ -43,7 +39,7 @@ class Client extends React.Component {
 		});
 	}
 	
-	loadPending() {
+	loadPending = () => {
 		
 		http({
 			method: 'GET',
@@ -78,14 +74,12 @@ class PendingTransaction extends React.Component{
 	constructor(props) {
 		super(props);
 		
-		this.poll = this.poll.bind(this);
-		
 		this.state = {
 			transaction: props.transaction
 		};
 	}
 	
-	poll() {
+	poll = () => {
 		http({
 			method: 'POST',
 			path: '/api/client/poll/' + encodeURIComponent(this.state.transaction.id)

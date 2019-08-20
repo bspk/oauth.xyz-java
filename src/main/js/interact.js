@@ -11,12 +11,6 @@ class Interact extends React.Component {
 	constructor(props) {
 		super(props);
 
-		this.submit = this.submit.bind(this);
-		this.loadPending = this.loadPending.bind(this);
-		this.approve = this.approve.bind(this);
-		this.deny = this.deny.bind(this);
-		this.postApproval = this.postApproval.bind(this);
-
 		this.state = {
 				redirectTo: null,
 				pending: null,
@@ -25,7 +19,7 @@ class Interact extends React.Component {
 
 	}
 
-	submit() {
+	submit = () => {
 
 		var userCode = $('#userCode').val();
 
@@ -54,7 +48,7 @@ class Interact extends React.Component {
 		this.loadPending();
 	}
 
-	loadPending() {
+	loadPending = () => {
 		return http({
 			method: 'GET',
 			path: '/api/as/interact/pending'
@@ -76,13 +70,13 @@ class Interact extends React.Component {
 		);
 	}
 
-	approve() {
+	approve = () => {
 		var data = {approved: true};
 
 		this.postApproval(data);
 	}
 
-	postApproval(data) {
+	postApproval = (data) => {
 
 		var _self = this;
 
@@ -113,7 +107,7 @@ class Interact extends React.Component {
 		});
 	}
 
-	deny() {
+	deny = () => {
 		var data = {approved: false};
 
 		this.postApproval(data);
