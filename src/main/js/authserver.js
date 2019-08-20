@@ -40,22 +40,6 @@ class AuthServer extends React.Component {
 
 }
 
-class LoggingButton extends React.Component {
-	// This syntax ensures `this` is bound within handleClick.
-	// Warning: this is *experimental* syntax.
-	handleClick(e) {
-		console.log('this is:', this);
-	}
-
-	render() {
-		return (
-			<Button color="danger" onClick={(e) => this.handleClick(e)}>
-				Click me
-			</Button>
-		);
-	}
-}
-
 class TransactionList extends React.Component{
 	render() {
 		const transactions = this.props.transactions.map(
@@ -81,13 +65,16 @@ class Transaction extends React.Component{
 					<dd className="col-sm-9"><TransactionStatus status={this.props.transaction.status} /></dd>
 					<dt className="col-sm-3">Transaction Handle</dt>
 					<dd className="col-sm-9">{this.props.transaction.handles.transaction.value}</dd>
-					{this.props.transaction.interact && this.props.transaction.interact.url &&
-					<React.Fragment>
-						<dt className="col-sm-3">Interaction</dt>
+					{this.props.transaction.interact &&
+					<>
+						<dt className="col-sm-3">Interaction URL</dt>
 						<dd className="col-sm-9"><a href={this.props.transaction.interact.url}>{this.props.transaction.interact.url}</a></dd>
-					</React.Fragment>
+						<dt className="col-sm-3">User Code</dt>
+						<dd className="col-sm-9">{this.props.transaction.interact.user_code}</dd>
+						<dt className="col-sm-3">User Code URL</dt>
+						<dd className="col-sm-9"><a href={this.props.transaction.interact.user_code_url}>{this.props.transaction.interact.user_code_url}</a></dd>
+					</>
 					}
-					<dt className="col-sm-3">Interact</dt>
 				</dl>
 			</Card>
 		);

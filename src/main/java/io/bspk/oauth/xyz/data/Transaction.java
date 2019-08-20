@@ -4,6 +4,8 @@ import org.springframework.data.annotation.Id;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
+import com.fasterxml.jackson.databind.PropertyNamingStrategy;
+import com.fasterxml.jackson.databind.annotation.JsonNaming;
 
 import lombok.Data;
 import lombok.NonNull;
@@ -15,6 +17,7 @@ import lombok.experimental.Accessors;
  */
 @Data
 @Accessors(chain = true)
+@JsonNaming(PropertyNamingStrategy.SnakeCaseStrategy.class)
 public class Transaction {
 
 	public enum Status {

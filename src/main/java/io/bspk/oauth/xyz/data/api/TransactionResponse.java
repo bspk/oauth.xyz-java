@@ -25,6 +25,7 @@ public class TransactionResponse {
 	private Handle keyHandle;
 	private Handle accessToken;
 	private String interactionUrl;
+	private String userCodeUrl;
 	private String userCode;
 	private Integer wait;
 
@@ -36,6 +37,7 @@ public class TransactionResponse {
 		return new TransactionResponse()
 			.setAccessToken(t.getAccessToken())
 			.setInteractionUrl(t.getInteract().getUrl())
+			.setUserCodeUrl(t.getInteract().getUserCodeUrl())
 			.setUserCode(t.getInteract().getUserCode())
 			.setHandle(t.getHandles().getTransaction())
 			.setClientHandle(t.getHandles().getClient())

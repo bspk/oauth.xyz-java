@@ -115,6 +115,7 @@ public class TransactionEndpoint {
 
 		}
 
+		// rotate the transaction's own handle every time it's used (this creates one on the first time through)
 		t.getHandles().setTransaction(Handle.create());
 
 		switch (t.getStatus()) {
@@ -187,7 +188,7 @@ public class TransactionEndpoint {
 								.build().toUriString();
 
 
-							t.getInteract().setUrl(deviceInteractionEndpoint);
+							t.getInteract().setUserCodeUrl(deviceInteractionEndpoint);
 
 							t.setStatus(Status.WAITING);
 
@@ -207,8 +208,6 @@ public class TransactionEndpoint {
 				// this should never happen
 				return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
 		}
-
-		// rotate the transaction's own handle every time it's used (this creates one on the first time through
 
 		transactionRepository.save(t);
 		return ResponseEntity.ok(TransactionResponse.of(t));

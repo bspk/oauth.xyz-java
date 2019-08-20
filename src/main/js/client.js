@@ -5,6 +5,7 @@ import ReactDOM from 'react-dom';
 import http from './http';
 import { Button, Badge, Row, Col, Container, Card, CardImg, CardText, CardBody, CardTitle, CardSubtitle, CardHeader, Input } from 'reactstrap';
 import { BrowserRouter, Switch, Route } from 'react-router-dom';
+import { QRCode } from 'qrcode.react';
 
 class Client extends React.Component {
 	constructor(props) {
@@ -91,6 +92,8 @@ class PendingTransaction extends React.Component{
 	}
 
 	render() {
+		const controls = [];
+		
 		return (
 			<Card outline color="primary">
 				<CardHeader>
@@ -114,9 +117,9 @@ class PendingTransactionEntryList extends React.Component{
 		).reverse();
 		
 		return (
-			<React.Fragment>
+			<>
 				{entries}
-			</React.Fragment>
+			</>
 		);
 		
 	}
@@ -128,18 +131,59 @@ class PendingTransactionEntry extends React.Component {
 		if (!this.props.last) {
 			return null;
 		}
+
+		const elements = [];
+		
+		if (this.props.entry.response.access_token) {
+			elements.push(
+				...[
+					<dt className="col-sm-3">Token</dt>,
+					<dd className="col-sm-9"><AccessToken token={this.props.entry.response.access_token} /></dd>
+				]
+			);
+		}
+		
+		if (this.props.entry.response.handle) {
+			elements.push(
+				...[
+					<dt className="col-sm-3">Transaction Handle</dt>,
+					<dd className="col-sm-9">{this.props.entry.response.handle.value}</dd>
+				]
+			);
+		}
+		
+		if (this.props.entry.response.user_code) {
+			elements.push(
+				...[
+					<dt className="col-sm-3">User Code URL</dt>,
+					<dd className="col-sm-9"><a href={this.props.entry.response.user_code_url}>{this.props.entry.response.user_code_url}</a></dd>,
+					<dt className="col-sm-3">User Code</dt>,
+					<dd className="col-sm-9"><UserCode userCode={this.props.entry.response.user_code} /></dd>
+				]
+			);
+		}
+		if (this.props.entry.response.interaction_url) {
+			elements.push(
+				...[
+					<dt className="col-sm-3">Interaction URL</dt>,
+					<dd className="col-sm-9"><a href={this.props.entry.response.interaction_url}>{this.props.entry.response.interaction_url}</a></dd>
+				]
+			);
+		}
+		
+		if (this.props.entry.response.user_code && this.props.entry.response.interaction_url) {
+			elements.push(
+				...[
+					<dt className="col-sm-3">Interaction URL</dt>,
+					<dd className="col-sm-9"><QRCode value={this.props.entry.response.interaction_url} /></dd>
+				]
+			);
+		}
 		
 		return (
 			<Card body className={this.props.last ? null : "bg-light text-muted"}>
 				<dl className="row">
-					<dt className="col-sm-3">Token</dt>
-					<dd className="col-sm-9"><AccessToken token={this.props.entry.response.access_token} /></dd>
-					<dt className="col-sm-3">Transaction Handle</dt>
-					<dd className="col-sm-9">{this.props.entry.response.handle.value}</dd>
-					<dt className="col-sm-3">Interaction</dt>
-					<dd className="col-sm-9"><a href={this.props.entry.response.interaction_url}>{this.props.entry.response.interaction_url}</a></dd>
-					<dt className="col-sm-3">User Code</dt>
-					<dd className="col-sm-9"><UserCode userCode={this.props.entry.response.user_code} /></dd>
+					{elements}
 				</dl>
 			</Card>
 		);		

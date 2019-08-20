@@ -8,6 +8,8 @@ import org.apache.commons.lang3.RandomStringUtils;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonValue;
+import com.fasterxml.jackson.databind.PropertyNamingStrategy;
+import com.fasterxml.jackson.databind.annotation.JsonNaming;
 
 import lombok.Data;
 import lombok.experimental.Accessors;
@@ -18,6 +20,7 @@ import lombok.experimental.Accessors;
  */
 @Data
 @Accessors(chain = true)
+@JsonNaming(PropertyNamingStrategy.SnakeCaseStrategy.class)
 public class Handle {
 
 	public enum Presentation {
