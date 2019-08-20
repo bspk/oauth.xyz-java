@@ -60,7 +60,7 @@ public class ClientAPI {
 
 		String callbackId = RandomStringUtils.randomAlphanumeric(30);
 
-		String state = RandomStringUtils.randomAlphanumeric(20);
+		String nonce = RandomStringUtils.randomAlphanumeric(20);
 
 		TransactionRequest request = new TransactionRequest()
 			.setClient(new ClientRequest()
@@ -68,7 +68,7 @@ public class ClientAPI {
 				.setUri("http://host.docker.internal:9834/c"))
 			.setInteract(new InteractRequest()
 				.setCallback(callbackBaseUrl + "/" + callbackId)
-				.setState(state)
+				.setNonce(nonce)
 				.setType(Type.REDIRECT))
 			.setResources(List.of(new ResourceRequest()
 				.setHandle("foo")))
@@ -81,7 +81,8 @@ public class ClientAPI {
 		PendingTransaction pending = new PendingTransaction()
 			.add(request, response)
 			.setCallbackId(callbackId)
-			.setState(state)
+			.setClientNonce(nonce)
+			.setServerNonce(response.getServerNonce())
 			.setOwner(session.getId());
 
 		pendingTransactionRepository.save(pending);
@@ -122,7 +123,7 @@ public class ClientAPI {
 	}
 
 	@GetMapping(path = "/callback/{id}")
-	public ResponseEntity<?> callbackEndpoint(@PathVariable("id") String callbackId, @RequestParam("state") String stateHash, @RequestParam("interact") String interact, HttpSession session) {
+	public ResponseEntity<?> callbackEndpoint(@PathVariable("id") String callbackId, @RequestParam("hash") String interactHash, @RequestParam("interact") String interact, HttpSession session) {
 
 		List<PendingTransaction> transactions = pendingTransactionRepository.findByCallbackIdAndOwner(callbackId, session.getId());
 
@@ -130,10 +131,11 @@ public class ClientAPI {
 
 			PendingTransaction pending = transactions.get(0);
 
-			// check the state
-			String expectedStateHash = Hash.SHA3_512_encode(pending.getState());
+			// check the incoming hash
 
-			if (!expectedStateHash.equals(stateHash)) {
+			String expectedHash = Hash.CalculateInteractHash(pending.getClientNonce(), pending.getServerNonce(), interact);
+
+			if (!expectedHash.equals(interactHash)) {
 				return ResponseEntity.badRequest().build(); // TODO: redirect this someplace useful?
 			}
 
@@ -168,7 +170,6 @@ public class ClientAPI {
 		}
 
 	}
-
 
 	@PostMapping("/poll/{id}")
 	public ResponseEntity<?> poll(@PathVariable("id") String id, HttpSession session) {

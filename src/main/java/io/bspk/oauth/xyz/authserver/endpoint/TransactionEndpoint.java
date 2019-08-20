@@ -166,13 +166,15 @@ public class TransactionEndpoint {
 						case REDIRECT:
 
 							String interactId = RandomStringUtils.randomAlphanumeric(10);
+							String serverNonce = RandomStringUtils.randomAlphanumeric(20);
 
 							String interactionEndpoint = UriComponentsBuilder.fromHttpUrl(baseUrl)
 								.path("/interact/" + interactId) // this is unique per transaction
 								.build().toUriString();
 
-							t.getInteract().setUrl(interactionEndpoint);
-							t.getInteract().setInteractId(interactId);
+							t.getInteract().setUrl(interactionEndpoint)
+								.setInteractId(interactId)
+								.setServerNonce(serverNonce);
 
 							t.setStatus(Status.WAITING);
 

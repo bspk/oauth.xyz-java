@@ -5,6 +5,8 @@ import java.util.Base64;
 
 import org.bouncycastle.jcajce.provider.digest.SHA3;
 
+import com.google.common.base.Joiner;
+
 /**
  * @author jricher
  *
@@ -21,4 +23,13 @@ public abstract class Hash {
 		return new String(encoded);
 
 	}
+
+	public static String CalculateInteractHash(String clientNonce, String serverNonce, String interact) {
+		return Hash.SHA3_512_encode(
+			Joiner.on('\n')
+			.join(clientNonce,
+				serverNonce,
+				interact));
+	}
+
 }

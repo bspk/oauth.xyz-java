@@ -39,7 +39,8 @@ public class Interact {
 	private String url;
 	private String interactId;
 	private String callback;
-	private String state;
+	private String clientNonce;
+	private String serverNonce;
 	private String interactHandle;
 	private String userCode;
 	private String userCodeUrl;
@@ -52,7 +53,7 @@ public class Interact {
 		return new Interact()
 			.setCallback(interact.getCallback())
 			.setType(interact.getType())
-			.setState(interact.getState());
+			.setClientNonce(interact.getNonce());
 	}
 
 }

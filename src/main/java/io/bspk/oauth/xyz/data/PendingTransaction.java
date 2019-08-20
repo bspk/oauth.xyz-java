@@ -36,7 +36,8 @@ public class PendingTransaction {
 	private List<Entry> entries = new ArrayList<>();
 	private String owner;
 	private String callbackId;
-	private String state;
+	private String clientNonce;
+	private String serverNonce;
 
 	public PendingTransaction add (TransactionRequest request, TransactionResponse response) {
 		entries.add(new Entry().setRequest(request).setResponse(response));

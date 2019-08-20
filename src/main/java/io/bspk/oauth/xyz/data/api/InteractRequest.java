@@ -20,7 +20,7 @@ public class InteractRequest extends HandleReplaceable<InteractRequest> {
 
 	private Type type;
 	private String callback;
-	private String state;
+	private String nonce;
 
 
 }

@@ -97,11 +97,16 @@ public class InteractionEndpoint {
 					String interactHandle = RandomStringUtils.randomAlphanumeric(30);
 					transaction.getInteract().setInteractHandle(interactHandle);
 
-					String state = transaction.getInteract().getState();
+					String clientNonce = transaction.getInteract().getClientNonce();
+					String serverNonce = transaction.getInteract().getServerNonce();
+
+					String hash = Hash.CalculateInteractHash(clientNonce,
+							serverNonce,
+							interactHandle);
 
 					String callback = transaction.getInteract().getCallback();
 					URI callbackUri = UriComponentsBuilder.fromUriString(callback)
-						.queryParam("state", Hash.SHA3_512_encode(state))
+						.queryParam("hash", hash)
 						.queryParam("interact", interactHandle)
 						.build().toUri();
 

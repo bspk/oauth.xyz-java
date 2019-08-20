@@ -28,6 +28,7 @@ public class TransactionResponse {
 	private String userCodeUrl;
 	private String userCode;
 	private Integer wait;
+	private String serverNonce;
 
 	/**
 	 * @param t
@@ -39,6 +40,7 @@ public class TransactionResponse {
 			.setInteractionUrl(t.getInteract().getUrl())
 			.setUserCodeUrl(t.getInteract().getUserCodeUrl())
 			.setUserCode(t.getInteract().getUserCode())
+			.setServerNonce(t.getInteract().getServerNonce())
 			.setHandle(t.getHandles().getTransaction())
 			.setClientHandle(t.getHandles().getClient())
 			.setInteractHandle(t.getHandles().getInteract())
