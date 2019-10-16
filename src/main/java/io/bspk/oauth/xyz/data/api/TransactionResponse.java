@@ -18,7 +18,7 @@ import lombok.experimental.Accessors;
 public class TransactionResponse {
 
 	private Handle handle;
-	private Handle clientHandle;
+	private Handle displayHandle;
 	private Handle interactHandle;
 	private Handle resourceHandle;
 	private Handle userHandle;
@@ -42,7 +42,7 @@ public class TransactionResponse {
 			.setUserCode(t.getInteract().getUserCode())
 			.setServerNonce(t.getInteract().getServerNonce())
 			.setHandle(t.getHandles().getTransaction())
-			.setClientHandle(t.getHandles().getClient())
+			.setDisplayHandle(t.getHandles().getClient())
 			.setInteractHandle(t.getHandles().getInteract())
 			.setResourceHandle(t.getHandles().getResource())
 			.setUserHandle(t.getHandles().getUser())

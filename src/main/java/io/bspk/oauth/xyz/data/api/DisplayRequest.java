@@ -15,7 +15,7 @@ import lombok.experimental.Accessors;
 @EqualsAndHashCode(callSuper = true)
 @Accessors(chain = true)
 @JsonNaming(PropertyNamingStrategy.SnakeCaseStrategy.class)
-public class ClientRequest extends HandleReplaceable<ClientRequest> {
+public class DisplayRequest extends HandleReplaceable<DisplayRequest> {
 
 	private String name;
 	private String uri;

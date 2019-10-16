@@ -42,7 +42,7 @@ public class Transaction {
 	}
 
 	private @Id String id;
-	private Client client;
+	private Display display;
 	private User user;
 	private Interact interact;
 	private String interactHandle;

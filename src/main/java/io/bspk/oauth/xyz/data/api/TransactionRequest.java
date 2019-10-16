@@ -20,7 +20,7 @@ public class TransactionRequest {
 	private String handle;
 
 	private InteractRequest interact;
-	private ClientRequest client;
+	private DisplayRequest display;
 	private UserRequest user;
 	private List<ResourceRequest> resources;
 	private KeyRequest keys;

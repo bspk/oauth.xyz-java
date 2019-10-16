@@ -19,12 +19,12 @@ import com.google.common.base.Strings;
 
 import io.bspk.oauth.xyz.authserver.repository.TransactionRepository;
 import io.bspk.oauth.xyz.crypto.Hash;
-import io.bspk.oauth.xyz.data.Client;
+import io.bspk.oauth.xyz.data.Display;
 import io.bspk.oauth.xyz.data.Handle;
 import io.bspk.oauth.xyz.data.Interact;
 import io.bspk.oauth.xyz.data.Transaction;
 import io.bspk.oauth.xyz.data.Transaction.Status;
-import io.bspk.oauth.xyz.data.api.ClientRequest;
+import io.bspk.oauth.xyz.data.api.DisplayRequest;
 import io.bspk.oauth.xyz.data.api.TransactionRequest;
 import io.bspk.oauth.xyz.data.api.TransactionResponse;
 
@@ -63,10 +63,10 @@ public class TransactionEndpoint {
 			// create a new one
 			t = new Transaction();
 
-			ClientRequest clientRequest = processClientRequest(incoming.getClient());
+			DisplayRequest displayRequest = processClientRequest(incoming.getDisplay());
 
-			if (clientRequest != null) {
-				t.setClient(Client.of(clientRequest));
+			if (displayRequest != null) {
+				t.setDisplay(Display.of(displayRequest));
 			}
 
 			/*
@@ -219,7 +219,7 @@ public class TransactionEndpoint {
 	 * @param client
 	 * @return
 	 */
-	private ClientRequest processClientRequest(ClientRequest client) {
+	private DisplayRequest processClientRequest(DisplayRequest client) {
 
 		if (client == null) {
 			return null;

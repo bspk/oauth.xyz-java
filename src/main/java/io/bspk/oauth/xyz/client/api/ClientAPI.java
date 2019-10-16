@@ -25,7 +25,7 @@ import io.bspk.oauth.xyz.crypto.Hash;
 import io.bspk.oauth.xyz.data.Interact.Type;
 import io.bspk.oauth.xyz.data.PendingTransaction;
 import io.bspk.oauth.xyz.data.PendingTransaction.Entry;
-import io.bspk.oauth.xyz.data.api.ClientRequest;
+import io.bspk.oauth.xyz.data.api.DisplayRequest;
 import io.bspk.oauth.xyz.data.api.InteractRequest;
 import io.bspk.oauth.xyz.data.api.ResourceRequest;
 import io.bspk.oauth.xyz.data.api.TransactionRequest;
@@ -63,8 +63,8 @@ public class ClientAPI {
 		String nonce = RandomStringUtils.randomAlphanumeric(20);
 
 		TransactionRequest request = new TransactionRequest()
-			.setClient(new ClientRequest()
-				.setName("XYZ Redirect Client")
+			.setDisplay(new DisplayRequest()
+				.setName("XYZ Redirect Display")
 				.setUri("http://host.docker.internal:9834/c"))
 			.setInteract(new InteractRequest()
 				.setCallback(callbackBaseUrl + "/" + callbackId)
@@ -95,8 +95,8 @@ public class ClientAPI {
 	public ResponseEntity<?> startDeviceFlow(HttpSession session) {
 
 		TransactionRequest request = new TransactionRequest()
-			.setClient(new ClientRequest()
-				.setName("XYZ Device Client")
+			.setDisplay(new DisplayRequest()
+				.setName("XYZ Device Display")
 				.setUri("http://host.docker.internal:9834/c"))
 			.setInteract(new InteractRequest()
 				.setType(Type.DEVICE))
