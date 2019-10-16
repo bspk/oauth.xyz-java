@@ -10,6 +10,7 @@ import com.fasterxml.jackson.databind.annotation.JsonNaming;
 import com.nimbusds.jose.jwk.JWK;
 
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 import lombok.experimental.Accessors;
 
 /**
@@ -17,18 +18,19 @@ import lombok.experimental.Accessors;
  *
  */
 @Data
+@EqualsAndHashCode(callSuper = true)
 @Accessors(chain = true)
 @JsonNaming(PropertyNamingStrategy.SnakeCaseStrategy.class)
 public class KeyRequest extends HandleReplaceable<KeyRequest> {
 
-	public enum Type {
+	public enum Proof {
 		JWSD,
 		MTLS,
 		DID
 		;
 
 		@JsonCreator
-		public static Type fromJson(String key) {
+		public static Proof fromJson(String key) {
 			return key == null ? null :
 				valueOf(key.toUpperCase());
 		}
@@ -40,7 +42,7 @@ public class KeyRequest extends HandleReplaceable<KeyRequest> {
 
 	}
 
-	private Type type;
+	private Proof proof;
 	private JWK jwk;
 	private X509Certificate cert;
 	private URI did;

@@ -1,8 +1,11 @@
 package io.bspk.oauth.xyz.data.api;
 
+import java.util.List;
+
 import com.fasterxml.jackson.databind.PropertyNamingStrategy;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
 
+import io.bspk.oauth.xyz.data.Capability;
 import io.bspk.oauth.xyz.data.Handle;
 import io.bspk.oauth.xyz.data.Transaction;
 import lombok.Data;
@@ -29,6 +32,7 @@ public class TransactionResponse {
 	private String userCode;
 	private Integer wait;
 	private String serverNonce;
+	private List<Capability> capabilities;
 
 	/**
 	 * @param t

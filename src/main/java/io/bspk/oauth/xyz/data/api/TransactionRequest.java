@@ -5,6 +5,7 @@ import java.util.List;
 import com.fasterxml.jackson.databind.PropertyNamingStrategy;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
 
+import io.bspk.oauth.xyz.data.Capability;
 import lombok.Data;
 import lombok.experimental.Accessors;
 
@@ -25,5 +26,6 @@ public class TransactionRequest {
 	private List<ResourceRequest> resources;
 	private KeyRequest keys;
 	private String interactHandle;
+	private List<Capability> capabilities;
 
 }
