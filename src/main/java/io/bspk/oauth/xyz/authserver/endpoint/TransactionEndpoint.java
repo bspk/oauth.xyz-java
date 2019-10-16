@@ -123,6 +123,9 @@ public class TransactionEndpoint {
 
 				// it's been authorized so we can issue a token now
 
+				// invalidate any pending interaction stuff
+				t.setInteract(new Interact());
+
 				t.setStatus(Status.ISSUED);
 
 				t.setAccessToken(Handle.create(Duration.ofHours(1)));
@@ -161,46 +164,45 @@ public class TransactionEndpoint {
 
 				// FIXME: right now assume that we need a user
 
-				if (t.getInteract() != null && t.getInteract().getType() != null) {
-					switch (t.getInteract().getType()) {
-						case REDIRECT:
+				if (t.getInteract() != null) {
 
-							String interactId = RandomStringUtils.randomAlphanumeric(10);
-							String serverNonce = RandomStringUtils.randomAlphanumeric(20);
+					if (t.getInteract().isCanRedirect()) {
 
-							String interactionEndpoint = UriComponentsBuilder.fromHttpUrl(baseUrl)
-								.path("/interact/" + interactId) // this is unique per transaction
-								.build().toUriString();
+						String interactId = RandomStringUtils.randomAlphanumeric(10);
 
-							t.getInteract().setUrl(interactionEndpoint)
-								.setInteractId(interactId)
-								.setServerNonce(serverNonce);
+						String interactionEndpoint = UriComponentsBuilder.fromHttpUrl(baseUrl)
+							.path("/interact/" + interactId) // this is unique per transaction
+							.build().toUriString();
 
-							t.setStatus(Status.WAITING);
+						t.getInteract().setInteractionUrl(interactionEndpoint)
+							.setInteractId(interactId);
 
-							break;
-						case DEVICE:
-
-							String userCode = RandomStringUtils.random(8, USER_CODE_CHARS);
-
-							t.getInteract().setUserCode(userCode);
-
-							String deviceInteractionEndpoint = UriComponentsBuilder.fromHttpUrl(baseUrl)
-								.path("/interact/device") // this is the same every time
-								.build().toUriString();
-
-
-							t.getInteract().setUserCodeUrl(deviceInteractionEndpoint);
-
-							t.setStatus(Status.WAITING);
-
-							break;
-						default:
-
-							// this isn't an interaction we can handle
-
-							return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+						t.setStatus(Status.WAITING);
 					}
+
+					if (t.getInteract().getCallback() != null) {
+
+						String serverNonce = RandomStringUtils.randomAlphanumeric(20);
+
+						t.getInteract().setServerNonce(serverNonce);
+
+					}
+
+					if (t.getInteract().isCanUserCode()) {
+						String userCode = RandomStringUtils.random(8, USER_CODE_CHARS);
+
+						t.getInteract().setUserCode(userCode);
+
+						String deviceInteractionEndpoint = UriComponentsBuilder.fromHttpUrl(baseUrl)
+							.path("/interact/device") // this is the same every time
+							.build().toUriString();
+
+
+						t.getInteract().setUserCodeUrl(deviceInteractionEndpoint);
+
+						t.setStatus(Status.WAITING);
+					}
+
 				}
 
 				break;

@@ -159,7 +159,7 @@ class ApprovalForm extends React.Component {
 				<Card>
 
 				<CardBody>
-				<ClientInfo client={this.props.pending.transaction.client} />
+				<ClientInfo display={this.props.pending.transaction.display} />
 
 				</CardBody>
 				<CardFooter>
@@ -175,11 +175,11 @@ class ApprovalForm extends React.Component {
 class ClientInfo extends React.Component {
 	render() {
 
-		if (this.props.client) {
+		if (this.props.display) {
 			return (
 					<div>
-					<h2>{this.props.client.name || "Client"}</h2>
-					<span>{this.props.client.url}</span>
+					<h2>{this.props.display.name || "Client"}</h2>
+					<span>{this.props.display.uri}</span>
 					</div>
 			);
 		} else {

@@ -74,7 +74,7 @@ public class InteractionEndpoint {
 
 			// burn this interaction
 			transaction.getInteract().setInteractId(null);
-			transaction.getInteract().setUrl(null);
+			transaction.getInteract().setInteractionUrl(null);
 
 			if (approve.isApproved()) {
 				transaction.setStatus(Status.AUTHORIZED);
@@ -88,33 +88,29 @@ public class InteractionEndpoint {
 
 			ApprovalResponse res = new ApprovalResponse();
 
-			switch (transaction.getInteract().getType()) {
-				case DEVICE:
-					res.setApproved(true);
-					break;
-				case REDIRECT:
-					// set up an interaction handle
-					String interactHandle = RandomStringUtils.randomAlphanumeric(30);
-					transaction.getInteract().setInteractHandle(interactHandle);
+			if (transaction.getInteract().getCallback() != null) {
+				// set up an interaction handle
+				String interactHandle = RandomStringUtils.randomAlphanumeric(30);
+				transaction.getInteract().setInteractHandle(interactHandle);
 
-					String clientNonce = transaction.getInteract().getClientNonce();
-					String serverNonce = transaction.getInteract().getServerNonce();
+				String clientNonce = transaction.getInteract().getCallback().getNonce();
+				String serverNonce = transaction.getInteract().getServerNonce();
 
-					String hash = Hash.CalculateInteractHash(clientNonce,
-							serverNonce,
-							interactHandle);
+				String hash = Hash.CalculateInteractHash(clientNonce,
+						serverNonce,
+						interactHandle);
 
-					String callback = transaction.getInteract().getCallback();
-					URI callbackUri = UriComponentsBuilder.fromUriString(callback)
-						.queryParam("hash", hash)
-						.queryParam("interact", interactHandle)
-						.build().toUri();
 
-					res.setUri(callbackUri);
-					break;
-				default:
-					res.setApproved(false);
-					break;
+				String callback = transaction.getInteract().getCallback().getUri();
+				URI callbackUri = UriComponentsBuilder.fromUriString(callback)
+					.queryParam("hash", hash)
+					.queryParam("interact", interactHandle)
+					.build().toUri();
+
+				res.setUri(callbackUri);
+			} else {
+				// no callback, just set it to approved
+				res.setApproved(true);
 			}
 
 			transactionRepository.save(transaction);
@@ -170,7 +166,7 @@ public class InteractionEndpoint {
 
 
 			transaction.getInteract().setUserCode(null); // burn the user code
-			transaction.getInteract().setUrl(null);
+			transaction.getInteract().setInteractionUrl(null);
 
 			/*
 			transaction.setStatus(Status.AUTHORIZED);

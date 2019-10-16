@@ -22,7 +22,6 @@ import org.springframework.web.util.UriComponentsBuilder;
 
 import io.bspk.oauth.xyz.client.repository.PendingTransactionRepository;
 import io.bspk.oauth.xyz.crypto.Hash;
-import io.bspk.oauth.xyz.data.Interact.Type;
 import io.bspk.oauth.xyz.data.PendingTransaction;
 import io.bspk.oauth.xyz.data.PendingTransaction.Entry;
 import io.bspk.oauth.xyz.data.api.DisplayRequest;
@@ -64,12 +63,13 @@ public class ClientAPI {
 
 		TransactionRequest request = new TransactionRequest()
 			.setDisplay(new DisplayRequest()
-				.setName("XYZ Redirect Display")
+				.setName("XYZ Redirect Client")
 				.setUri("http://host.docker.internal:9834/c"))
 			.setInteract(new InteractRequest()
-				.setCallback(callbackBaseUrl + "/" + callbackId)
-				.setNonce(nonce)
-				.setType(Type.REDIRECT))
+				.setCallback(new InteractRequest.Callback()
+					.setUri(callbackBaseUrl + "/" + callbackId)
+					.setNonce(nonce))
+				.setRedirect(true))
 			.setResources(List.of(new ResourceRequest()
 				.setHandle("foo")))
 			.setUser(new UserRequest());
@@ -96,10 +96,36 @@ public class ClientAPI {
 
 		TransactionRequest request = new TransactionRequest()
 			.setDisplay(new DisplayRequest()
-				.setName("XYZ Device Display")
+				.setName("XYZ Device Client")
 				.setUri("http://host.docker.internal:9834/c"))
 			.setInteract(new InteractRequest()
-				.setType(Type.DEVICE))
+				.setUserCode(true))
+			.setResources(List.of(new ResourceRequest()))
+			.setUser(new UserRequest());
+
+		ResponseEntity<TransactionResponse> responseEntity = restTemplate.postForEntity(asEndpoint, request, TransactionResponse.class);
+
+		TransactionResponse response = responseEntity.getBody();
+
+		PendingTransaction pending = new PendingTransaction()
+			.add(request, response)
+			.setOwner(session.getId());
+
+		pendingTransactionRepository.save(pending);
+
+		return ResponseEntity.noContent().build();
+	}
+
+	@PostMapping(path = "/scannable", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
+	public ResponseEntity<?> startScannableDeviceFlow(HttpSession session) {
+
+		TransactionRequest request = new TransactionRequest()
+			.setDisplay(new DisplayRequest()
+				.setName("XYZ Scannable Client")
+				.setUri("http://host.docker.internal:9843/c"))
+			.setInteract(new InteractRequest()
+				.setUserCode(true)
+				.setRedirect(true))
 			.setResources(List.of(new ResourceRequest()))
 			.setUser(new UserRequest());
 

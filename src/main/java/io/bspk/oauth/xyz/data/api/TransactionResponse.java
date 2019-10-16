@@ -37,7 +37,7 @@ public class TransactionResponse {
 	public static TransactionResponse of(Transaction t) {
 		return new TransactionResponse()
 			.setAccessToken(t.getAccessToken())
-			.setInteractionUrl(t.getInteract().getUrl())
+			.setInteractionUrl(t.getInteract().getInteractionUrl())
 			.setUserCodeUrl(t.getInteract().getUserCodeUrl())
 			.setUserCode(t.getInteract().getUserCode())
 			.setServerNonce(t.getInteract().getServerNonce())

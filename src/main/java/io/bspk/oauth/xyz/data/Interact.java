@@ -1,11 +1,12 @@
 package io.bspk.oauth.xyz.data;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonValue;
+import java.util.Optional;
+
 import com.fasterxml.jackson.databind.PropertyNamingStrategy;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
 
 import io.bspk.oauth.xyz.data.api.InteractRequest;
+import io.bspk.oauth.xyz.data.api.InteractRequest.Callback;
 import lombok.Data;
 import lombok.experimental.Accessors;
 
@@ -18,28 +19,15 @@ import lombok.experimental.Accessors;
 @JsonNaming(PropertyNamingStrategy.SnakeCaseStrategy.class)
 public class Interact {
 
-	public enum Type {
-		REDIRECT,
-		DEVICE;
+	/** request parameters */
+	private Callback callback;
+	private boolean canRedirect;
+	private boolean canUserCode;
+	private boolean canDidComm;
+	private boolean canDidCommQuery;
 
-		@JsonCreator
-		public static Type fromJson(String key) {
-			return key == null ? null :
-				valueOf(key.toUpperCase());
-		}
-
-		@JsonValue
-		public String toJson() {
-			return name().toLowerCase();
-		}
-
-	}
-
-	private Type type;
-	private String url;
+	private String interactionUrl;
 	private String interactId;
-	private String callback;
-	private String clientNonce;
 	private String serverNonce;
 	private String interactHandle;
 	private String userCode;
@@ -51,9 +39,11 @@ public class Interact {
 	 */
 	public static Interact of(InteractRequest interact) {
 		return new Interact()
-			.setCallback(interact.getCallback())
-			.setType(interact.getType())
-			.setClientNonce(interact.getNonce());
+			.setCanDidComm(Optional.ofNullable(interact.getDidComm()).orElse(Boolean.FALSE))
+			.setCanDidCommQuery(Optional.ofNullable(interact.getDidCommQuery()).orElse(Boolean.FALSE))
+			.setCanUserCode(Optional.ofNullable(interact.getUserCode()).orElse(Boolean.FALSE))
+			.setCanRedirect(Optional.ofNullable(interact.getRedirect()).orElse(Boolean.FALSE))
+			.setCallback(interact.getCallback());
 	}
 
 }

@@ -5,7 +5,7 @@ import ReactDOM from 'react-dom';
 import http from './http';
 import { Button, Badge, Row, Col, Container, Card, CardImg, CardText, CardBody, CardTitle, CardSubtitle, CardHeader, Input } from 'reactstrap';
 import { BrowserRouter, Switch, Route } from 'react-router-dom';
-import { QRCode } from 'qrcode.react';
+import QRCode from 'qrcode.react';
 
 class Client extends React.Component {
 	constructor(props) {
@@ -40,6 +40,15 @@ class Client extends React.Component {
 		});
 	}
 	
+	newScannable = (e) => {
+		http({
+			method: 'POST',
+			path: '/api/client/scannable'
+		}).done(response => {
+			this.loadPending();
+		});
+	}
+	
 	loadPending = () => {
 		
 		http({
@@ -64,6 +73,7 @@ class Client extends React.Component {
 			<Container>
 				<Button color="success" onClick={this.newTransaction}>New Auth Code Transaction</Button>
 				<Button color="warning" onClick={this.newDevice}>New Device Transaction</Button>
+				<Button color="dark" onClick={this.newScannable}>New Scannable Transaction</Button>
 				{pending}
 			</Container>
 		);
@@ -171,10 +181,10 @@ class PendingTransactionEntry extends React.Component {
 			);
 		}
 		
-		if (this.props.entry.response.user_code && this.props.entry.response.interaction_url) {
+		if (this.props.entry.response.interaction_url && this.props.entry.request.interact && !this.props.entry.request.interact.callback) {
 			elements.push(
 				...[
-					<dt className="col-sm-3">Interaction URL</dt>,
+					<dt className="col-sm-3">Scannable Interaction URL</dt>,
 					<dd className="col-sm-9"><QRCode value={this.props.entry.response.interaction_url} /></dd>
 				]
 			);
