@@ -3,6 +3,8 @@ package io.bspk.oauth.xyz;
 import java.io.IOException;
 import java.nio.charset.Charset;
 import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -30,6 +32,7 @@ import com.fasterxml.jackson.databind.deser.BeanDeserializerModifier;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.fasterxml.jackson.databind.ser.BeanSerializerModifier;
 
+import io.bspk.oauth.xyz.crypto.Hash;
 import io.bspk.oauth.xyz.data.api.HandleReplaceable;
 import io.bspk.oauth.xyz.json.HandleAwareDeserializer;
 import io.bspk.oauth.xyz.json.HandleAwareSerializer;
@@ -57,7 +60,6 @@ public class Application {
 			}
 		});
 
-
 		module.setSerializerModifier(new BeanSerializerModifier() {
 
 			@Override
@@ -78,12 +80,15 @@ public class Application {
 		ClientHttpRequestFactory factory = new BufferingClientHttpRequestFactory(new SimpleClientHttpRequestFactory());
 
 		RestTemplate restTemplate = new RestTemplate(factory);
-		restTemplate.setInterceptors(List.of(new RequestResponseLoggingInterceptor()));
+		restTemplate.setInterceptors(List.of(
+			new DigestInterceptor(),
+			new RequestResponseLoggingInterceptor()
+			));
 
 		MappingJackson2HttpMessageConverter messageConverter = restTemplate.getMessageConverters().stream()
-            .filter(MappingJackson2HttpMessageConverter.class::isInstance)
-            .map(MappingJackson2HttpMessageConverter.class::cast)
-            .findFirst().orElseThrow( () -> new RuntimeException("MappingJackson2HttpMessageConverter not found"));
+			.filter(MappingJackson2HttpMessageConverter.class::isInstance)
+			.map(MappingJackson2HttpMessageConverter.class::cast)
+			.findFirst().orElseThrow(() -> new RuntimeException("MappingJackson2HttpMessageConverter not found"));
 
 		messageConverter.getObjectMapper().registerModule(jacksonModule());
 
@@ -92,34 +97,55 @@ public class Application {
 
 	private static class RequestResponseLoggingInterceptor implements ClientHttpRequestInterceptor {
 
-	    private final Logger log = LoggerFactory.getLogger(this.getClass());
+		private final Logger log = LoggerFactory.getLogger(this.getClass());
 
-	    @Override
-	    public ClientHttpResponse intercept(HttpRequest request, byte[] body, ClientHttpRequestExecution execution) throws IOException {
-	        logRequest(request, body);
-	        ClientHttpResponse response = execution.execute(request, body);
-	        logResponse(response);
-	        return response;
-	    }
+		@Override
+		public ClientHttpResponse intercept(HttpRequest request, byte[] body, ClientHttpRequestExecution execution) throws IOException {
+			logRequest(request, body);
+			ClientHttpResponse response = execution.execute(request, body);
+			logResponse(response);
+			return response;
+		}
 
-	    private void logRequest(HttpRequest request, byte[] body) throws IOException {
-	            log.info("<<<========================request begin================================================");
-	            log.info("URI         : {}", request.getURI());
-	            log.info("Method      : {}", request.getMethod());
-	            log.info("Headers     : {}", request.getHeaders());
-	            log.info("Request body: {}", new String(body, "UTF-8"));
-	            log.info("<<<=======================request end================================================");
-	    }
+		private void logRequest(HttpRequest request, byte[] body) throws IOException {
+			log.info("<<<========================request begin================================================");
+			log.info("URI         : {}", request.getURI());
+			log.info("Method      : {}", request.getMethod());
+			log.info("Headers     : {}", request.getHeaders());
+			log.info("Request body: {}", new String(body, "UTF-8"));
+			log.info("<<<=======================request end================================================");
+		}
 
-	    private void logResponse(ClientHttpResponse response) throws IOException {
-	            log.info(">>>=========================response begin==========================================");
-	            log.info("Status code  : {}", response.getStatusCode());
-	            log.info("Status text  : {}", response.getStatusText());
-	            log.info("Headers      : {}", response.getHeaders());
-	            log.info("Response body: {}", StreamUtils.copyToString(response.getBody(), Charset.defaultCharset()));
-	            log.info(">>>====================response end=================================================");
-	    }
+		private void logResponse(ClientHttpResponse response) throws IOException {
+			log.info(">>>=========================response begin==========================================");
+			log.info("Status code  : {}", response.getStatusCode());
+			log.info("Status text  : {}", response.getStatusText());
+			log.info("Headers      : {}", response.getHeaders());
+			log.info("Response body: {}", StreamUtils.copyToString(response.getBody(), Charset.defaultCharset()));
+			log.info(">>>====================response end=================================================");
+		}
+	}
+
+	private static class DigestInterceptor implements ClientHttpRequestInterceptor {
+
+		private final Logger log = LoggerFactory.getLogger(this.getClass());
+
+		@Override
+		public ClientHttpResponse intercept(HttpRequest request, byte[] body, ClientHttpRequestExecution execution) throws IOException {
+			if (body != null && body.length > 0) {
+				// add the digest header
+				log.info(IntStream.range(0, body.length)
+					.map(idx -> Byte.toUnsignedInt(body[idx]))
+					.mapToObj(i -> Integer.toHexString(i))
+					.collect(Collectors.joining(", ")));
+
+				String hash = Hash.SHA1_digest(body);
+				request.getHeaders().add("Digest", "SHA=" + hash);
+			}
+
+			return execution.execute(request, body);
+		}
+
 	}
 
 }
-

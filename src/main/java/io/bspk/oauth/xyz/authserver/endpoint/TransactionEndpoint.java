@@ -2,7 +2,11 @@ package io.bspk.oauth.xyz.authserver.endpoint;
 
 import java.time.Duration;
 
+import javax.servlet.http.HttpServletRequest;
+
 import org.apache.commons.lang3.RandomStringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
@@ -27,6 +31,7 @@ import io.bspk.oauth.xyz.data.Transaction.Status;
 import io.bspk.oauth.xyz.data.api.DisplayRequest;
 import io.bspk.oauth.xyz.data.api.TransactionRequest;
 import io.bspk.oauth.xyz.data.api.TransactionResponse;
+import io.bspk.oauth.xyz.http.DigestWrappingFilter;
 
 /**
  * @author jricher
@@ -35,6 +40,8 @@ import io.bspk.oauth.xyz.data.api.TransactionResponse;
 @Controller
 @RequestMapping("/api/as/transaction")
 public class TransactionEndpoint {
+
+	private final Logger log = LoggerFactory.getLogger(this.getClass());
 
 	private static final String USER_CODE_CHARS = "123456789ABCDEFGHJKLMNOPQRSTUVWXYZ";
 
@@ -46,7 +53,12 @@ public class TransactionEndpoint {
 
 	@PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
 	public ResponseEntity<TransactionResponse> transaction(@RequestBody TransactionRequest incoming,
-		@RequestHeader(name = "Authentication", required = false) String auth) {
+		@RequestHeader(name = "Authentication", required = false) String auth,
+		@RequestHeader(name = "Digest", required = false) String digest,
+		HttpServletRequest req) {
+
+		log.info(digest);
+		log.info((String) req.getAttribute(DigestWrappingFilter.DIGEST_HASH));
 
 		Transaction t = null;
 
