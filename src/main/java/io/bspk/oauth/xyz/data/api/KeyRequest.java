@@ -6,9 +6,13 @@ import java.security.cert.X509Certificate;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
 import com.fasterxml.jackson.databind.PropertyNamingStrategy;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.nimbusds.jose.jwk.JWK;
 
+import io.bspk.oauth.xyz.json.JWKDeserializer;
+import io.bspk.oauth.xyz.json.JWKSerializer;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.experimental.Accessors;
@@ -26,7 +30,8 @@ public class KeyRequest extends HandleReplaceable<KeyRequest> {
 	public enum Proof {
 		JWSD,
 		MTLS,
-		DID
+		DID,
+		HTTPSIG
 		;
 
 		@JsonCreator
@@ -43,6 +48,8 @@ public class KeyRequest extends HandleReplaceable<KeyRequest> {
 	}
 
 	private Proof proof;
+	@JsonSerialize(using = JWKSerializer.class)
+	@JsonDeserialize(using = JWKDeserializer.class)
 	private JWK jwk;
 	private X509Certificate cert;
 	private URI did;

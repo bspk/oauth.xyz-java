@@ -50,8 +50,6 @@ public class DigestWrappingFilter implements Filter {
 
 	private void calculateDigest(CachingRequestWrapper requestWrapper) {
 		byte[] bytes = requestWrapper.getSavedBody();
-		byte[] bytes2 = requestWrapper.getSavedBody();
-		byte[] bytes3 = requestWrapper.getSavedBody();
 
 		log.info(IntStream.range(0, bytes.length)
 			.map(idx -> Byte.toUnsignedInt(bytes[idx]))

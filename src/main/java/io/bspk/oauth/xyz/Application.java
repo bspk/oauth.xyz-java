@@ -2,7 +2,15 @@ package io.bspk.oauth.xyz;
 
 import java.io.IOException;
 import java.nio.charset.Charset;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
+import java.security.Signature;
+import java.security.SignatureException;
+import java.text.ParseException;
+import java.util.Base64;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -11,6 +19,9 @@ import org.slf4j.LoggerFactory;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
+import org.springframework.core.convert.converter.Converter;
+import org.springframework.data.mongodb.core.convert.MongoCustomConversions;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpRequest;
 import org.springframework.http.client.BufferingClientHttpRequestFactory;
 import org.springframework.http.client.ClientHttpRequestExecution;
@@ -31,11 +42,16 @@ import com.fasterxml.jackson.databind.SerializationConfig;
 import com.fasterxml.jackson.databind.deser.BeanDeserializerModifier;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.fasterxml.jackson.databind.ser.BeanSerializerModifier;
+import com.nimbusds.jose.JOSEException;
+import com.nimbusds.jose.jwk.JWK;
+import com.nimbusds.jose.jwk.RSAKey;
 
 import io.bspk.oauth.xyz.crypto.Hash;
 import io.bspk.oauth.xyz.data.api.HandleReplaceable;
 import io.bspk.oauth.xyz.json.HandleAwareDeserializer;
 import io.bspk.oauth.xyz.json.HandleAwareSerializer;
+import io.bspk.oauth.xyz.json.JWKDeserializer;
+import io.bspk.oauth.xyz.json.JWKSerializer;
 
 @SpringBootApplication()
 public class Application {
@@ -76,12 +92,21 @@ public class Application {
 	}
 
 	@Bean
+	public MongoCustomConversions mongoCustomConversions() {
+	    List<Converter<?, ?>> list = List.of(
+	    	new JWKDeserializer(),
+	    	new JWKSerializer());
+	    return new MongoCustomConversions(list);
+	}
+
+	@Bean
 	public RestTemplate restTemplate() {
 		ClientHttpRequestFactory factory = new BufferingClientHttpRequestFactory(new SimpleClientHttpRequestFactory());
 
 		RestTemplate restTemplate = new RestTemplate(factory);
 		restTemplate.setInterceptors(List.of(
 			new DigestInterceptor(),
+			new CavageSigningInterceptor(),
 			new RequestResponseLoggingInterceptor()
 			));
 
@@ -93,6 +118,20 @@ public class Application {
 		messageConverter.getObjectMapper().registerModule(jacksonModule());
 
 		return restTemplate;
+	}
+
+	@Bean
+	public JWK clientKey() throws ParseException {
+		return JWK.parse(
+			"{\n" +
+			"  \"kty\": \"RSA\",\n" +
+			"  \"d\": \"m1M7uj1uZMgQqd2qwqBk07rgFzbzdCAbsfu5kvqoALv3oRdyi_UVHXDhos3DZVQ3M6mKgb30XXESykY8tpWcQOU-qx6MwtSFbo-3SNx9fBtylyQosHECGyleVP79YTE4mC0odRoUIDS90J9AcFsdVtC6M2oJ3CCL577a-lJg6eYyQoRmbjdzqMnBFJ99TCfR6wBQQbzXi1K_sN6gcqhxMmQXHWlqfT7-AJIxX9QUF0rrXMMX9fPh-HboGKs2Dqoo3ofJ2XuePpmpVDvtGy_jenXmUdpsRleqnMrEI2qkBonJQSKL4HPNpsylbQyXt2UtYrzcopCp7jL-j56kRPpQAQ\",\n" +
+			"  \"e\": \"AQAB\",\n" +
+			"  \"kid\": \"xyz-client\",\n" +
+			"  \"alg\": \"RS256\",\n" +
+			"  \"n\": \"zwCT_3bx-glbbHrheYpYpRWiY9I-nEaMRpZnRrIjCs6b_emyTkBkDDEjSysi38OC73hj1-WgxcPdKNGZyIoH3QZen1MKyyhQpLJG1-oLNLqm7pXXtdYzSdC9O3-oiyy8ykO4YUyNZrRRfPcihdQCbO_OC8Qugmg9rgNDOSqppdaNeas1ov9PxYvxqrz1-8Ha7gkD00YECXHaB05uMaUadHq-O_WIvYXicg6I5j6S44VNU65VBwu-AlynTxQdMAWP3bYxVVy6p3-7eTJokvjYTFqgDVDZ8lUXbr5yCTnRhnhJgvf3VjD_malNe8-tOqK5OSDlHTy6gD9NqdGCm-Pm3Q\"\n" +
+			"}"
+			);
 	}
 
 	private static class RequestResponseLoggingInterceptor implements ClientHttpRequestInterceptor {
@@ -126,7 +165,7 @@ public class Application {
 		}
 	}
 
-	private static class DigestInterceptor implements ClientHttpRequestInterceptor {
+	private class DigestInterceptor implements ClientHttpRequestInterceptor {
 
 		private final Logger log = LoggerFactory.getLogger(this.getClass());
 
@@ -148,4 +187,68 @@ public class Application {
 
 	}
 
+	private class CavageSigningInterceptor implements ClientHttpRequestInterceptor {
+
+		private final Logger log = LoggerFactory.getLogger(this.getClass());
+
+		@Override
+		public ClientHttpResponse intercept(HttpRequest request, byte[] body, ClientHttpRequestExecution execution) throws IOException {
+
+			try {
+				String alg = "rsa-sha256";
+
+				// collect the base string
+				Map<String, String> signatureBlock = new LinkedHashMap<>();
+				String requestTarget = request.getMethodValue().toLowerCase() + " " + request.getURI().getRawPath();
+				signatureBlock.put("(request-target)", requestTarget);
+
+				List<String> headersToSign = List.of("Host", "Date", "Digest", "Content-length");
+
+				headersToSign.forEach((h) -> {
+					if (request.getHeaders().getFirst(h) != null) {
+						signatureBlock.put(h.toLowerCase(), request.getHeaders().getFirst(h));
+					}
+				});
+
+				String input = signatureBlock.entrySet().stream()
+					.map(e -> e.getKey().strip().toLowerCase() + ": " + e.getValue().strip())
+					.collect(Collectors.joining("\n"));
+
+				JWK clientKey = clientKey();
+				RSAKey rsaKey = (RSAKey)clientKey;
+
+				Signature signature = Signature.getInstance("SHA256withRSA");
+
+				signature.initSign(rsaKey.toPrivateKey());
+				signature.update(input.getBytes("UTF-8"));
+		        byte[] s = signature.sign();
+
+		        String encoded = Base64.getEncoder().encodeToString(s);
+
+		        String headers = "(request-target) " + headersToSign.stream()
+		        	.map(String::toLowerCase)
+		        	.collect(Collectors.joining(" "));
+
+		        Map<String, String> signatureHeader = new LinkedHashMap<>();
+
+		        signatureHeader.put("keyId", clientKey.getKeyID());
+		        signatureHeader.put("algorithm", alg);
+		        signatureHeader.put("headers", headers);
+		        signatureHeader.put("signature", encoded);
+
+
+		        String signatureHeaderPayload = signatureHeader.entrySet()
+		        	.stream().map(e -> e.getKey() + "=\"" + e.getValue() + "\"") // TODO: the value should likely be encoded
+		        	.collect(Collectors.joining(","));
+
+		        request.getHeaders().add(HttpHeaders.AUTHORIZATION, "Signature " + signatureHeaderPayload);
+
+			} catch (NoSuchAlgorithmException | ParseException | InvalidKeyException | JOSEException | SignatureException e) {
+				e.printStackTrace();
+			}
+
+			return execution.execute(request, body);
+		}
+
+	}
 }

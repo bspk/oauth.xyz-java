@@ -20,12 +20,16 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
 
+import com.nimbusds.jose.jwk.JWK;
+
 import io.bspk.oauth.xyz.client.repository.PendingTransactionRepository;
 import io.bspk.oauth.xyz.crypto.Hash;
 import io.bspk.oauth.xyz.data.PendingTransaction;
 import io.bspk.oauth.xyz.data.PendingTransaction.Entry;
 import io.bspk.oauth.xyz.data.api.DisplayRequest;
 import io.bspk.oauth.xyz.data.api.InteractRequest;
+import io.bspk.oauth.xyz.data.api.KeyRequest;
+import io.bspk.oauth.xyz.data.api.KeyRequest.Proof;
 import io.bspk.oauth.xyz.data.api.ResourceRequest;
 import io.bspk.oauth.xyz.data.api.TransactionRequest;
 import io.bspk.oauth.xyz.data.api.TransactionResponse;
@@ -54,6 +58,9 @@ public class ClientAPI {
 	@Autowired
 	private RestTemplate restTemplate;
 
+	@Autowired
+	private JWK clientKey;
+
 	@PostMapping(path = "/authcode", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
 	public ResponseEntity<?> startAuthorizationCodeFlow(HttpSession session) {
 
@@ -72,7 +79,10 @@ public class ClientAPI {
 				.setRedirect(true))
 			.setResources(List.of(new ResourceRequest()
 				.setHandle("foo")))
-			.setUser(new UserRequest());
+			.setUser(new UserRequest())
+			.setKeys(new KeyRequest()
+				.setJwk(clientKey.toPublicJWK())
+				.setProof(Proof.HTTPSIG));
 
 		ResponseEntity<TransactionResponse> responseEntity = restTemplate.postForEntity(asEndpoint, request, TransactionResponse.class);
 
@@ -101,7 +111,10 @@ public class ClientAPI {
 			.setInteract(new InteractRequest()
 				.setUserCode(true))
 			.setResources(List.of(new ResourceRequest()))
-			.setUser(new UserRequest());
+			.setUser(new UserRequest())
+			.setKeys(new KeyRequest()
+				.setJwk(clientKey.toPublicJWK())
+				.setProof(Proof.HTTPSIG));
 
 		ResponseEntity<TransactionResponse> responseEntity = restTemplate.postForEntity(asEndpoint, request, TransactionResponse.class);
 
@@ -127,7 +140,10 @@ public class ClientAPI {
 				.setUserCode(true)
 				.setRedirect(true))
 			.setResources(List.of(new ResourceRequest()))
-			.setUser(new UserRequest());
+			.setUser(new UserRequest())
+			.setKeys(new KeyRequest()
+				.setJwk(clientKey.toPublicJWK())
+				.setProof(Proof.HTTPSIG));
 
 		ResponseEntity<TransactionResponse> responseEntity = restTemplate.postForEntity(asEndpoint, request, TransactionResponse.class);
 
