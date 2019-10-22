@@ -82,7 +82,7 @@ public class ClientAPI {
 			.setUser(new UserRequest())
 			.setKeys(new KeyRequest()
 				.setJwk(clientKey.toPublicJWK())
-				.setProof(Proof.HTTPSIG));
+				.setProof(Proof.JWSD));
 
 		ResponseEntity<TransactionResponse> responseEntity = restTemplate.postForEntity(asEndpoint, request, TransactionResponse.class);
 

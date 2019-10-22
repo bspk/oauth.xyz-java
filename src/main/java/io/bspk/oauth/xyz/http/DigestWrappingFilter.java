@@ -5,8 +5,6 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 
 import javax.servlet.Filter;
 import javax.servlet.FilterChain;
@@ -23,7 +21,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.util.Assert;
 
-import io.bspk.oauth.xyz.crypto.Hash;
 import lombok.experimental.Delegate;
 
 /**
@@ -35,7 +32,7 @@ public class DigestWrappingFilter implements Filter {
 
 	private final Logger log = LoggerFactory.getLogger(this.getClass());
 
-	public static final String DIGEST_HASH = "DIGEST_HASH";
+	public static final String BODY_BYTES = "BODY_BYTES";
 
 	@Override
 	public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain) throws IOException, ServletException {
@@ -51,14 +48,15 @@ public class DigestWrappingFilter implements Filter {
 	private void calculateDigest(CachingRequestWrapper requestWrapper) {
 		byte[] bytes = requestWrapper.getSavedBody();
 
+		/*
 		log.info(IntStream.range(0, bytes.length)
 			.map(idx -> Byte.toUnsignedInt(bytes[idx]))
 			.mapToObj(i -> Integer.toHexString(i))
 			.collect(Collectors.joining(", ")));
+		 */
 
-		String hash = Hash.SHA1_digest(bytes);
+		requestWrapper.setAttribute(BODY_BYTES, bytes);
 
-		requestWrapper.setAttribute(DIGEST_HASH, hash);
 	}
 
 	private class CachingRequestWrapper implements HttpServletRequest {
@@ -107,6 +105,7 @@ public class DigestWrappingFilter implements Filter {
 
 	}
 
+	// marker interface for lombok tagging
 	private interface ExcludeReaderAndInputStream {
 		public ServletInputStream getInputStream();
 		public BufferedReader getReader();

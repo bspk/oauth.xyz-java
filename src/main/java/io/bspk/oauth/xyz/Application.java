@@ -11,6 +11,7 @@ import java.util.Base64;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -43,6 +44,12 @@ import com.fasterxml.jackson.databind.deser.BeanDeserializerModifier;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.fasterxml.jackson.databind.ser.BeanSerializerModifier;
 import com.nimbusds.jose.JOSEException;
+import com.nimbusds.jose.JOSEObjectType;
+import com.nimbusds.jose.JWSAlgorithm;
+import com.nimbusds.jose.JWSHeader;
+import com.nimbusds.jose.JWSObject;
+import com.nimbusds.jose.Payload;
+import com.nimbusds.jose.crypto.RSASSASigner;
 import com.nimbusds.jose.jwk.JWK;
 import com.nimbusds.jose.jwk.RSAKey;
 
@@ -107,6 +114,7 @@ public class Application {
 		restTemplate.setInterceptors(List.of(
 			new DigestInterceptor(),
 			new CavageSigningInterceptor(),
+			new DetachedJwsSigningInterceptor(),
 			new RequestResponseLoggingInterceptor()
 			));
 
@@ -121,17 +129,21 @@ public class Application {
 	}
 
 	@Bean
-	public JWK clientKey() throws ParseException {
-		return JWK.parse(
-			"{\n" +
-			"  \"kty\": \"RSA\",\n" +
-			"  \"d\": \"m1M7uj1uZMgQqd2qwqBk07rgFzbzdCAbsfu5kvqoALv3oRdyi_UVHXDhos3DZVQ3M6mKgb30XXESykY8tpWcQOU-qx6MwtSFbo-3SNx9fBtylyQosHECGyleVP79YTE4mC0odRoUIDS90J9AcFsdVtC6M2oJ3CCL577a-lJg6eYyQoRmbjdzqMnBFJ99TCfR6wBQQbzXi1K_sN6gcqhxMmQXHWlqfT7-AJIxX9QUF0rrXMMX9fPh-HboGKs2Dqoo3ofJ2XuePpmpVDvtGy_jenXmUdpsRleqnMrEI2qkBonJQSKL4HPNpsylbQyXt2UtYrzcopCp7jL-j56kRPpQAQ\",\n" +
-			"  \"e\": \"AQAB\",\n" +
-			"  \"kid\": \"xyz-client\",\n" +
-			"  \"alg\": \"RS256\",\n" +
-			"  \"n\": \"zwCT_3bx-glbbHrheYpYpRWiY9I-nEaMRpZnRrIjCs6b_emyTkBkDDEjSysi38OC73hj1-WgxcPdKNGZyIoH3QZen1MKyyhQpLJG1-oLNLqm7pXXtdYzSdC9O3-oiyy8ykO4YUyNZrRRfPcihdQCbO_OC8Qugmg9rgNDOSqppdaNeas1ov9PxYvxqrz1-8Ha7gkD00YECXHaB05uMaUadHq-O_WIvYXicg6I5j6S44VNU65VBwu-AlynTxQdMAWP3bYxVVy6p3-7eTJokvjYTFqgDVDZ8lUXbr5yCTnRhnhJgvf3VjD_malNe8-tOqK5OSDlHTy6gD9NqdGCm-Pm3Q\"\n" +
-			"}"
-			);
+	public JWK clientKey() {
+		try {
+			return JWK.parse(
+				"{\n" +
+				"  \"kty\": \"RSA\",\n" +
+				"  \"d\": \"m1M7uj1uZMgQqd2qwqBk07rgFzbzdCAbsfu5kvqoALv3oRdyi_UVHXDhos3DZVQ3M6mKgb30XXESykY8tpWcQOU-qx6MwtSFbo-3SNx9fBtylyQosHECGyleVP79YTE4mC0odRoUIDS90J9AcFsdVtC6M2oJ3CCL577a-lJg6eYyQoRmbjdzqMnBFJ99TCfR6wBQQbzXi1K_sN6gcqhxMmQXHWlqfT7-AJIxX9QUF0rrXMMX9fPh-HboGKs2Dqoo3ofJ2XuePpmpVDvtGy_jenXmUdpsRleqnMrEI2qkBonJQSKL4HPNpsylbQyXt2UtYrzcopCp7jL-j56kRPpQAQ\",\n" +
+				"  \"e\": \"AQAB\",\n" +
+				"  \"kid\": \"xyz-client\",\n" +
+				"  \"alg\": \"RS256\",\n" +
+				"  \"n\": \"zwCT_3bx-glbbHrheYpYpRWiY9I-nEaMRpZnRrIjCs6b_emyTkBkDDEjSysi38OC73hj1-WgxcPdKNGZyIoH3QZen1MKyyhQpLJG1-oLNLqm7pXXtdYzSdC9O3-oiyy8ykO4YUyNZrRRfPcihdQCbO_OC8Qugmg9rgNDOSqppdaNeas1ov9PxYvxqrz1-8Ha7gkD00YECXHaB05uMaUadHq-O_WIvYXicg6I5j6S44VNU65VBwu-AlynTxQdMAWP3bYxVVy6p3-7eTJokvjYTFqgDVDZ8lUXbr5yCTnRhnhJgvf3VjD_malNe8-tOqK5OSDlHTy6gD9NqdGCm-Pm3Q\"\n" +
+				"}"
+				);
+		} catch (ParseException e) {
+			return null;
+		}
 	}
 
 	private static class RequestResponseLoggingInterceptor implements ClientHttpRequestInterceptor {
@@ -187,6 +199,44 @@ public class Application {
 
 	}
 
+	private class DetachedJwsSigningInterceptor implements ClientHttpRequestInterceptor {
+
+		private final Logger log = LoggerFactory.getLogger(this.getClass());
+
+		@Override
+		public ClientHttpResponse intercept(HttpRequest request, byte[] body, ClientHttpRequestExecution execution) throws IOException {
+			JWSHeader header = new JWSHeader.Builder(JWSAlgorithm.parse(clientKey().getAlgorithm().getName()))
+				.customParam("b64", true)
+				.criticalParams(Set.of("b64"))
+				.type(JOSEObjectType.JOSE)
+				.keyID(clientKey().getKeyID())
+				.build();
+
+			Payload payload = new Payload(body);
+
+			//log.info(">> " + payload.toBase64URL().toString());
+
+			try {
+				RSASSASigner signer = new RSASSASigner((RSAKey)clientKey());
+
+				JWSObject jwsObject = new JWSObject(header, payload);
+
+				jwsObject.sign(signer);
+
+				String signature = jwsObject.serialize(true);
+
+				request.getHeaders().add("Detached-JWS", signature);
+
+			} catch (JOSEException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+
+			return execution.execute(request, body);
+
+		}
+	}
+
 	private class CavageSigningInterceptor implements ClientHttpRequestInterceptor {
 
 		private final Logger log = LoggerFactory.getLogger(this.getClass());
@@ -223,8 +273,6 @@ public class Application {
 				signature.update(input.getBytes("UTF-8"));
 		        byte[] s = signature.sign();
 
-		        s[0] = (byte) (255 - s[0]);
-
 		        String encoded = Base64.getEncoder().encodeToString(s);
 
 		        String headers = signatureBlock.keySet().stream()
@@ -245,8 +293,8 @@ public class Application {
 
 		        request.getHeaders().add(HttpHeaders.AUTHORIZATION, "Signature " + signatureHeaderPayload);
 
-			} catch (NoSuchAlgorithmException | ParseException | InvalidKeyException | JOSEException | SignatureException e) {
-				e.printStackTrace();
+			} catch (NoSuchAlgorithmException | InvalidKeyException | JOSEException | SignatureException e) {
+				throw new RuntimeException(e);
 			}
 
 			return execution.execute(request, body);

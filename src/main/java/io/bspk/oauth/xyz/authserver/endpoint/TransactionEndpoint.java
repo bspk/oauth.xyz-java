@@ -5,11 +5,13 @@ import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.security.Signature;
 import java.security.SignatureException;
+import java.text.ParseException;
 import java.time.Duration;
 import java.util.Base64;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -33,8 +35,13 @@ import org.springframework.web.util.UriComponentsBuilder;
 
 import com.google.common.base.Strings;
 import com.nimbusds.jose.JOSEException;
+import com.nimbusds.jose.JOSEObject;
+import com.nimbusds.jose.JWSObject;
+import com.nimbusds.jose.Payload;
+import com.nimbusds.jose.crypto.RSASSAVerifier;
 import com.nimbusds.jose.jwk.JWK;
 import com.nimbusds.jose.jwk.RSAKey;
+import com.nimbusds.jose.util.Base64URL;
 
 import io.bspk.oauth.xyz.authserver.repository.TransactionRepository;
 import io.bspk.oauth.xyz.crypto.Hash;
@@ -71,6 +78,7 @@ public class TransactionEndpoint {
 	public ResponseEntity<TransactionResponse> transaction(@RequestBody TransactionRequest incoming,
 		@RequestHeader(name = HttpHeaders.AUTHORIZATION, required = false) String auth,
 		@RequestHeader(name = "Digest", required = false) String digest,
+		@RequestHeader(name = "Detached-JWS", required = false) String jwsd,
 		HttpServletRequest req) {
 
 		// always make sure the digest header fits if appropriate
@@ -143,6 +151,7 @@ public class TransactionEndpoint {
 					checkCavageSignature(auth, req, t.getKeys().getJwk());
 					break;
 				case JWSD:
+					checkDetachedJws(jwsd, req, t.getKeys().getJwk());
 					break;
 				case MTLS:
 					break;
@@ -271,14 +280,24 @@ public class TransactionEndpoint {
 	 * @param digest
 	 * @param req
 	 */
-	private void ensureDigest(String digest, HttpServletRequest req) {
-		String digestHeader = (String) req.getAttribute(DigestWrappingFilter.DIGEST_HASH);
+	private void ensureDigest(String digestHeader, HttpServletRequest req) {
 		if (digestHeader != null) {
 			if (digestHeader.startsWith("SHA=")) {
-				String hash = digestHeader.substring("SHA=".length());
-				if (!digest.equals(hash)) {
+				byte[] savedBody = (byte[]) req.getAttribute(DigestWrappingFilter.BODY_BYTES);
+
+				if (savedBody == null || savedBody.length == 0) {
+					throw new RuntimeException("Bad Digest, no body");
+				}
+
+				String actualHash = Hash.SHA1_digest(savedBody);
+
+				String incomingHash = digestHeader.substring("SHA=".length());
+
+				if (!incomingHash.equals(actualHash)) {
 					throw new RuntimeException("Bad Digest, no biscuit");
 				}
+			} else {
+				throw new RuntimeException("Bad digest, unknown algorithm");
 			}
 		}
 	}
@@ -333,6 +352,29 @@ public class TransactionEndpoint {
 			} catch (NoSuchAlgorithmException | InvalidKeyException | JOSEException | SignatureException | UnsupportedEncodingException e) {
 				throw new RuntimeException("Bad crypto, no biscuit", e);
 			}
+		}
+	}
+
+	private void checkDetachedJws(String jwsd, HttpServletRequest request, JWK clientKey) {
+		try {
+
+			Base64URL[] parts = JOSEObject.split(jwsd);
+			Payload payload = new Payload((byte[])request.getAttribute(DigestWrappingFilter.BODY_BYTES));
+
+			//log.info("<< " + payload.toBase64URL().toString());
+
+			JWSObject jwsObject = new JWSObject(parts[0], payload.toBase64URL(), parts[2]);
+
+			RSASSAVerifier verifier = new RSASSAVerifier(
+				((RSAKey)clientKey).toRSAPublicKey(),
+				Set.of("b64"));
+
+			if (!jwsObject.verify(verifier)) {
+				throw new RuntimeException("Unable to verify JWS");
+			}
+
+		} catch (ParseException | JOSEException e) {
+			throw new RuntimeException("Bad JWS", e);
 		}
 	}
 
