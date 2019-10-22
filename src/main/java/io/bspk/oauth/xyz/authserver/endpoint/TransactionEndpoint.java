@@ -1,6 +1,17 @@
 package io.bspk.oauth.xyz.authserver.endpoint;
 
+import java.io.UnsupportedEncodingException;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
+import java.security.Signature;
+import java.security.SignatureException;
 import java.time.Duration;
+import java.util.Base64;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import javax.servlet.http.HttpServletRequest;
 
@@ -9,6 +20,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -20,12 +32,16 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import com.google.common.base.Strings;
+import com.nimbusds.jose.JOSEException;
+import com.nimbusds.jose.jwk.JWK;
+import com.nimbusds.jose.jwk.RSAKey;
 
 import io.bspk.oauth.xyz.authserver.repository.TransactionRepository;
 import io.bspk.oauth.xyz.crypto.Hash;
 import io.bspk.oauth.xyz.data.Display;
 import io.bspk.oauth.xyz.data.Handle;
 import io.bspk.oauth.xyz.data.Interact;
+import io.bspk.oauth.xyz.data.Keys;
 import io.bspk.oauth.xyz.data.Transaction;
 import io.bspk.oauth.xyz.data.Transaction.Status;
 import io.bspk.oauth.xyz.data.api.DisplayRequest;
@@ -53,12 +69,12 @@ public class TransactionEndpoint {
 
 	@PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
 	public ResponseEntity<TransactionResponse> transaction(@RequestBody TransactionRequest incoming,
-		@RequestHeader(name = "Authentication", required = false) String auth,
+		@RequestHeader(name = HttpHeaders.AUTHORIZATION, required = false) String auth,
 		@RequestHeader(name = "Digest", required = false) String digest,
 		HttpServletRequest req) {
 
-		log.info(digest);
-		log.info((String) req.getAttribute(DigestWrappingFilter.DIGEST_HASH));
+		// always make sure the digest header fits if appropriate
+		ensureDigest(digest, req);
 
 		Transaction t = null;
 
@@ -75,7 +91,7 @@ public class TransactionEndpoint {
 			// create a new one
 			t = new Transaction();
 
-			DisplayRequest displayRequest = processClientRequest(incoming.getDisplay());
+			DisplayRequest displayRequest = processDisplayRequest(incoming.getDisplay());
 
 			if (displayRequest != null) {
 				t.setDisplay(Display.of(displayRequest));
@@ -92,6 +108,11 @@ public class TransactionEndpoint {
 			// if there's an interaction request, copy it to the end result
 			if (incoming.getInteract() != null) {
 				t.setInteract(Interact.of(incoming.getInteract()));
+			}
+
+			// check key presentation
+			if (incoming.getKeys() != null) {
+				t.setKeys(Keys.of(incoming.getKeys()));
 			}
 
 			/*
@@ -111,6 +132,23 @@ public class TransactionEndpoint {
 				t.getHandles().setResource(Handle.create()); // create a handle for the resource, equivalent to scopes, resource sets, etc
 			}
 			*/
+		}
+
+		// validate the method signing as appropriate
+		if (t.getKeys() != null) {
+			switch (t.getKeys().getProof()) {
+				case DID:
+					break;
+				case HTTPSIG:
+					checkCavageSignature(auth, req, t.getKeys().getJwk());
+					break;
+				case JWSD:
+					break;
+				case MTLS:
+					break;
+				default:
+					break;
+			}
 		}
 
 		// make sure the interaction handle matches if we're expecting one
@@ -230,23 +268,90 @@ public class TransactionEndpoint {
 	}
 
 	/**
-	 * @param client
+	 * @param digest
+	 * @param req
+	 */
+	private void ensureDigest(String digest, HttpServletRequest req) {
+		String digestHeader = (String) req.getAttribute(DigestWrappingFilter.DIGEST_HASH);
+		if (digestHeader != null) {
+			if (digestHeader.startsWith("SHA=")) {
+				String hash = digestHeader.substring("SHA=".length());
+				if (!digest.equals(hash)) {
+					throw new RuntimeException("Bad Digest, no biscuit");
+				}
+			}
+		}
+	}
+
+	private void checkCavageSignature(String auth, HttpServletRequest request, JWK clientKey) {
+		if (auth != null && auth.toLowerCase().startsWith("signature ")) {
+
+			try {
+
+				String signatureHeaderPayload = auth.substring("signature ".length());
+
+				Map<String, String> signatureParts = Stream.of(signatureHeaderPayload.split(","))
+					.map((s) -> {
+						String[] parts = s.split("=", 2);
+						String noQuotes = parts[1].replaceAll("^\"([^\"]*)\"$", "$1");
+						return Map.entry(parts[0], noQuotes);
+					})
+					.collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue))
+					;
+
+				// collect the base string
+				Map<String, String> signatureBlock = new LinkedHashMap<>();
+
+				List<String> headersToSign = Stream.of(signatureParts.get("headers").split(" ")).collect(Collectors.toList());
+
+				headersToSign.forEach((h) -> {
+					if (h.equals("(request-target)")) {
+						String requestTarget = request.getMethod().toLowerCase() + " " + request.getRequestURI();
+						signatureBlock.put(h.toLowerCase(), requestTarget);
+					} else if (request.getHeader(h) != null) {
+						signatureBlock.put(h.toLowerCase(), request.getHeader(h));
+					}
+				});
+
+				String input = signatureBlock.entrySet().stream()
+					.map(e -> e.getKey().strip().toLowerCase() + ": " + e.getValue().strip())
+					.collect(Collectors.joining("\n"));
+
+				RSAKey rsaKey = (RSAKey)clientKey;
+
+				Signature signature = Signature.getInstance("SHA256withRSA");
+
+				byte[] signatureBytes = Base64.getDecoder().decode(signatureParts.get("signature"));
+
+				signature.initVerify(rsaKey.toPublicKey());
+				signature.update(input.getBytes("UTF-8"));
+
+		        if (!signature.verify(signatureBytes)) {
+		        	throw new RuntimeException("Bad Signature, no biscuit");
+		        }
+
+			} catch (NoSuchAlgorithmException | InvalidKeyException | JOSEException | SignatureException | UnsupportedEncodingException e) {
+				throw new RuntimeException("Bad crypto, no biscuit", e);
+			}
+		}
+	}
+
+	/**
+	 * @param display
 	 * @return
 	 */
-	private DisplayRequest processClientRequest(DisplayRequest client) {
+	private DisplayRequest processDisplayRequest(DisplayRequest display) {
 
-		if (client == null) {
+		if (display == null) {
 			return null;
-		} else if (!Strings.isNullOrEmpty(client.getHandle())) {
+		} else if (!Strings.isNullOrEmpty(display.getHandle())) {
 			// client passed by reference, try to look it up
 			// TODO
 			return null;
 		} else {
 			// otherwise it's an incoming client request
-			return client;
+			return display;
 		}
-
-
 	}
 
 }

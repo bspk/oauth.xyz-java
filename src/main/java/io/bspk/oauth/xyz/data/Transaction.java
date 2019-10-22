@@ -50,6 +50,6 @@ public class Transaction {
 	private @NonNull HandleSet handles = new HandleSet();
 	private Handle accessToken;
 	private @NonNull Status status = Status.NEW;
-
+	private Keys keys;
 
 }

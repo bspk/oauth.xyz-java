@@ -223,9 +223,11 @@ public class Application {
 				signature.update(input.getBytes("UTF-8"));
 		        byte[] s = signature.sign();
 
+		        s[0] = (byte) (255 - s[0]);
+
 		        String encoded = Base64.getEncoder().encodeToString(s);
 
-		        String headers = "(request-target) " + headersToSign.stream()
+		        String headers = signatureBlock.keySet().stream()
 		        	.map(String::toLowerCase)
 		        	.collect(Collectors.joining(" "));
 
