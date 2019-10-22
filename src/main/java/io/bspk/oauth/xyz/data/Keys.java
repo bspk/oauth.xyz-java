@@ -28,7 +28,6 @@ public class Keys {
 	public enum Proof {
 		JWSD,
 		MTLS,
-		DID,
 		HTTPSIG,
 		DPOP
 		;

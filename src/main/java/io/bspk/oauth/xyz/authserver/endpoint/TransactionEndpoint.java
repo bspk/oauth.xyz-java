@@ -84,9 +84,6 @@ public class TransactionEndpoint {
 		@RequestHeader(name = "DPoP", required = false) String dpop,
 		HttpServletRequest req) {
 
-		// always make sure the digest header fits if appropriate
-		ensureDigest(digest, req);
-
 		Transaction t = null;
 
 		if (incoming.getHandle() != null) {
@@ -148,9 +145,8 @@ public class TransactionEndpoint {
 		// validate the method signing as appropriate
 		if (t.getKeys() != null) {
 			switch (t.getKeys().getProof()) {
-				case DID:
-					break;
 				case HTTPSIG:
+					ensureDigest(digest, req); // make sure the digest header is accurate
 					checkCavageSignature(auth, req, t.getKeys().getJwk());
 					break;
 				case JWSD:
