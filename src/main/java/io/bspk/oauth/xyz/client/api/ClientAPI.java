@@ -34,6 +34,7 @@ import io.bspk.oauth.xyz.data.api.ResourceRequest;
 import io.bspk.oauth.xyz.data.api.TransactionRequest;
 import io.bspk.oauth.xyz.data.api.TransactionResponse;
 import io.bspk.oauth.xyz.data.api.UserRequest;
+import io.bspk.oauth.xyz.http.SigningRestTemplates;
 
 /**
  * @author jricher
@@ -56,7 +57,7 @@ public class ClientAPI {
 	private PendingTransactionRepository pendingTransactionRepository;
 
 	@Autowired
-	private RestTemplate restTemplate;
+	private SigningRestTemplates requestSigners;
 
 	@Autowired
 	private JWK clientKey;
@@ -83,6 +84,8 @@ public class ClientAPI {
 			.setKeys(new KeyRequest()
 				.setJwk(clientKey.toPublicJWK())
 				.setProof(Proof.JWSD));
+
+		RestTemplate restTemplate = requestSigners.getSignerFor(request);
 
 		ResponseEntity<TransactionResponse> responseEntity = restTemplate.postForEntity(asEndpoint, request, TransactionResponse.class);
 
@@ -116,6 +119,8 @@ public class ClientAPI {
 				.setJwk(clientKey.toPublicJWK())
 				.setProof(Proof.HTTPSIG));
 
+		RestTemplate restTemplate = requestSigners.getSignerFor(request);
+
 		ResponseEntity<TransactionResponse> responseEntity = restTemplate.postForEntity(asEndpoint, request, TransactionResponse.class);
 
 		TransactionResponse response = responseEntity.getBody();
@@ -144,6 +149,8 @@ public class ClientAPI {
 			.setKeys(new KeyRequest()
 				.setJwk(clientKey.toPublicJWK())
 				.setProof(Proof.DPOP));
+
+		RestTemplate restTemplate = requestSigners.getSignerFor(request);
 
 		ResponseEntity<TransactionResponse> responseEntity = restTemplate.postForEntity(asEndpoint, request, TransactionResponse.class);
 
@@ -195,6 +202,8 @@ public class ClientAPI {
 				.setInteractHandle(Hash.SHA3_512_encode(interact))
 				;
 
+			RestTemplate restTemplate = requestSigners.getSignerFor(pending.getEntries().get(0).getRequest()); // get the first request
+
 			ResponseEntity<TransactionResponse> responseEntity = restTemplate.postForEntity(asEndpoint, request, TransactionResponse.class);
 
 			TransactionResponse response = responseEntity.getBody();
@@ -231,6 +240,8 @@ public class ClientAPI {
 			TransactionRequest request = new TransactionRequest()
 				.setHandle(lastResponse.getHandle().getValue())
 				;
+
+			RestTemplate restTemplate = requestSigners.getSignerFor(pending.getEntries().get(0).getRequest()); // get the first request
 
 			ResponseEntity<TransactionResponse> responseEntity = restTemplate.postForEntity(asEndpoint, request, TransactionResponse.class);
 
