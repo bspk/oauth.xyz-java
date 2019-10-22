@@ -42,6 +42,8 @@ import com.nimbusds.jose.crypto.RSASSAVerifier;
 import com.nimbusds.jose.jwk.JWK;
 import com.nimbusds.jose.jwk.RSAKey;
 import com.nimbusds.jose.util.Base64URL;
+import com.nimbusds.jwt.JWTClaimsSet;
+import com.nimbusds.jwt.SignedJWT;
 
 import io.bspk.oauth.xyz.authserver.repository.TransactionRepository;
 import io.bspk.oauth.xyz.crypto.Hash;
@@ -79,6 +81,7 @@ public class TransactionEndpoint {
 		@RequestHeader(name = HttpHeaders.AUTHORIZATION, required = false) String auth,
 		@RequestHeader(name = "Digest", required = false) String digest,
 		@RequestHeader(name = "Detached-JWS", required = false) String jwsd,
+		@RequestHeader(name = "DPoP", required = false) String dpop,
 		HttpServletRequest req) {
 
 		// always make sure the digest header fits if appropriate
@@ -153,6 +156,8 @@ public class TransactionEndpoint {
 				case JWSD:
 					checkDetachedJws(jwsd, req, t.getKeys().getJwk());
 					break;
+				case DPOP:
+					checkDpop(dpop, req, t.getKeys().getJwk());
 				case MTLS:
 					break;
 				default:
@@ -300,6 +305,9 @@ public class TransactionEndpoint {
 				throw new RuntimeException("Bad digest, unknown algorithm");
 			}
 		}
+
+		log.info("++ Verified body digest");
+
 	}
 
 	private void checkCavageSignature(String auth, HttpServletRequest request, JWK clientKey) {
@@ -353,6 +361,9 @@ public class TransactionEndpoint {
 				throw new RuntimeException("Bad crypto, no biscuit", e);
 			}
 		}
+
+		log.info("++ Verified Cavage signature");
+
 	}
 
 	private void checkDetachedJws(String jwsd, HttpServletRequest request, JWK clientKey) {
@@ -376,6 +387,52 @@ public class TransactionEndpoint {
 		} catch (ParseException | JOSEException e) {
 			throw new RuntimeException("Bad JWS", e);
 		}
+
+		log.info("++ Verified Detached JWS signature");
+
+	}
+
+	private void checkDpop(String dpop, HttpServletRequest request, JWK clientKey) {
+		try {
+
+			SignedJWT jwt = SignedJWT.parse(dpop);
+
+			JWK jwtKey = jwt.getHeader().getJWK();
+
+			if (!jwtKey.equals(clientKey)) {
+				throw new RuntimeException("Client key did not match DPoP key");
+			}
+
+			RSASSAVerifier verifier = new RSASSAVerifier((RSAKey)clientKey);
+
+			if (!jwt.verify(verifier)) {
+				throw new RuntimeException("Unable to verify DPOP Signature");
+			}
+
+			JWTClaimsSet claims = jwt.getJWTClaimsSet();
+
+			if (claims.getClaim("http_method") == null || !claims.getClaim("http_method").equals(request.getMethod())) {
+				throw new RuntimeException("Couldn't verify method");
+			}
+
+			if (claims.getClaim("http_uri") == null) {
+				throw new RuntimeException("Couldn't get uri");
+			} else {
+				StringBuffer url = request.getRequestURL();
+				if (request.getQueryString() != null) {
+					url.append('?').append(request.getQueryString());
+				}
+				if (!claims.getClaim("http_uri").equals(url.toString())) {
+					throw new RuntimeException("Couldn't verify uri");
+				}
+			}
+
+		} catch (ParseException | JOSEException e) {
+			throw new RuntimeException("Bad DPOP Signature", e);
+		}
+
+		log.info("++ Verified DPoP signature");
+
 	}
 
 	/**
