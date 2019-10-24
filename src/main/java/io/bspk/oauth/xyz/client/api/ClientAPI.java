@@ -83,11 +83,11 @@ public class ClientAPI {
 			.setUser(new UserRequest())
 			.setKeys(new KeyRequest()
 				.setJwk(clientKey.toPublicJWK())
-				.setProof(Proof.JWSD));
+				.setProof(Proof.OAUTHPOP));
 
 		RestTemplate restTemplate = requestSigners.getSignerFor(request);
 
-		ResponseEntity<TransactionResponse> responseEntity = restTemplate.postForEntity(asEndpoint, request, TransactionResponse.class);
+		ResponseEntity<TransactionResponse> responseEntity = restTemplate.postForEntity(asEndpoint + "?foo=bar&baz=qux", request, TransactionResponse.class);
 
 		TransactionResponse response = responseEntity.getBody();
 

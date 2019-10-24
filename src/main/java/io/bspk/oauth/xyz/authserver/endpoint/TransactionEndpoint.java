@@ -1,12 +1,15 @@
 package io.bspk.oauth.xyz.authserver.endpoint;
 
 import java.io.UnsupportedEncodingException;
+import java.nio.charset.Charset;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.security.Signature;
 import java.security.SignatureException;
 import java.text.ParseException;
 import java.time.Duration;
+import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Base64;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -27,12 +30,15 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
+import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.util.UriComponentsBuilder;
+import org.springframework.web.util.UriUtils;
 
+import com.google.common.base.Joiner;
 import com.google.common.base.Strings;
 import com.nimbusds.jose.JOSEException;
 import com.nimbusds.jose.JOSEObject;
@@ -63,6 +69,7 @@ import io.bspk.oauth.xyz.http.DigestWrappingFilter;
  *
  */
 @Controller
+@CrossOrigin
 @RequestMapping("/api/as/transaction")
 public class TransactionEndpoint {
 
@@ -82,6 +89,7 @@ public class TransactionEndpoint {
 		@RequestHeader(name = "Digest", required = false) String digest,
 		@RequestHeader(name = "Detached-JWS", required = false) String jwsd,
 		@RequestHeader(name = "DPoP", required = false) String dpop,
+		@RequestHeader(name = "PoP", required = false) String oauthPop,
 		HttpServletRequest req) {
 
 		Transaction t = null;
@@ -154,10 +162,13 @@ public class TransactionEndpoint {
 					break;
 				case DPOP:
 					checkDpop(dpop, req, t.getKeys().getJwk());
+					break;
+				case OAUTHPOP:
+					checkOAuthPop(oauthPop, req, t.getKeys().getJwk());
+					break;
 				case MTLS:
-					break;
 				default:
-					break;
+					throw new RuntimeException("Unsupported Key Proof Type");
 			}
 		}
 
@@ -276,6 +287,95 @@ public class TransactionEndpoint {
 		transactionRepository.save(t);
 		return ResponseEntity.ok(TransactionResponse.of(t));
 	}
+
+	/**
+	 * @param oauthPop
+	 * @param req
+	 * @param jwk
+	 */
+	private void checkOAuthPop(String oauthPop, HttpServletRequest req, JWK jwk) {
+		try {
+			SignedJWT jwt = SignedJWT.parse(oauthPop);
+
+			JWTClaimsSet claims = jwt.getJWTClaimsSet();
+
+			if (claims.getClaim("q") != null) {
+				List<Object> q = (List<Object>) claims.getClaim("q");
+				checkQueryHash(req, (List<String>)q.get(0), (String)q.get(1));
+			}
+
+			if (claims.getClaim("h") != null) {
+				List<Object> h = (List<Object>) claims.getClaim("h");
+				checkHeaderHash(req, (List<String>)h.get(0), (String)h.get(1));
+			}
+
+			if (claims.getClaim("m") != null && !req.getMethod().equals(claims.getClaim("m"))) {
+				throw new RuntimeException("Couldn't validate method.");
+			}
+
+			if (claims.getClaim("u") != null && !req.getServerName().equals(claims.getClaim("u"))) {
+				throw new RuntimeException("Couldn't validate host.");
+			}
+
+			if (claims.getClaim("p") != null && !req.getRequestURI().equals(claims.getClaim("p"))) {
+				throw new RuntimeException("Couldn't validate path.");
+			}
+
+			if (claims.getClaim("ts") != null) {
+				Instant ts = Instant.ofEpochSecond(claims.getLongClaim("ts"));
+				if (!Instant.now().minusSeconds(10).isBefore(ts)
+					|| !Instant.now().plusSeconds(10).isAfter(ts)) {
+					throw new RuntimeException("Timestamp outside of acceptable window.");
+				}
+			}
+
+		} catch (ParseException e) {
+			throw new RuntimeException("Couldn't parse pop header", e);
+		}
+
+		log.info("++ Verified OAuth PoP");
+	}
+
+	private void checkQueryHash(HttpServletRequest request, List<String> paramsUsed, String hashUsed) {
+		if (paramsUsed != null && !Strings.isNullOrEmpty(hashUsed)) {
+			List<String> hashBase = new ArrayList<>();
+
+			paramsUsed.forEach((q) -> {
+				String first = request.getParameter(q);
+				hashBase.add(UriUtils.encodeQueryParam(q, Charset.defaultCharset())
+					+ "="
+					+ UriUtils.encodeQueryParam(first, Charset.defaultCharset()));
+			});
+
+			String hash = Hash.SHA256_encode(Joiner.on("&").join(hashBase).getBytes());
+
+			if (!hash.equals(hashUsed)) {
+				throw new RuntimeException("Couldn't validate query hash");
+			}
+			log.info("++ Validated query hash");
+		}
+	}
+
+	private void checkHeaderHash(HttpServletRequest request, List<String> headersUsed, String hashUsed) {
+		if (headersUsed != null && !Strings.isNullOrEmpty(hashUsed)) {
+			List<String> hashBase = new ArrayList<>();
+
+			headersUsed.forEach((h) -> {
+				String first = request.getHeader(h);
+				hashBase.add(h.toLowerCase()
+					+ ": "
+					+ first);
+			});
+
+			String hash = Hash.SHA256_encode(Joiner.on("\n").join(hashBase).getBytes());
+
+			if (!hash.equals(hashUsed)) {
+				throw new RuntimeException("Couldn't validate header hash");
+			}
+			log.info("++ Validated header hash");
+		}
+	}
+
 
 	/**
 	 * @param digest

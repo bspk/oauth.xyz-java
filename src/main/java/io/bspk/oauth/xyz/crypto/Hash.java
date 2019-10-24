@@ -1,9 +1,10 @@
 package io.bspk.oauth.xyz.crypto;
 
 import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.util.Base64;
 
+import org.bouncycastle.jcajce.provider.digest.SHA1;
+import org.bouncycastle.jcajce.provider.digest.SHA256;
 import org.bouncycastle.jcajce.provider.digest.SHA3;
 
 import com.google.common.base.Joiner;
@@ -33,23 +34,29 @@ public abstract class Hash {
 				interact));
 	}
 
+	public static String SHA256_encode(byte[] input) {
+		if (input == null || input.length == 0) {
+			return null;
+		}
+
+		MessageDigest digest = new SHA256.Digest();
+		byte[] output = digest.digest(input);
+
+		byte[] encoded = Base64.getUrlEncoder().withoutPadding().encode(output);
+
+		return new String(encoded);
+	}
 
 	public static String SHA1_digest(byte[] input) {
 		if (input == null || input.length == 0) {
 			return null;
 		}
 
-		try {
-			MessageDigest digest = MessageDigest.getInstance("SHA-1");
-			byte[] output = digest.digest(input);
+		MessageDigest digest = new SHA1.Digest();
+		byte[] output = digest.digest(input);
 
-			byte[] encoded = Base64.getEncoder().encode(output);
+		byte[] encoded = Base64.getEncoder().encode(output);
 
-			return new String(encoded);
-		} catch (NoSuchAlgorithmException e) {
-			assert(false); // this should never happen, if it does we're in bad shape
-		}
-
-		return null;
+		return new String(encoded);
 	}
 }

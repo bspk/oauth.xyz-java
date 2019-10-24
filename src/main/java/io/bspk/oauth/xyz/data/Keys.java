@@ -29,7 +29,8 @@ public class Keys {
 		JWSD,
 		MTLS,
 		HTTPSIG,
-		DPOP
+		DPOP,
+		OAUTHPOP
 		;
 
 		@JsonCreator

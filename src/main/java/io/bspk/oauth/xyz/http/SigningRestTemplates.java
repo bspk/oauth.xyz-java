@@ -7,6 +7,7 @@ import java.security.NoSuchAlgorithmException;
 import java.security.Signature;
 import java.security.SignatureException;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Base64;
 import java.util.Date;
 import java.util.LinkedHashMap;
@@ -31,10 +32,15 @@ import org.springframework.http.client.ClientHttpResponse;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
 import org.springframework.stereotype.Service;
+import org.springframework.util.MultiValueMap;
 import org.springframework.util.StreamUtils;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.web.util.UriComponentsBuilder;
+import org.springframework.web.util.UriUtils;
 
 import com.fasterxml.jackson.databind.Module;
+import com.google.common.base.Joiner;
+import com.google.common.base.Strings;
 import com.nimbusds.jose.JOSEException;
 import com.nimbusds.jose.JOSEObjectType;
 import com.nimbusds.jose.JWSAlgorithm;
@@ -45,6 +51,7 @@ import com.nimbusds.jose.crypto.RSASSASigner;
 import com.nimbusds.jose.jwk.JWK;
 import com.nimbusds.jose.jwk.RSAKey;
 import com.nimbusds.jwt.JWTClaimsSet;
+import com.nimbusds.jwt.JWTClaimsSet.Builder;
 
 import io.bspk.oauth.xyz.crypto.Hash;
 import io.bspk.oauth.xyz.data.api.TransactionRequest;
@@ -66,6 +73,7 @@ public class SigningRestTemplates {
 	private RestTemplate cavageSigner;
 	private RestTemplate dpopSigner;
 	private RestTemplate detachedSigner;
+	private RestTemplate oauthPopSigner;
 
 	@PostConstruct
 	public void init() {
@@ -86,6 +94,10 @@ public class SigningRestTemplates {
 			new DetachedJwsSigningInterceptor(),
 			new RequestResponseLoggingInterceptor()
 			));
+		oauthPopSigner = createRestTemplate(List.of(
+			new OAuthPoPSigningInterceptor(),
+			new RequestResponseLoggingInterceptor()
+			));
 	}
 
 	public RestTemplate getSignerFor(TransactionRequest req) {
@@ -97,6 +109,8 @@ public class SigningRestTemplates {
 					return cavageSigner;
 				case JWSD:
 					return detachedSigner;
+				case OAUTHPOP:
+					return oauthPopSigner;
 				case MTLS:
 				default:
 					return noSigner;
@@ -316,6 +330,94 @@ public class SigningRestTemplates {
 			return execution.execute(request, body);
 		}
 
+	}
+
+	private class OAuthPoPSigningInterceptor implements ClientHttpRequestInterceptor {
+
+		@Override
+		public ClientHttpResponse intercept(HttpRequest request, byte[] body, ClientHttpRequestExecution execution) throws IOException {
+
+			JWSHeader header = new JWSHeader.Builder(JWSAlgorithm.parse(clientKey.getAlgorithm().getName()))
+				.jwk(clientKey.toPublicJWK())
+				.build();
+
+			Builder claimsSetBuilder = new JWTClaimsSet.Builder();
+
+			String bodyHash = Hash.SHA256_encode(body);
+			claimsSetBuilder.claim("b", bodyHash);
+
+			calculateQueryHash(request, claimsSetBuilder);
+			calculateHeaderHash(request, claimsSetBuilder);
+
+			claimsSetBuilder.claim("m", request.getMethod().toString().toUpperCase());
+			claimsSetBuilder.claim("u", request.getURI().getHost());
+			claimsSetBuilder.claim("p", request.getURI().getPath());
+			claimsSetBuilder.claim("ts", Instant.now().getEpochSecond());
+
+			try {
+				RSASSASigner signer = new RSASSASigner((RSAKey)clientKey);
+
+				JWSObject jwsObject = new JWSObject(header, new Payload(claimsSetBuilder.build().toJSONObject()));
+
+				jwsObject.sign(signer);
+
+				String signature = jwsObject.serialize();
+
+				request.getHeaders().add("PoP", signature);
+
+			} catch (JOSEException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+
+
+			return execution.execute(request, body);
+		}
+
+		private void calculateQueryHash(HttpRequest request, Builder claimsSetBuilder) {
+			String query = request.getURI().getQuery();
+			if (!Strings.isNullOrEmpty(query)) {
+				MultiValueMap<String,String> queryParams = UriComponentsBuilder.newInstance().replaceQuery(query).build().getQueryParams();
+
+				List<String> names = new ArrayList<>();
+				List<String> hashBase = new ArrayList<>();
+
+				queryParams.entrySet().forEach((e) -> {
+					names.add(e.getKey());
+					String first = e.getValue().get(0); // TODO: make sure other values don't exist
+					hashBase.add(UriUtils.encodeQueryParam(e.getKey(), Charset.defaultCharset())
+						+ "="
+						+ UriUtils.encodeQueryParam(first, Charset.defaultCharset()));
+				});
+
+				String hash = Hash.SHA256_encode(Joiner.on("&").join(hashBase).getBytes());
+
+				claimsSetBuilder.claim("q", List.of(
+					names,
+					hash));
+			}
+		}
+
+		private void calculateHeaderHash(HttpRequest request, Builder claimsSetBuilder) {
+			if (request.getHeaders() != null) {
+				List<String> names = new ArrayList<>();
+				List<String> hashBase = new ArrayList<>();
+
+				request.getHeaders().entrySet().forEach((e) -> {
+					names.add(e.getKey());
+					String first = e.getValue().get(0); // TODO: make sure other values don't exist
+					hashBase.add(e.getKey().toLowerCase()
+						+ ": "
+						+ first);
+				});
+
+				String hash = Hash.SHA256_encode(Joiner.on("\n").join(hashBase).getBytes());
+
+				claimsSetBuilder.claim("h", List.of(
+					names,
+					hash));
+			}
+		}
 	}
 
 }
