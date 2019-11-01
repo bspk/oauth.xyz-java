@@ -22,7 +22,6 @@ import org.apache.commons.lang3.RandomStringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpRequest;
 import org.springframework.http.client.BufferingClientHttpRequestFactory;
 import org.springframework.http.client.ClientHttpRequestExecution;
@@ -281,7 +280,7 @@ public class SigningRestTemplates {
 		        	.stream().map(e -> e.getKey() + "=\"" + e.getValue() + "\"") // TODO: the value should likely be encoded
 		        	.collect(Collectors.joining(","));
 
-		        request.getHeaders().add(HttpHeaders.AUTHORIZATION, "Signature " + signatureHeaderPayload);
+		        request.getHeaders().add("Signature", signatureHeaderPayload);
 
 			} catch (NoSuchAlgorithmException | InvalidKeyException | JOSEException | SignatureException e) {
 				throw new RuntimeException(e);

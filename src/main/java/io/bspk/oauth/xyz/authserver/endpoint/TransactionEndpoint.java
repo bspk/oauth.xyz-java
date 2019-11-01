@@ -86,6 +86,7 @@ public class TransactionEndpoint {
 	@PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
 	public ResponseEntity<TransactionResponse> transaction(@RequestBody TransactionRequest incoming,
 		@RequestHeader(name = HttpHeaders.AUTHORIZATION, required = false) String auth,
+		@RequestHeader(name = "Signature", required = false) String signature,
 		@RequestHeader(name = "Digest", required = false) String digest,
 		@RequestHeader(name = "Detached-JWS", required = false) String jwsd,
 		@RequestHeader(name = "DPoP", required = false) String dpop,
@@ -155,7 +156,7 @@ public class TransactionEndpoint {
 			switch (t.getKeys().getProof()) {
 				case HTTPSIG:
 					ensureDigest(digest, req); // make sure the digest header is accurate
-					checkCavageSignature(auth, req, t.getKeys().getJwk());
+					checkCavageSignature(signature, req, t.getKeys().getJwk());
 					break;
 				case JWSD:
 					checkDetachedJws(jwsd, req, t.getKeys().getJwk());
@@ -406,13 +407,10 @@ public class TransactionEndpoint {
 
 	}
 
-	private void checkCavageSignature(String auth, HttpServletRequest request, JWK clientKey) {
-		if (auth != null && auth.toLowerCase().startsWith("signature ")) {
+	private void checkCavageSignature(String signatureHeaderPayload, HttpServletRequest request, JWK clientKey) {
+		if (!Strings.isNullOrEmpty(signatureHeaderPayload)) {
 
 			try {
-
-				String signatureHeaderPayload = auth.substring("signature ".length());
-
 				Map<String, String> signatureParts = Stream.of(signatureHeaderPayload.split(","))
 					.map((s) -> {
 						String[] parts = s.split("=", 2);
