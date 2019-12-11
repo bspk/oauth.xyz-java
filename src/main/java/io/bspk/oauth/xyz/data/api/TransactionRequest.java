@@ -25,7 +25,7 @@ public class TransactionRequest {
 	private UserRequest user;
 	private List<ResourceRequest> resources;
 	private KeyRequest keys;
-	private String interactHandle;
+	private String interactRef;
 	private List<Capability> capabilities;
 
 }

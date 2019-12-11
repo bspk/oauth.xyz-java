@@ -175,9 +175,9 @@ public class TransactionEndpoint {
 
 		// make sure the interaction handle matches if we're expecting one
 
-		if (t.getInteract().getInteractHandle() != null) {
+		if (t.getInteract().getInteractRef() != null) {
 
-			if (Strings.isNullOrEmpty(incoming.getInteractHandle())) {
+			if (Strings.isNullOrEmpty(incoming.getInteractRef())) {
 				return ResponseEntity.badRequest().build(); // missing interaction handle (one is required)
 			}
 

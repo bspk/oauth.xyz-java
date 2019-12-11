@@ -29,7 +29,7 @@ public class Interact {
 	private String interactionUrl;
 	private String interactId;
 	private String serverNonce;
-	private String interactHandle;
+	private String interactRef;
 	private String userCode;
 	private String userCodeUrl;
 

@@ -22,6 +22,7 @@ import org.springframework.web.util.UriComponentsBuilder;
 import io.bspk.oauth.xyz.authserver.data.api.ApprovalResponse;
 import io.bspk.oauth.xyz.authserver.repository.TransactionRepository;
 import io.bspk.oauth.xyz.crypto.Hash;
+import io.bspk.oauth.xyz.crypto.Hash.Method;
 import io.bspk.oauth.xyz.data.PendingApproval;
 import io.bspk.oauth.xyz.data.Transaction;
 import io.bspk.oauth.xyz.data.Transaction.Status;
@@ -90,21 +91,23 @@ public class InteractionEndpoint {
 
 			if (transaction.getInteract().getCallback() != null) {
 				// set up an interaction handle
-				String interactHandle = RandomStringUtils.randomAlphanumeric(30);
-				transaction.getInteract().setInteractHandle(interactHandle);
+				String interactRef = RandomStringUtils.randomAlphanumeric(30);
+				transaction.getInteract().setInteractRef(interactRef);
 
 				String clientNonce = transaction.getInteract().getCallback().getNonce();
 				String serverNonce = transaction.getInteract().getServerNonce();
+				Method method = transaction.getInteract().getCallback().getHashMethod();
 
 				String hash = Hash.CalculateInteractHash(clientNonce,
 						serverNonce,
-						interactHandle);
+						interactRef,
+						method);
 
 
 				String callback = transaction.getInteract().getCallback().getUri();
 				URI callbackUri = UriComponentsBuilder.fromUriString(callback)
 					.queryParam("hash", hash)
-					.queryParam("interact", interactHandle)
+					.queryParam("interact", interactRef)
 					.build().toUri();
 
 				res.setUri(callbackUri);
