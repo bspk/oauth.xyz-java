@@ -181,7 +181,7 @@ public class TransactionEndpoint {
 				return ResponseEntity.badRequest().build(); // missing interaction handle (one is required)
 			}
 
-			if (!incoming.getInteractHandle().equals(Hash.SHA3_512_encode(t.getInteract().getInteractHandle()))) {
+			if (!incoming.getInteractRef().equals(t.getInteract().getInteractRef())) {
 				return ResponseEntity.badRequest().build(); // bad interaction handle
 			}
 

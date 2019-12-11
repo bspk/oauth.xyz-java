@@ -200,7 +200,7 @@ public class ClientAPI {
 
 			TransactionRequest request = new TransactionRequest()
 				.setHandle(lastResponse.getHandle().getValue())
-				.setInteractHandle(Hash.SHA3_512_encode(interact))
+				.setInteractRef(interact)
 				;
 
 			RestTemplate restTemplate = requestSigners.getSignerFor(pending.getEntries().get(0).getRequest()); // get the first request
