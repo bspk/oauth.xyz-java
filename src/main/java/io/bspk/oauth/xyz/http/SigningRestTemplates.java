@@ -342,7 +342,7 @@ public class SigningRestTemplates {
 
 			Builder claimsSetBuilder = new JWTClaimsSet.Builder();
 
-			String bodyHash = Hash.SHA256_encode(body);
+			String bodyHash = Hash.SHA256_encode(new String(body));
 			claimsSetBuilder.claim("b", bodyHash);
 
 			calculateQueryHash(request, claimsSetBuilder);
@@ -389,7 +389,7 @@ public class SigningRestTemplates {
 						+ UriUtils.encodeQueryParam(first, Charset.defaultCharset()));
 				});
 
-				String hash = Hash.SHA256_encode(Joiner.on("&").join(hashBase).getBytes());
+				String hash = Hash.SHA256_encode(Joiner.on("&").join(hashBase));
 
 				claimsSetBuilder.claim("q", List.of(
 					names,
@@ -410,7 +410,7 @@ public class SigningRestTemplates {
 						+ first);
 				});
 
-				String hash = Hash.SHA256_encode(Joiner.on("\n").join(hashBase).getBytes());
+				String hash = Hash.SHA256_encode(Joiner.on("\n").join(hashBase));
 
 				claimsSetBuilder.claim("h", List.of(
 					names,

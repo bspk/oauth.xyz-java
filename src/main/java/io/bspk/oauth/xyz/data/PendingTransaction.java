@@ -9,6 +9,7 @@ import org.springframework.data.annotation.Id;
 import com.fasterxml.jackson.databind.PropertyNamingStrategy;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
 
+import io.bspk.oauth.xyz.crypto.Hash.Method;
 import io.bspk.oauth.xyz.data.api.TransactionRequest;
 import io.bspk.oauth.xyz.data.api.TransactionResponse;
 import lombok.Data;
@@ -38,6 +39,7 @@ public class PendingTransaction {
 	private String callbackId;
 	private String clientNonce;
 	private String serverNonce;
+	private Method hashMethod;
 
 	public PendingTransaction add (TransactionRequest request, TransactionResponse response) {
 		entries.add(new Entry().setRequest(request).setResponse(response));

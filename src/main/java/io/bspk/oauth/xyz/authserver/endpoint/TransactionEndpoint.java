@@ -348,7 +348,7 @@ public class TransactionEndpoint {
 					+ UriUtils.encodeQueryParam(first, Charset.defaultCharset()));
 			});
 
-			String hash = Hash.SHA256_encode(Joiner.on("&").join(hashBase).getBytes());
+			String hash = Hash.SHA256_encode(Joiner.on("&").join(hashBase));
 
 			if (!hash.equals(hashUsed)) {
 				throw new RuntimeException("Couldn't validate query hash");
@@ -368,7 +368,7 @@ public class TransactionEndpoint {
 					+ first);
 			});
 
-			String hash = Hash.SHA256_encode(Joiner.on("\n").join(hashBase).getBytes());
+			String hash = Hash.SHA256_encode(Joiner.on("\n").join(hashBase));
 
 			if (!hash.equals(hashUsed)) {
 				throw new RuntimeException("Couldn't validate header hash");

@@ -96,6 +96,7 @@ public class ClientAPI {
 			.setCallbackId(callbackId)
 			.setClientNonce(nonce)
 			.setServerNonce(response.getServerNonce())
+			.setHashMethod(request.getInteract().getCallback().getHashMethod())
 			.setOwner(session.getId());
 
 		pendingTransactionRepository.save(pending);
@@ -182,7 +183,7 @@ public class ClientAPI {
 
 			// check the incoming hash
 
-			String expectedHash = Hash.CalculateInteractHash(pending.getClientNonce(), pending.getServerNonce(), interact);
+			String expectedHash = Hash.CalculateInteractHash(pending.getClientNonce(), pending.getServerNonce(), interact, pending.getHashMethod());
 
 			if (!expectedHash.equals(interactHash)) {
 				return ResponseEntity.badRequest().build(); // TODO: redirect this someplace useful?

@@ -3,6 +3,7 @@ package io.bspk.oauth.xyz.data.api;
 import com.fasterxml.jackson.databind.PropertyNamingStrategy;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
 
+import io.bspk.oauth.xyz.crypto.Hash.Method;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.experimental.Accessors;
@@ -29,6 +30,7 @@ public class InteractRequest extends HandleReplaceable<InteractRequest> {
 	public static class Callback {
 		private String uri;
 		private String nonce;
+		private Method hashMethod = Method.SHA3;
 	}
 
 }
