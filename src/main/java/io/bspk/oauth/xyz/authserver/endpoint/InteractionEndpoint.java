@@ -1,6 +1,7 @@
 package io.bspk.oauth.xyz.authserver.endpoint;
 
 import java.net.URI;
+import java.time.Instant;
 import java.util.Optional;
 
 import javax.servlet.http.HttpSession;
@@ -80,7 +81,12 @@ public class InteractionEndpoint {
 			if (approve.isApproved()) {
 				transaction.setStatus(Status.AUTHORIZED);
 
-				transaction.setUser(new User().setId(session.getId()));
+				transaction.setUser(new User()
+					.setId(session.getId())
+					.setEmail("user@example.com")
+					.setPhone("555-user")
+					.setUpdatedAt(Instant.ofEpochMilli(session.getCreationTime()))
+					);
 			} else {
 
 				transaction.setStatus(Status.DENIED);

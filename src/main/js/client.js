@@ -153,6 +153,24 @@ class PendingTransactionEntry extends React.Component {
 			);
 		}
 		
+		if (this.props.entry.response.claims) {
+			const claims = Object.keys(this.props.entry.response.claims)
+			.filter(k => this.props.entry.response.claims[k])
+			.map(k => (
+				<>
+					<b>{k}</b>: <em>{this.props.entry.response.claims[k]}</em>
+					<br/>
+				</>
+			));
+			//debugger;
+			elements.push(
+				...[
+					<dt className="col-sm-3">Claims</dt>,
+					<dd className="col-sm-9">{claims}</dd>
+				]
+			);
+		}
+		
 		if (this.props.entry.response.handle) {
 			elements.push(
 				...[

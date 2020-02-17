@@ -27,6 +27,7 @@ import io.bspk.oauth.xyz.crypto.Hash;
 import io.bspk.oauth.xyz.data.Keys.Proof;
 import io.bspk.oauth.xyz.data.PendingTransaction;
 import io.bspk.oauth.xyz.data.PendingTransaction.Entry;
+import io.bspk.oauth.xyz.data.api.ClaimsRequest;
 import io.bspk.oauth.xyz.data.api.DisplayRequest;
 import io.bspk.oauth.xyz.data.api.InteractRequest;
 import io.bspk.oauth.xyz.data.api.KeyRequest;
@@ -48,7 +49,7 @@ public class ClientAPI {
 	private String callbackBaseUrl;
 
 	@Value("${oauth.xyz.root}api/as/transaction")
-	private String asEndpoint;
+	private String asEndpoint;// = "http://localhost:3000/transaction";
 
 	@Value("${oauth.xyz.root}c")
 	private String clientPage;
@@ -78,8 +79,11 @@ public class ClientAPI {
 					.setUri(callbackBaseUrl + "/" + callbackId)
 					.setNonce(nonce))
 				.setRedirect(true))
-			.setResources(List.of(new ResourceRequest()
-				.setHandle("foo")))
+//			.setResources(List.of(new ResourceRequest()
+//				.setHandle("foo")))
+			.setClaims(new ClaimsRequest()
+				.setEmail(true)
+				.setSubject(true))
 			.setUser(new UserRequest())
 			.setKeys(new KeyRequest()
 				.setJwk(clientKey.toPublicJWK())
@@ -87,7 +91,7 @@ public class ClientAPI {
 
 		RestTemplate restTemplate = requestSigners.getSignerFor(request);
 
-		ResponseEntity<TransactionResponse> responseEntity = restTemplate.postForEntity(asEndpoint + "?foo=bar&baz=qux", request, TransactionResponse.class);
+		ResponseEntity<TransactionResponse> responseEntity = restTemplate.postForEntity(asEndpoint, request, TransactionResponse.class);
 
 		TransactionResponse response = responseEntity.getBody();
 

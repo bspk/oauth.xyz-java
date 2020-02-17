@@ -27,5 +27,6 @@ public class TransactionRequest {
 	private KeyRequest keys;
 	private String interactRef;
 	private List<Capability> capabilities;
+	private ClaimsRequest claims;
 
 }

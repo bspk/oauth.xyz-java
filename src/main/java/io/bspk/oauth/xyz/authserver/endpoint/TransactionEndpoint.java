@@ -53,6 +53,7 @@ import com.nimbusds.jwt.SignedJWT;
 
 import io.bspk.oauth.xyz.authserver.repository.TransactionRepository;
 import io.bspk.oauth.xyz.crypto.Hash;
+import io.bspk.oauth.xyz.data.Claims;
 import io.bspk.oauth.xyz.data.Display;
 import io.bspk.oauth.xyz.data.Handle;
 import io.bspk.oauth.xyz.data.Interact;
@@ -132,6 +133,9 @@ public class TransactionEndpoint {
 				t.setKeys(Keys.of(incoming.getKeys()));
 			}
 
+			t.setClaimsRequest(incoming.getClaims());
+			//t.setResourceRequest(incoming.getResources());
+
 			/*
 			if (t.getClient() != null && t.getHandles().getClient() == null) {
 				t.getHandles().setClient(Handle.create()); // create a new handle to represent this client, equivalent to client id/secret
@@ -173,16 +177,16 @@ public class TransactionEndpoint {
 			}
 		}
 
-		// make sure the interaction handle matches if we're expecting one
+		// make sure the interaction ref matches if we're expecting one
 
-		if (t.getInteract().getInteractRef() != null) {
+		if (t.getInteract() != null && t.getInteract().getInteractRef() != null) {
 
 			if (Strings.isNullOrEmpty(incoming.getInteractRef())) {
-				return ResponseEntity.badRequest().build(); // missing interaction handle (one is required)
+				return ResponseEntity.badRequest().build(); // missing interaction ref (one is required)
 			}
 
 			if (!incoming.getInteractRef().equals(t.getInteract().getInteractRef())) {
-				return ResponseEntity.badRequest().build(); // bad interaction handle
+				return ResponseEntity.badRequest().build(); // bad interaction ref
 			}
 
 		}
@@ -196,21 +200,26 @@ public class TransactionEndpoint {
 				// it's been authorized so we can issue a token now
 
 				// invalidate any pending interaction stuff
-				t.setInteract(new Interact());
+				t.setInteract(null);
 
 				t.setStatus(Status.ISSUED);
 
 				t.setAccessToken(Handle.create(Duration.ofHours(1)));
 
+				// if we're issuing any claims, add them here
+				if (t.getClaimsRequest() != null) {
+					t.setClaims(Claims.of(t.getClaimsRequest(), t.getUser()));
+
+					// remove the claims request so that we don't issue claims on refresh
+					t.setClaimsRequest(null);
+				}
+
 				break;
 			case ISSUED:
 
-				// we've already seen this one before
+				// we've already seen this one before, send out a new access token
 
-				// FIXME: this is where a refresh token would come into play, right?
-
-				transactionRepository.save(t);
-				return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+				t.setAccessToken(Handle.create(Duration.ofHours(1)));
 
 				//break;
 			case WAITING:
