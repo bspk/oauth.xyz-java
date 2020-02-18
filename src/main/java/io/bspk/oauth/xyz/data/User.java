@@ -8,7 +8,10 @@ import com.fasterxml.jackson.databind.annotation.JsonNaming;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.fasterxml.jackson.datatype.jsr310.deser.InstantDeserializer;
 import com.fasterxml.jackson.datatype.jsr310.ser.InstantSerializer;
+import com.nimbusds.jwt.JWT;
 
+import io.bspk.oauth.xyz.json.JWTDeserializer;
+import io.bspk.oauth.xyz.json.JWTSerializer;
 import lombok.Data;
 import lombok.experimental.Accessors;
 
@@ -27,5 +30,8 @@ public class User {
 	@JsonSerialize(using = InstantSerializer.class)
 	@JsonDeserialize(using = InstantDeserializer.class)
 	private Instant updatedAt;
+	@JsonSerialize(using = JWTSerializer.class)
+	@JsonDeserialize(using = JWTDeserializer.class)
+	private JWT idToken;
 
 }

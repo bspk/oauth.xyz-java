@@ -20,5 +20,6 @@ public class ClaimsRequest extends HandleReplaceable<ClaimsRequest> {
 	private Boolean subject;
 	private Boolean email;
 	private Boolean phone;
+	private Boolean oidcIdToken;
 
 }
