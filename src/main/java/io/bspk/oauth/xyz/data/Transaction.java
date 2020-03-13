@@ -8,7 +8,7 @@ import com.fasterxml.jackson.databind.PropertyNamingStrategy;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
 
 import io.bspk.oauth.xyz.data.api.ClaimsRequest;
-import io.bspk.oauth.xyz.data.api.ResourceRequest;
+import io.bspk.oauth.xyz.data.api.RequestedResource;
 import lombok.Data;
 import lombok.NonNull;
 import lombok.experimental.Accessors;
@@ -55,6 +55,6 @@ public class Transaction {
 	private Keys keys;
 	private Claims claims;
 	private ClaimsRequest claimsRequest;
-	private ResourceRequest resourceRequest;
+	private RequestedResource requestedResource;
 
 }

@@ -8,8 +8,6 @@ import com.fasterxml.jackson.databind.PropertyNamingStrategy;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
-import com.fasterxml.jackson.datatype.jsr310.deser.InstantDeserializer;
-import com.fasterxml.jackson.datatype.jsr310.ser.InstantSerializer;
 import com.nimbusds.jwt.JWT;
 
 import io.bspk.oauth.xyz.data.api.ClaimsRequest;
@@ -33,8 +31,6 @@ public class Claims {
 	@JsonSerialize(using = JWTSerializer.class)
 	@JsonDeserialize(using = JWTDeserializer.class)
 	private JWT oidcIdToken;
-	@JsonSerialize(using = InstantSerializer.class)
-	@JsonDeserialize(using = InstantDeserializer.class)
 	private Instant updatedAt;
 
 

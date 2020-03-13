@@ -15,7 +15,7 @@ import com.nimbusds.jose.jwk.JWK;
  *
  */
 @WritingConverter
-public class JWKSerializer extends JsonSerializer<JWK> implements Converter<JWK, String>{
+public class JWKSerializer extends JsonSerializer<JWK> implements Converter<JWK, String> {
 
 	/* (non-Javadoc)
 	 * @see com.fasterxml.jackson.databind.JsonSerializer#serialize(java.lang.Object, com.fasterxml.jackson.core.JsonGenerator, com.fasterxml.jackson.databind.SerializerProvider)

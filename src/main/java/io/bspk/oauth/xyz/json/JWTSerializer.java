@@ -22,7 +22,7 @@ public class JWTSerializer extends JsonSerializer<JWT> implements Converter<JWT,
 	 */
 	@Override
 	public void serialize(JWT value, JsonGenerator gen, SerializerProvider serializers) throws IOException {
-		gen.writeObject(value.serialize());
+		gen.writeString(value.serialize());
 	}
 
 	/* (non-Javadoc)

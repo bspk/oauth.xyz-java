@@ -1,6 +1,7 @@
 package io.bspk.oauth.xyz.client.api;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import javax.servlet.http.HttpSession;
@@ -31,7 +32,9 @@ import io.bspk.oauth.xyz.data.api.ClaimsRequest;
 import io.bspk.oauth.xyz.data.api.DisplayRequest;
 import io.bspk.oauth.xyz.data.api.InteractRequest;
 import io.bspk.oauth.xyz.data.api.KeyRequest;
-import io.bspk.oauth.xyz.data.api.ResourceRequest;
+import io.bspk.oauth.xyz.data.api.MultiTokenResourceRequest;
+import io.bspk.oauth.xyz.data.api.RequestedResource;
+import io.bspk.oauth.xyz.data.api.SingleTokenResourceRequest;
 import io.bspk.oauth.xyz.data.api.TransactionRequest;
 import io.bspk.oauth.xyz.data.api.TransactionResponse;
 import io.bspk.oauth.xyz.data.api.UserRequest;
@@ -79,7 +82,7 @@ public class ClientAPI {
 					.setUri(callbackBaseUrl + "/" + callbackId)
 					.setNonce(nonce))
 				.setRedirect(true))
-//			.setResources(List.of(new ResourceRequest()
+//			.setResources(List.of(new RequestedResource()
 //				.setHandle("foo")))
 			.setClaims(new ClaimsRequest()
 				.setEmail(true)
@@ -118,7 +121,8 @@ public class ClientAPI {
 				.setUri("http://host.docker.internal:9834/c"))
 			.setInteract(new InteractRequest()
 				.setUserCode(true))
-			.setResources(List.of(new ResourceRequest()))
+			.setResources(new SingleTokenResourceRequest()
+				.setResources(List.of(new RequestedResource().setHandle("foo"))))
 			.setUser(new UserRequest())
 			.setKeys(new KeyRequest()
 				.setJwk(clientKey.toPublicJWK())
@@ -149,7 +153,11 @@ public class ClientAPI {
 			.setInteract(new InteractRequest()
 				.setUserCode(true)
 				.setRedirect(true))
-			.setResources(List.of(new ResourceRequest()))
+			.setResources(new MultiTokenResourceRequest()
+				.setRequests(Map.of(
+					"blanktoken", new SingleTokenResourceRequest()
+						.setResources(List.of(new RequestedResource()
+							.setActions(List.of("read", "write", "dolphin")))))))
 			.setUser(new UserRequest())
 			.setKeys(new KeyRequest()
 				.setJwk(clientKey.toPublicJWK())
