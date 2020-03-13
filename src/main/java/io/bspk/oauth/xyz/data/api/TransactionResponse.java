@@ -1,6 +1,7 @@
 package io.bspk.oauth.xyz.data.api;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import com.fasterxml.jackson.databind.PropertyNamingStrategy;
@@ -30,6 +31,7 @@ public class TransactionResponse {
 	private Handle userHandle;
 	private Handle keyHandle;
 	private Handle accessToken;
+	private Map<String, Handle> multipleAccessTokens;
 	private String interactionUrl;
 	private String userCodeUrl;
 	private String userCode;
@@ -48,6 +50,7 @@ public class TransactionResponse {
 
 		return new TransactionResponse()
 			.setAccessToken(t.getAccessToken())
+			.setMultipleAccessTokens(t.getMultipleAccessTokens())
 			.setInteractionUrl(interact
 				.map(Interact::getInteractionUrl)
 				.orElse(null))

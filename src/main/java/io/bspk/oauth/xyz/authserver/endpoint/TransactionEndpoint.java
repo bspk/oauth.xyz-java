@@ -11,6 +11,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Base64;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -61,6 +62,8 @@ import io.bspk.oauth.xyz.data.Keys;
 import io.bspk.oauth.xyz.data.Transaction;
 import io.bspk.oauth.xyz.data.Transaction.Status;
 import io.bspk.oauth.xyz.data.api.DisplayRequest;
+import io.bspk.oauth.xyz.data.api.MultiTokenResourceRequest;
+import io.bspk.oauth.xyz.data.api.SingleTokenResourceRequest;
 import io.bspk.oauth.xyz.data.api.TransactionRequest;
 import io.bspk.oauth.xyz.data.api.TransactionResponse;
 import io.bspk.oauth.xyz.http.DigestWrappingFilter;
@@ -134,7 +137,8 @@ public class TransactionEndpoint {
 			}
 
 			t.setClaimsRequest(incoming.getClaims());
-			//t.setResourceRequest(incoming.getResources());
+
+			t.setResourceRequest(incoming.getResources());
 
 			/*
 			if (t.getClient() != null && t.getHandles().getClient() == null) {
@@ -204,7 +208,7 @@ public class TransactionEndpoint {
 
 				t.setStatus(Status.ISSUED);
 
-				t.setAccessToken(Handle.create(Duration.ofHours(1)));
+				createNewAccessTokens(t);
 
 				// if we're issuing any claims, add them here
 				if (t.getClaimsRequest() != null) {
@@ -219,7 +223,7 @@ public class TransactionEndpoint {
 
 				// we've already seen this one before, send out a new access token
 
-				t.setAccessToken(Handle.create(Duration.ofHours(1)));
+				createNewAccessTokens(t);
 
 				//break;
 			case WAITING:
@@ -296,6 +300,23 @@ public class TransactionEndpoint {
 
 		transactionRepository.save(t);
 		return ResponseEntity.ok(TransactionResponse.of(t));
+	}
+
+	private void createNewAccessTokens(Transaction t) {
+		if (t.getResourceRequest() == null) {
+			// no resources requested, no access token
+		} else if (t.getResourceRequest().isMultiple()) {
+			// if the request was for multiple resources, create multiple access tokens
+			Map<String, SingleTokenResourceRequest> resources = ((MultiTokenResourceRequest)t.getResourceRequest()).getRequests();
+			Map<String, Handle> tokens = new HashMap<>();
+			for (String key : resources.keySet()) {
+				tokens.put(key, Handle.create(Duration.ofHours(1)));
+			}
+			t.setMultipleAccessTokens(tokens);
+		} else {
+			// otherwise set a single access token
+			t.setAccessToken(Handle.create(Duration.ofHours(1)));
+		}
 	}
 
 	/**

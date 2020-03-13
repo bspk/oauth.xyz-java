@@ -153,6 +153,24 @@ class PendingTransactionEntry extends React.Component {
 			);
 		}
 		
+		if (this.props.entry.response.multiple_access_tokens) {
+			const tokens = Object.keys(this.props.entry.response.multiple_access_tokens)
+			.filter(k => this.props.entry.response.multiple_access_tokens[k])
+			.map(k => (
+				<>
+					<b>{k}</b>: <AccessToken token={this.props.entry.response.multiple_access_tokens[k]} />
+					<br/>
+				</>
+			));
+			//debugger;
+			elements.push(
+				...[
+					<dt className="col-sm-3">Multiple Tokens</dt>,
+					<dd className="col-sm-9">{tokens}</dd>
+				]
+			);
+		}
+		
 		if (this.props.entry.response.claims) {
 			const claims = Object.keys(this.props.entry.response.claims)
 			.filter(k => this.props.entry.response.claims[k])

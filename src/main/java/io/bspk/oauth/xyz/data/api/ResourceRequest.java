@@ -6,4 +6,6 @@ package io.bspk.oauth.xyz.data.api;
  */
 public interface ResourceRequest {
 
+	boolean isMultiple();
+
 }

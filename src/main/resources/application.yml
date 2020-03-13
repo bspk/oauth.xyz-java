@@ -18,3 +18,5 @@ rewrite:
       target: /
 
 # spring.devtools.restart.exclude: 
+
+spring.jackson.default-property-inclusion: non_null

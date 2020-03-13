@@ -20,4 +20,9 @@ public class MultiTokenResourceRequest implements ResourceRequest {
 
 	private Map<String, SingleTokenResourceRequest> requests = new HashMap<>();
 
+	@Override
+	public boolean isMultiple() {
+		return true;
+	}
+
 }

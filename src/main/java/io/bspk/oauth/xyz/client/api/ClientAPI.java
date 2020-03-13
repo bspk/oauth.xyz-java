@@ -82,8 +82,8 @@ public class ClientAPI {
 					.setUri(callbackBaseUrl + "/" + callbackId)
 					.setNonce(nonce))
 				.setRedirect(true))
-//			.setResources(List.of(new RequestedResource()
-//				.setHandle("foo")))
+			.setResources(new SingleTokenResourceRequest()
+				.setResources(List.of(new RequestedResource().setHandle("foo"))))
 			.setClaims(new ClaimsRequest()
 				.setEmail(true)
 				.setSubject(true))
@@ -157,7 +157,10 @@ public class ClientAPI {
 				.setRequests(Map.of(
 					"blanktoken", new SingleTokenResourceRequest()
 						.setResources(List.of(new RequestedResource()
-							.setActions(List.of("read", "write", "dolphin")))))))
+							.setActions(List.of("read", "write", "dolphin")))),
+					"magic", new SingleTokenResourceRequest()
+						.setResources(List.of(new RequestedResource()
+							.setActions(List.of("foo", "bar", "baz")))))))
 			.setUser(new UserRequest())
 			.setKeys(new KeyRequest()
 				.setJwk(clientKey.toPublicJWK())

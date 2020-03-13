@@ -20,4 +20,9 @@ public class SingleTokenResourceRequest implements ResourceRequest {
 
 	private List<RequestedResource> resources = new ArrayList<>();
 
+	@Override
+	public boolean isMultiple() {
+		return false;
+	}
+
 }
