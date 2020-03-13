@@ -1,6 +1,7 @@
 package io.bspk.oauth.xyz.data.api;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import com.fasterxml.jackson.databind.PropertyNamingStrategy;
@@ -23,6 +24,14 @@ public class MultiTokenResourceRequest implements ResourceRequest {
 	@Override
 	public boolean isMultiple() {
 		return true;
+	}
+
+	public static MultiTokenResourceRequest of(Map<String, List<RequestedResource>> value) {
+		MultiTokenResourceRequest m = new MultiTokenResourceRequest();
+		value.forEach((k, v) -> {
+			m.requests.put(k, new SingleTokenResourceRequest().setResources(v));
+		});
+		return m;
 	}
 
 }

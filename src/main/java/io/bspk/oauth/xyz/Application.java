@@ -25,6 +25,8 @@ import io.bspk.oauth.xyz.json.HandleAwareDeserializer;
 import io.bspk.oauth.xyz.json.HandleAwareSerializer;
 import io.bspk.oauth.xyz.json.JWKDeserializer;
 import io.bspk.oauth.xyz.json.JWKSerializer;
+import io.bspk.oauth.xyz.json.JWTDeserializer;
+import io.bspk.oauth.xyz.json.JWTSerializer;
 
 @SpringBootApplication()
 public class Application {
@@ -86,7 +88,9 @@ public class Application {
 	public MongoCustomConversions mongoCustomConversions() {
 	    List<Converter<?, ?>> list = List.of(
 	    	new JWKDeserializer(),
-	    	new JWKSerializer());
+	    	new JWKSerializer(),
+	    	new JWTDeserializer(),
+	    	new JWTSerializer());
 	    return new MongoCustomConversions(list);
 	}
 

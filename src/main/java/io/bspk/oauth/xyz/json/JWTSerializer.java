@@ -2,6 +2,7 @@ package io.bspk.oauth.xyz.json;
 
 import java.io.IOException;
 
+import org.springframework.boot.jackson.JsonComponent;
 import org.springframework.core.convert.converter.Converter;
 import org.springframework.data.convert.WritingConverter;
 
@@ -15,6 +16,7 @@ import com.nimbusds.jwt.JWT;
  *
  */
 @WritingConverter
+@JsonComponent
 public class JWTSerializer extends JsonSerializer<JWT> implements Converter<JWT, String>{
 
 	/* (non-Javadoc)
@@ -22,7 +24,11 @@ public class JWTSerializer extends JsonSerializer<JWT> implements Converter<JWT,
 	 */
 	@Override
 	public void serialize(JWT value, JsonGenerator gen, SerializerProvider serializers) throws IOException {
-		gen.writeString(value.serialize());
+		if (value == null) {
+			gen.writeNull();
+		} else {
+			gen.writeString(value.serialize());
+		}
 	}
 
 	/* (non-Javadoc)

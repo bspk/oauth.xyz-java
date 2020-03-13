@@ -39,11 +39,9 @@ public class ResourceRequestDeserializer extends StdDeserializer<ResourceRequest
 
 		} else if (token == JsonToken.START_OBJECT) {
 			// it's an object, parse it out as a multiple token request
-			Map<String, SingleTokenResourceRequest> value = p.readValueAs(new TypeReference<Map<String, SingleTokenResourceRequest>>() {});
+			Map<String, List<RequestedResource>> value = p.readValueAs(new TypeReference<Map<String, List<RequestedResource>>>() {});
 
-			return new MultiTokenResourceRequest()
-				.setRequests(value);
-
+			return MultiTokenResourceRequest.of(value);
 		} else {
 			throw new JsonParseException(p, "Couldn't convert from JSON node type");
 		}

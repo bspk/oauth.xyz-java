@@ -3,6 +3,7 @@ package io.bspk.oauth.xyz.json;
 import java.io.IOException;
 import java.text.ParseException;
 
+import org.springframework.boot.jackson.JsonComponent;
 import org.springframework.core.convert.converter.Converter;
 import org.springframework.data.convert.ReadingConverter;
 
@@ -19,6 +20,7 @@ import com.nimbusds.jwt.JWTParser;
  *
  */
 @ReadingConverter
+@JsonComponent
 public class JWTDeserializer extends StdDeserializer<JWT> implements Converter<String, JWT> {
 
 	/**
@@ -35,7 +37,12 @@ public class JWTDeserializer extends StdDeserializer<JWT> implements Converter<S
 	public JWT deserialize(JsonParser p, DeserializationContext ctxt) throws IOException, JsonProcessingException {
 
 		try {
-			return JWTParser.parse(ctxt.readValue(p, String.class));
+			String val = ctxt.readValue(p, String.class);
+			if (val == null) {
+				return null;
+			} else {
+				return JWTParser.parse(val);
+			}
 		} catch (ParseException e) {
 			throw new JsonParseException(p, "Couldn't create JWT", e);
 		}
