@@ -265,7 +265,7 @@ public class TransactionEndpoint {
 						t.setStatus(Status.WAITING);
 					}
 
-					if (t.getInteract().getCallback() != null) {
+					if (t.getInteract().getCallback() != null && t.getInteract().getCallback().getUri() != null) {
 
 						String serverNonce = RandomStringUtils.randomAlphanumeric(20);
 
@@ -498,7 +498,7 @@ public class TransactionEndpoint {
 
 			//log.info("<< " + payload.toBase64URL().toString());
 
-			JWSObject jwsObject = new JWSObject(parts[0], payload.toBase64URL(), parts[2]);
+			JWSObject jwsObject = new JWSObject(parts[0], payload, parts[2]);
 
 			RSASSAVerifier verifier = new RSASSAVerifier(
 				((RSAKey)clientKey).toRSAPublicKey(),

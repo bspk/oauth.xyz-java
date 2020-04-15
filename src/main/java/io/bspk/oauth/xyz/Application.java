@@ -107,6 +107,8 @@ public class Application {
 				registry.addViewController("/as/interact").setViewName("/");
 				registry.addViewController("/as").setViewName("/");
 				registry.addViewController("/c").setViewName("/");
+				registry.addViewController("/spa/*").setViewName("/");
+				registry.addViewController("/spa").setViewName("/");
 			}
 		};
 

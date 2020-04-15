@@ -11,6 +11,8 @@ import org.bouncycastle.jcajce.provider.digest.SHA512;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonValue;
 import com.google.common.base.Joiner;
 
 import lombok.AllArgsConstructor;
@@ -32,6 +34,18 @@ public abstract class Hash {
 
 		@Getter private String name;
 		@Getter private Function<String, String> function;
+
+		@JsonCreator
+		public static Method fromJson(String key) {
+			return key == null ? null :
+				valueOf(key.toUpperCase());
+		}
+
+		@JsonValue
+		public String toJson() {
+			return name().toLowerCase();
+		}
+
 	}
 
 	public static String SHA3_512_encode(String input) {

@@ -196,7 +196,7 @@ public class SigningRestTemplates {
 		@Override
 		public ClientHttpResponse intercept(HttpRequest request, byte[] body, ClientHttpRequestExecution execution) throws IOException {
 			JWSHeader header = new JWSHeader.Builder(JWSAlgorithm.parse(clientKey.getAlgorithm().getName()))
-				.customParam("b64", true)
+				.customParam("b64", false)
 				.criticalParams(Set.of("b64"))
 				.type(JOSEObjectType.JOSE)
 				.keyID(clientKey.getKeyID())
