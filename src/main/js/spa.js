@@ -179,6 +179,10 @@ class SPA extends React.Component {
 						nonce: nonce,
 						hash_method: 'sha2'
 					}
+				},
+				display: {
+					name: 'XYZ Single Page App',
+					uri: 'https://oauth.xyz/'
 				}
 			};
 			
