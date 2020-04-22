@@ -11,3 +11,5 @@ oauth.xyz.root: http://host.docker.internal:9834/
 # spring.devtools.restart.exclude: 
 
 spring.jackson.default-property-inclusion: NON_NULL
+
+spring.mvc.dispatch-options-request: true

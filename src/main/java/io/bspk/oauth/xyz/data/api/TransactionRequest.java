@@ -1,6 +1,6 @@
 package io.bspk.oauth.xyz.data.api;
 
-import java.util.List;
+import java.util.Set;
 
 import com.fasterxml.jackson.databind.PropertyNamingStrategy;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
@@ -32,7 +32,7 @@ public class TransactionRequest {
 	private ResourceRequest resources;
 	private KeyRequest keys;
 	private String interactRef;
-	private List<Capability> capabilities;
+	private Set<Capability> capabilities;
 	private ClaimsRequest claims;
 
 }

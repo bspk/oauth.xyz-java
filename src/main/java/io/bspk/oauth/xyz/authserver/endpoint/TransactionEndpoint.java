@@ -15,6 +15,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -35,11 +36,13 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.util.UriComponentsBuilder;
 import org.springframework.web.util.UriUtils;
 
 import com.google.common.base.Joiner;
 import com.google.common.base.Strings;
+import com.google.common.collect.Sets;
 import com.nimbusds.jose.JOSEException;
 import com.nimbusds.jose.JOSEObject;
 import com.nimbusds.jose.JWSObject;
@@ -55,11 +58,13 @@ import com.nimbusds.jwt.SignedJWT;
 
 import io.bspk.oauth.xyz.authserver.repository.TransactionRepository;
 import io.bspk.oauth.xyz.crypto.Hash;
+import io.bspk.oauth.xyz.data.Capability;
 import io.bspk.oauth.xyz.data.Claims;
 import io.bspk.oauth.xyz.data.Display;
 import io.bspk.oauth.xyz.data.Handle;
 import io.bspk.oauth.xyz.data.Interact;
 import io.bspk.oauth.xyz.data.Keys;
+import io.bspk.oauth.xyz.data.Keys.Proof;
 import io.bspk.oauth.xyz.data.Transaction;
 import io.bspk.oauth.xyz.data.Transaction.Status;
 import io.bspk.oauth.xyz.data.api.DisplayRequest;
@@ -83,11 +88,37 @@ public class TransactionEndpoint {
 
 	private static final String USER_CODE_CHARS = "123456789ABCDEFGHJKLMNOPQRSTUVWXYZ";
 
+	private Set<Capability> capabilities = Set.of(Capability.values());
+
 	@Autowired
 	private TransactionRepository transactionRepository;
 
-	@Value("${oauth.xyz.root}api/as/")
+	@Value("${oauth.xyz.root}")
 	private String baseUrl;
+
+	@RequestMapping(method = RequestMethod.OPTIONS)
+	public ResponseEntity<?> discover() {
+
+		Map<String, Object> disco = new HashMap<>();
+
+		disco.put("key_proofs", Proof.values());
+
+		String txEndpoint = UriComponentsBuilder.fromHttpUrl(baseUrl)
+			.path("/api/as/transaction")
+			.build().toUriString();
+
+		disco.put("tx_endpoint", txEndpoint);
+
+		disco.put("capabilities", capabilities);
+
+		disco.put("interact_methods", Set.of(
+			"redirect",
+			"callback",
+			"user_code"
+		));
+
+		return ResponseEntity.ok(disco);
+	}
 
 	@PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
 	public ResponseEntity<TransactionResponse> transaction(@RequestBody TransactionRequest incoming,
@@ -142,6 +173,8 @@ public class TransactionEndpoint {
 
 			t.setResourceRequest(incoming.getResources());
 
+			t.setCapabilitiesRequest(incoming.getCapabilities());
+
 			/*
 			if (t.getClient() != null && t.getHandles().getClient() == null) {
 				t.getHandles().setClient(Handle.create()); // create a new handle to represent this client, equivalent to client id/secret
@@ -159,6 +192,11 @@ public class TransactionEndpoint {
 				t.getHandles().setResource(Handle.create()); // create a handle for the resource, equivalent to scopes, resource sets, etc
 			}
 			*/
+		}
+
+		// process the capabilities list if needed
+		if (t.getCapabilitiesRequest() != null && t.getCapabilities() == null) {
+			t.setCapabilities(Sets.intersection(t.getCapabilitiesRequest(), capabilities));
 		}
 
 		// validate the method signing as appropriate
@@ -261,7 +299,7 @@ public class TransactionEndpoint {
 						String interactId = RandomStringUtils.randomAlphanumeric(10);
 
 						String interactionEndpoint = UriComponentsBuilder.fromHttpUrl(baseUrl)
-							.path("/interact/" + interactId) // this is unique per transaction
+							.path("/api/as/interact/" + interactId) // this is unique per transaction
 							.build().toUriString();
 
 						t.getInteract().setInteractionUrl(interactionEndpoint)
@@ -284,7 +322,7 @@ public class TransactionEndpoint {
 						t.getInteract().setUserCode(userCode);
 
 						String deviceInteractionEndpoint = UriComponentsBuilder.fromHttpUrl(baseUrl)
-							.path("/interact/device") // this is the same every time
+							.path("/api/as/interact/device") // this is the same every time
 							.build().toUriString();
 
 

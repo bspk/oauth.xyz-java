@@ -1,8 +1,8 @@
 package io.bspk.oauth.xyz.data.api;
 
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 import com.fasterxml.jackson.databind.PropertyNamingStrategy;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
@@ -37,7 +37,7 @@ public class TransactionResponse {
 	private String userCode;
 	private Integer wait;
 	private String serverNonce;
-	private List<Capability> capabilities;
+	private Set<Capability> capabilities;
 	private Claims claims;
 
 	/**
@@ -69,7 +69,8 @@ public class TransactionResponse {
 			.setResourceHandle(t.getHandles().getResource())
 			.setUserHandle(t.getHandles().getUser())
 			.setClaims(t.getClaims())
-			.setKeyHandle(t.getHandles().getKey());
+			.setKeyHandle(t.getHandles().getKey())
+			.setCapabilities(t.getCapabilities());
 
 	}
 

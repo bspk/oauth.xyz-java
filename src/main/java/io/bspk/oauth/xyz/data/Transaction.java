@@ -1,6 +1,7 @@
 package io.bspk.oauth.xyz.data;
 
 import java.util.Map;
+import java.util.Set;
 
 import org.springframework.data.annotation.Id;
 
@@ -58,5 +59,7 @@ public class Transaction {
 	private Claims claims;
 	private ClaimsRequest claimsRequest;
 	private ResourceRequest resourceRequest;
+	private Set<Capability> capabilitiesRequest;
+	private Set<Capability> capabilities;
 
 }
