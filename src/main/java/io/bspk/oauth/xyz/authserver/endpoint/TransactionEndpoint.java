@@ -15,7 +15,6 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -44,8 +43,10 @@ import com.google.common.base.Strings;
 import com.nimbusds.jose.JOSEException;
 import com.nimbusds.jose.JOSEObject;
 import com.nimbusds.jose.JWSObject;
+import com.nimbusds.jose.JWSVerifier;
 import com.nimbusds.jose.Payload;
 import com.nimbusds.jose.crypto.RSASSAVerifier;
+import com.nimbusds.jose.crypto.factories.DefaultJWSVerifierFactory;
 import com.nimbusds.jose.jwk.JWK;
 import com.nimbusds.jose.jwk.RSAKey;
 import com.nimbusds.jose.util.Base64URL;
@@ -67,6 +68,7 @@ import io.bspk.oauth.xyz.data.api.SingleTokenResourceRequest;
 import io.bspk.oauth.xyz.data.api.TransactionRequest;
 import io.bspk.oauth.xyz.data.api.TransactionResponse;
 import io.bspk.oauth.xyz.http.DigestWrappingFilter;
+import io.bspk.oauth.xyz.http.JoseUnwrappingFilter;
 
 /**
  * @author jricher
@@ -174,6 +176,9 @@ public class TransactionEndpoint {
 					break;
 				case OAUTHPOP:
 					checkOAuthPop(oauthPop, req, t.getKeys().getJwk());
+					break;
+				case JWS:
+					checkAttachedJws(req, t.getKeys().getJwk());
 					break;
 				case MTLS:
 				default:
@@ -500,9 +505,8 @@ public class TransactionEndpoint {
 
 			JWSObject jwsObject = new JWSObject(parts[0], payload, parts[2]);
 
-			RSASSAVerifier verifier = new RSASSAVerifier(
-				((RSAKey)clientKey).toRSAPublicKey(),
-				Set.of("b64"));
+			JWSVerifier verifier = new DefaultJWSVerifierFactory().createJWSVerifier(jwsObject.getHeader(),
+				((RSAKey)clientKey).toRSAPublicKey());
 
 			if (!jwsObject.verify(verifier)) {
 				throw new RuntimeException("Unable to verify JWS");
@@ -514,6 +518,32 @@ public class TransactionEndpoint {
 
 		log.info("++ Verified Detached JWS signature");
 
+	}
+
+	private void checkAttachedJws(HttpServletRequest request, JWK clientKey) {
+		JOSEObject jose = (JOSEObject) request.getAttribute(JoseUnwrappingFilter.BODY_JOSE);
+
+		if (jose == null) {
+			throw new RuntimeException("No JOSE object detected");
+		}
+
+		try {
+			if (jose instanceof JWSObject) {
+				JWSObject jws = (JWSObject)jose;
+
+				JWSVerifier verifier = new DefaultJWSVerifierFactory().createJWSVerifier(jws.getHeader(),
+					((RSAKey)clientKey).toRSAPublicKey());
+
+				if (!jws.verify(verifier)) {
+					throw new RuntimeException("Unable to verify JWS");
+				}
+
+				// note: we know the payload matches the body because of the JoseUnwrappingFilter extracted it
+
+			}
+		} catch (JOSEException e) {
+			throw new RuntimeException("Bad JWS", e);
+		}
 	}
 
 	private void checkDpop(String dpop, HttpServletRequest request, JWK clientKey) {

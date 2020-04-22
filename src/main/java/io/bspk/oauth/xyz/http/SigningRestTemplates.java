@@ -23,6 +23,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpRequest;
+import org.springframework.http.MediaType;
 import org.springframework.http.client.BufferingClientHttpRequestFactory;
 import org.springframework.http.client.ClientHttpRequestExecution;
 import org.springframework.http.client.ClientHttpRequestFactory;
@@ -45,8 +46,10 @@ import com.nimbusds.jose.JOSEObjectType;
 import com.nimbusds.jose.JWSAlgorithm;
 import com.nimbusds.jose.JWSHeader;
 import com.nimbusds.jose.JWSObject;
+import com.nimbusds.jose.JWSSigner;
 import com.nimbusds.jose.Payload;
 import com.nimbusds.jose.crypto.RSASSASigner;
+import com.nimbusds.jose.crypto.factories.DefaultJWSSignerFactory;
 import com.nimbusds.jose.jwk.JWK;
 import com.nimbusds.jose.jwk.RSAKey;
 import com.nimbusds.jwt.JWTClaimsSet;
@@ -73,6 +76,7 @@ public class SigningRestTemplates {
 	private RestTemplate dpopSigner;
 	private RestTemplate detachedSigner;
 	private RestTemplate oauthPopSigner;
+	private RestTemplate jwsSigner;
 
 	@PostConstruct
 	public void init() {
@@ -97,6 +101,10 @@ public class SigningRestTemplates {
 			new OAuthPoPSigningInterceptor(),
 			new RequestResponseLoggingInterceptor()
 			));
+		jwsSigner = createRestTemplate(List.of(
+			new JwsSigningInterceptor(),
+			new RequestResponseLoggingInterceptor()
+			));
 	}
 
 	public RestTemplate getSignerFor(TransactionRequest req) {
@@ -110,6 +118,8 @@ public class SigningRestTemplates {
 					return detachedSigner;
 				case OAUTHPOP:
 					return oauthPopSigner;
+				case JWS:
+					return jwsSigner;
 				case MTLS:
 				default:
 					return noSigner;
@@ -196,7 +206,7 @@ public class SigningRestTemplates {
 		@Override
 		public ClientHttpResponse intercept(HttpRequest request, byte[] body, ClientHttpRequestExecution execution) throws IOException {
 			JWSHeader header = new JWSHeader.Builder(JWSAlgorithm.parse(clientKey.getAlgorithm().getName()))
-				.customParam("b64", false)
+				.base64URLEncodePayload(false)
 				.criticalParams(Set.of("b64"))
 				.type(JOSEObjectType.JOSE)
 				.keyID(clientKey.getKeyID())
@@ -207,7 +217,7 @@ public class SigningRestTemplates {
 			//log.info(">> " + payload.toBase64URL().toString());
 
 			try {
-				RSASSASigner signer = new RSASSASigner((RSAKey)clientKey);
+				JWSSigner signer = new DefaultJWSSignerFactory().createJWSSigner(clientKey);
 
 				JWSObject jwsObject = new JWSObject(header, payload);
 
@@ -419,4 +429,34 @@ public class SigningRestTemplates {
 		}
 	}
 
+	private class JwsSigningInterceptor implements ClientHttpRequestInterceptor {
+		private final Logger log = LoggerFactory.getLogger(this.getClass());
+
+		@Override
+		public ClientHttpResponse intercept(HttpRequest request, byte[] body, ClientHttpRequestExecution execution) throws IOException {
+			JWSHeader header = new JWSHeader.Builder(JWSAlgorithm.parse(clientKey.getAlgorithm().getName()))
+				.type(JOSEObjectType.JOSE)
+				.keyID(clientKey.getKeyID())
+				.build();
+
+			Payload payload = new Payload(body);
+
+			try {
+				JWSSigner signer = new DefaultJWSSignerFactory().createJWSSigner(clientKey);
+
+				JWSObject jwsObject = new JWSObject(header, payload);
+
+				jwsObject.sign(signer);
+
+				request.getHeaders().setContentType(new MediaType("application", "jose"));
+
+				byte[] newBody = jwsObject.serialize().getBytes();
+
+				return execution.execute(request, newBody);
+
+			} catch (JOSEException e) {
+				throw new IOException(e);
+			}
+		}
+	}
 }

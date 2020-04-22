@@ -30,7 +30,8 @@ public class Keys {
 		MTLS,
 		HTTPSIG,
 		DPOP,
-		OAUTHPOP
+		OAUTHPOP,
+		JWS
 		;
 
 		@JsonCreator

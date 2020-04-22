@@ -90,7 +90,7 @@ public class ClientAPI {
 			.setUser(new UserRequest())
 			.setKeys(new KeyRequest()
 				.setJwk(clientKey.toPublicJWK())
-				.setProof(Proof.OAUTHPOP));
+				.setProof(Proof.JWS));
 
 		RestTemplate restTemplate = requestSigners.getSignerFor(request);
 
