@@ -61,11 +61,21 @@ class Client extends React.Component {
 		});
 	}
 	
+	cancel = (transactionId) => () => {
+		http({
+			method: 'DELETE',
+			path: '/api/client/poll/' + encodeURIComponent(transactionId)
+		}).done(response => {
+			this.loadPending();
+		});
+	}
+
+
 	render() {
 		
 		const pending = this.state.transactions.map(
 				transaction => (
-					<PendingTransaction key={transaction.id} transaction={transaction} />
+					<PendingTransaction key={transaction.id} transaction={transaction} cancel={this.cancel} />
 				)
 			).reverse(); // newest first
 	
@@ -100,7 +110,7 @@ class PendingTransaction extends React.Component{
 			});
 		});
 	}
-
+	
 	render() {
 		const controls = [];
 		
@@ -108,6 +118,7 @@ class PendingTransaction extends React.Component{
 			<Card outline color="primary">
 				<CardHeader>
 					<Button color="info" onClick={this.poll}>Poll</Button>
+					<Button color="danger" onClick={this.props.cancel(this.state.transaction.id)}>Cancel</Button>
 				</CardHeader>
 				<CardBody>
 					<PendingTransactionEntryList transaction={this.state.transaction} />

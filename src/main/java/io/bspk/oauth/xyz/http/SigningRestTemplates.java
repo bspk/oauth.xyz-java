@@ -38,6 +38,7 @@ import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
 import org.springframework.web.util.UriUtils;
 
+import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.databind.Module;
 import com.google.common.base.Joiner;
 import com.google.common.base.Strings;
@@ -56,7 +57,7 @@ import com.nimbusds.jwt.JWTClaimsSet;
 import com.nimbusds.jwt.JWTClaimsSet.Builder;
 
 import io.bspk.oauth.xyz.crypto.Hash;
-import io.bspk.oauth.xyz.data.api.TransactionRequest;
+import io.bspk.oauth.xyz.data.Keys.Proof;
 
 /**
  * @author jricher
@@ -107,25 +108,21 @@ public class SigningRestTemplates {
 			));
 	}
 
-	public RestTemplate getSignerFor(TransactionRequest req) {
-		if (req.getKeys() != null) {
-			switch (req.getKeys().getProof()) {
-				case DPOP:
-					return dpopSigner;
-				case HTTPSIG:
-					return cavageSigner;
-				case JWSD:
-					return detachedSigner;
-				case OAUTHPOP:
-					return oauthPopSigner;
-				case JWS:
-					return jwsSigner;
-				case MTLS:
-				default:
-					return noSigner;
-			}
-		} else {
-			return noSigner;
+	public RestTemplate getSignerFor(Proof proof) {
+		switch (proof) {
+			case DPOP:
+				return dpopSigner;
+			case HTTPSIG:
+				return cavageSigner;
+			case JWSD:
+				return detachedSigner;
+			case OAUTHPOP:
+				return oauthPopSigner;
+			case JWS:
+				return jwsSigner;
+			case MTLS:
+			default:
+				return noSigner;
 		}
 	}
 
@@ -141,6 +138,7 @@ public class SigningRestTemplates {
 			.findFirst().orElseThrow(() -> new RuntimeException("MappingJackson2HttpMessageConverter not found"));
 
 		messageConverter.getObjectMapper().registerModule(jacksonModule);
+		messageConverter.getObjectMapper().setSerializationInclusion(Include.NON_NULL);
 
 		return restTemplate;
 	}

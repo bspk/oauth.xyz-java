@@ -13,6 +13,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -28,7 +29,6 @@ import io.bspk.oauth.xyz.crypto.Hash;
 import io.bspk.oauth.xyz.data.Keys.Proof;
 import io.bspk.oauth.xyz.data.PendingTransaction;
 import io.bspk.oauth.xyz.data.PendingTransaction.Entry;
-import io.bspk.oauth.xyz.data.api.ClaimsRequest;
 import io.bspk.oauth.xyz.data.api.DisplayRequest;
 import io.bspk.oauth.xyz.data.api.InteractRequest;
 import io.bspk.oauth.xyz.data.api.KeyRequest;
@@ -73,6 +73,7 @@ public class ClientAPI {
 
 		String nonce = RandomStringUtils.randomAlphanumeric(20);
 
+		/*
 		TransactionRequest request = new TransactionRequest()
 			.setDisplay(new DisplayRequest()
 				.setName("XYZ Redirect Client")
@@ -90,9 +91,30 @@ public class ClientAPI {
 			.setUser(new UserRequest())
 			.setKeys(new KeyRequest()
 				.setJwk(clientKey.toPublicJWK())
-				.setProof(Proof.JWS));
+				.setProof(Proof.JWSD));
+		 */
 
-		RestTemplate restTemplate = requestSigners.getSignerFor(request);
+		TransactionRequest request = new TransactionRequest()
+			.setInteract(new InteractRequest()
+				.setCallback(new InteractRequest.Callback()
+					.setUri(callbackBaseUrl + "/" + callbackId)
+					.setNonce(nonce))
+				.setRedirect(true))
+			.setResources(new SingleTokenResourceRequest()
+				.setResources(List.of(
+					new RequestedResource().setHandle("openid"),
+					new RequestedResource().setHandle("profile"),
+					new RequestedResource().setHandle("email"),
+					new RequestedResource().setHandle("phone")
+					)))
+			.setKeys(new KeyRequest()
+				.setHandle("client")
+				);
+
+
+		Proof proof = Proof.JWSD;
+
+		RestTemplate restTemplate = requestSigners.getSignerFor(proof);
 
 		ResponseEntity<TransactionResponse> responseEntity = restTemplate.postForEntity(asEndpoint, request, TransactionResponse.class);
 
@@ -104,7 +126,8 @@ public class ClientAPI {
 			.setClientNonce(nonce)
 			.setServerNonce(response.getServerNonce())
 			.setHashMethod(request.getInteract().getCallback().getHashMethod())
-			.setOwner(session.getId());
+			.setOwner(session.getId())
+			.setProofMethod(proof);
 
 		pendingTransactionRepository.save(pending);
 
@@ -114,6 +137,8 @@ public class ClientAPI {
 
 	@PostMapping(path = "/device", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
 	public ResponseEntity<?> startDeviceFlow(HttpSession session) {
+
+		Proof proof = Proof.HTTPSIG;
 
 		TransactionRequest request = new TransactionRequest()
 			.setDisplay(new DisplayRequest()
@@ -126,9 +151,9 @@ public class ClientAPI {
 			.setUser(new UserRequest())
 			.setKeys(new KeyRequest()
 				.setJwk(clientKey.toPublicJWK())
-				.setProof(Proof.HTTPSIG));
+				.setProof(proof));
 
-		RestTemplate restTemplate = requestSigners.getSignerFor(request);
+		RestTemplate restTemplate = requestSigners.getSignerFor(proof);
 
 		ResponseEntity<TransactionResponse> responseEntity = restTemplate.postForEntity(asEndpoint, request, TransactionResponse.class);
 
@@ -136,7 +161,8 @@ public class ClientAPI {
 
 		PendingTransaction pending = new PendingTransaction()
 			.add(request, response)
-			.setOwner(session.getId());
+			.setOwner(session.getId())
+			.setProofMethod(proof);
 
 		pendingTransactionRepository.save(pending);
 
@@ -145,6 +171,8 @@ public class ClientAPI {
 
 	@PostMapping(path = "/scannable", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
 	public ResponseEntity<?> startScannableDeviceFlow(HttpSession session) {
+
+		Proof proof = Proof.DPOP;
 
 		TransactionRequest request = new TransactionRequest()
 			.setDisplay(new DisplayRequest()
@@ -164,9 +192,9 @@ public class ClientAPI {
 			.setUser(new UserRequest())
 			.setKeys(new KeyRequest()
 				.setJwk(clientKey.toPublicJWK())
-				.setProof(Proof.DPOP));
+				.setProof(proof));
 
-		RestTemplate restTemplate = requestSigners.getSignerFor(request);
+		RestTemplate restTemplate = requestSigners.getSignerFor(proof);
 
 		ResponseEntity<TransactionResponse> responseEntity = restTemplate.postForEntity(asEndpoint, request, TransactionResponse.class);
 
@@ -174,7 +202,8 @@ public class ClientAPI {
 
 		PendingTransaction pending = new PendingTransaction()
 			.add(request, response)
-			.setOwner(session.getId());
+			.setOwner(session.getId())
+			.setProofMethod(proof);
 
 		pendingTransactionRepository.save(pending);
 
@@ -218,7 +247,7 @@ public class ClientAPI {
 				.setInteractRef(interact)
 				;
 
-			RestTemplate restTemplate = requestSigners.getSignerFor(pending.getEntries().get(0).getRequest()); // get the first request
+			RestTemplate restTemplate = requestSigners.getSignerFor(pending.getProofMethod());
 
 			ResponseEntity<TransactionResponse> responseEntity = restTemplate.postForEntity(asEndpoint, request, TransactionResponse.class);
 
@@ -257,7 +286,7 @@ public class ClientAPI {
 				.setHandle(lastResponse.getHandle().getValue())
 				;
 
-			RestTemplate restTemplate = requestSigners.getSignerFor(pending.getEntries().get(0).getRequest()); // get the first request
+			RestTemplate restTemplate = requestSigners.getSignerFor(pending.getProofMethod());
 
 			ResponseEntity<TransactionResponse> responseEntity = restTemplate.postForEntity(asEndpoint, request, TransactionResponse.class);
 
@@ -274,6 +303,23 @@ public class ClientAPI {
 			return ResponseEntity.notFound().build();
 		}
 
+	}
+
+	@DeleteMapping("/poll/{id}")
+	public ResponseEntity<?> delete(@PathVariable("id") String id, HttpSession session) {
+		Optional<PendingTransaction> maybe = pendingTransactionRepository.findFirstByIdAndOwner(id, session.getId());
+
+		if (maybe.isPresent()) {
+			PendingTransaction pending = maybe.get();
+
+			pendingTransactionRepository.delete(pending);
+
+			return ResponseEntity
+				.noContent().build();
+
+		} else {
+			return ResponseEntity.notFound().build();
+		}
 	}
 
 
