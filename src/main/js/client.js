@@ -133,7 +133,7 @@ class PendingTransactionEntryList extends React.Component{
 	render() {
 		const entries = this.props.transaction.entries.map(
 			(entry, i, arr) => (
-				<PendingTransactionEntry key={entry.id} entry={entry} last={i === arr.length - 1} />
+				<PendingTransactionEntry key={entry.id} key_handle={this.props.transaction.key_handle} entry={entry} last={i === arr.length - 1} />
 			)
 		).reverse();
 		
@@ -205,6 +205,15 @@ class PendingTransactionEntry extends React.Component {
 				...[
 					<dt className="col-sm-3">Transaction Handle</dt>,
 					<dd className="col-sm-9">{this.props.entry.response.handle.value}</dd>
+				]
+			);
+		}
+		
+		if (this.props.key_handle) {
+			elements.push(
+				...[
+					<dt className="col-sm-3">Key Handle</dt>,
+					<dd className="col-sm-9">{this.props.key_handle.value}</dd>
 				]
 			);
 		}

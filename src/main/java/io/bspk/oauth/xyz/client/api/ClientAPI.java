@@ -94,7 +94,11 @@ public class ClientAPI {
 				.setProof(Proof.JWSD));
 		 */
 
+
 		TransactionRequest request = new TransactionRequest()
+			.setDisplay(new DisplayRequest()
+				.setName("XYZ Redirect Client")
+				.setUri("http://host.docker.internal:9834/c"))
 			.setInteract(new InteractRequest()
 				.setCallback(new InteractRequest.Callback()
 					.setUri(callbackBaseUrl + "/" + callbackId)
@@ -108,8 +112,10 @@ public class ClientAPI {
 					new RequestedResource().setHandle("phone")
 					)))
 			.setKeys(new KeyRequest()
-				.setHandle("client")
-				);
+				.setJwk(clientKey.toPublicJWK())
+				.setProof(Proof.JWSD));
+//			.setKeys(new KeyRequest()
+//				.setHandle("client"));
 
 
 		Proof proof = Proof.JWSD;
@@ -127,7 +133,8 @@ public class ClientAPI {
 			.setServerNonce(response.getServerNonce())
 			.setHashMethod(request.getInteract().getCallback().getHashMethod())
 			.setOwner(session.getId())
-			.setProofMethod(proof);
+			.setProofMethod(proof)
+			.setKeyHandle(response.getKeyHandle()); // we save the key handle for display, but we could re-use it in future calls if we remembered it
 
 		pendingTransactionRepository.save(pending);
 
@@ -172,8 +179,9 @@ public class ClientAPI {
 	@PostMapping(path = "/scannable", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
 	public ResponseEntity<?> startScannableDeviceFlow(HttpSession session) {
 
-		Proof proof = Proof.DPOP;
+		Proof proof = Proof.JWSD;
 
+		/*
 		TransactionRequest request = new TransactionRequest()
 			.setDisplay(new DisplayRequest()
 				.setName("XYZ Scannable Client")
@@ -193,6 +201,23 @@ public class ClientAPI {
 			.setKeys(new KeyRequest()
 				.setJwk(clientKey.toPublicJWK())
 				.setProof(proof));
+		 */
+
+		TransactionRequest request = new TransactionRequest()
+			.setInteract(new InteractRequest()
+				.setRedirect(true)
+				.setUserCode(true))
+			.setResources(new SingleTokenResourceRequest()
+				.setResources(List.of(
+					new RequestedResource().setHandle("openid"),
+					new RequestedResource().setHandle("profile"),
+					new RequestedResource().setHandle("email"),
+					new RequestedResource().setHandle("phone")
+					)))
+			.setKeys(new KeyRequest()
+				.setHandle("client")
+				);
+
 
 		RestTemplate restTemplate = requestSigners.getSignerFor(proof);
 
