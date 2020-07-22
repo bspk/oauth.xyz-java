@@ -9,11 +9,9 @@ import lombok.Data;
 @Data
 public class HandleSet {
 
-	private Handle transaction;
-	private Handle client;
-	private Handle user;
-	private Handle resource;
-	private Handle interact;
-	private Handle key;
+	private String transaction;
+	private String user;
+	private String display;
+	private String key;
 
 }

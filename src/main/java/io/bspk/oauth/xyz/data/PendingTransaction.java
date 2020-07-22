@@ -42,10 +42,18 @@ public class PendingTransaction {
 	private String serverNonce;
 	private Method hashMethod;
 	private Proof proofMethod;
-	private Handle keyHandle;
+	private String keyHandle;
+	private String continueUri;
+	private String continueHandle;
 
 	public PendingTransaction add (TransactionRequest request, TransactionResponse response) {
 		entries.add(new Entry().setRequest(request).setResponse(response));
+
+		if (response.getCont() != null) {
+			setContinueHandle(response.getCont().getHandle());
+			setContinueUri(response.getCont().getUri());
+		}
+
 		return this;
 	}
 

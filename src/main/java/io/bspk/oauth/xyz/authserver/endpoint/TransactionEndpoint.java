@@ -58,6 +58,7 @@ import com.nimbusds.jwt.SignedJWT;
 
 import io.bspk.oauth.xyz.authserver.repository.TransactionRepository;
 import io.bspk.oauth.xyz.crypto.Hash;
+import io.bspk.oauth.xyz.data.AccessToken;
 import io.bspk.oauth.xyz.data.Capability;
 import io.bspk.oauth.xyz.data.Display;
 import io.bspk.oauth.xyz.data.Handle;
@@ -135,7 +136,7 @@ public class TransactionEndpoint {
 		if (incoming.getHandle() != null) {
 			// load a transaction in progress
 
-			t = transactionRepository.findFirstByHandlesTransactionValue(incoming.getHandle());
+			t = transactionRepository.findFirstByHandlesTransaction(incoming.getHandle());
 
 			if (t == null) {
 				return ResponseEntity.notFound().build();
@@ -166,7 +167,7 @@ public class TransactionEndpoint {
 
 			// check key presentation
 			if (incoming.getKey() != null) {
-				t.setKeys(Keys.of(incoming.getKey()));
+				t.setKey(Keys.of(incoming.getKey()));
 			}
 
 			t.setSubjectRequest(incoming.getSubject());
@@ -200,23 +201,23 @@ public class TransactionEndpoint {
 		}
 
 		// validate the method signing as appropriate
-		if (t.getKeys() != null) {
-			switch (t.getKeys().getProof()) {
+		if (t.getKey() != null) {
+			switch (t.getKey().getProof()) {
 				case HTTPSIG:
 					ensureDigest(digest, req); // make sure the digest header is accurate
-					checkCavageSignature(signature, req, t.getKeys().getJwk());
+					checkCavageSignature(signature, req, t.getKey().getJwk());
 					break;
 				case JWSD:
-					checkDetachedJws(jwsd, req, t.getKeys().getJwk());
+					checkDetachedJws(jwsd, req, t.getKey().getJwk());
 					break;
 				case DPOP:
-					checkDpop(dpop, req, t.getKeys().getJwk());
+					checkDpop(dpop, req, t.getKey().getJwk());
 					break;
 				case OAUTHPOP:
-					checkOAuthPop(oauthPop, req, t.getKeys().getJwk());
+					checkOAuthPop(oauthPop, req, t.getKey().getJwk());
 					break;
 				case JWS:
-					checkAttachedJws(req, t.getKeys().getJwk());
+					checkAttachedJws(req, t.getKey().getJwk());
 					break;
 				case MTLS:
 				default:
@@ -239,7 +240,7 @@ public class TransactionEndpoint {
 		}
 
 		// rotate the transaction's own handle every time it's used (this creates one on the first time through)
-		t.getHandles().setTransaction(Handle.create());
+		t.getHandles().setTransaction(Handle.create().getValue());
 
 		switch (t.getStatus()) {
 			case AUTHORIZED:
@@ -276,7 +277,7 @@ public class TransactionEndpoint {
 				// TODO: see if the client should back off
 
 				transactionRepository.save(t);
-				return ResponseEntity.status(HttpStatus.ACCEPTED).body(TransactionResponse.of(t));
+				return ResponseEntity.status(HttpStatus.ACCEPTED).body(TransactionResponse.of(t, baseUrl + "/api/as/transaction"));
 
 				//break;
 			case DENIED:
@@ -284,7 +285,7 @@ public class TransactionEndpoint {
 				// the user said no, not much to do here
 
 				transactionRepository.save(t);
-				return ResponseEntity.ok(TransactionResponse.of(t));
+				return ResponseEntity.ok(TransactionResponse.of(t, baseUrl + "/api/as/transaction"));
 
 			case NEW:
 
@@ -342,7 +343,7 @@ public class TransactionEndpoint {
 		}
 
 		transactionRepository.save(t);
-		return ResponseEntity.ok(TransactionResponse.of(t));
+		return ResponseEntity.ok(TransactionResponse.of(t, baseUrl + "/api/as/transaction"));
 	}
 
 	private void createNewAccessTokens(Transaction t) {
@@ -351,14 +352,15 @@ public class TransactionEndpoint {
 		} else if (t.getResourceRequest().isMultiple()) {
 			// if the request was for multiple resources, create multiple access tokens
 			Map<String, SingleTokenResourceRequest> resources = ((MultiTokenResourceRequest)t.getResourceRequest()).getRequests();
-			Map<String, Handle> tokens = new HashMap<>();
+			Map<String, AccessToken> tokens = new HashMap<>();
 			for (String key : resources.keySet()) {
-				tokens.put(key, Handle.create(Duration.ofHours(1)));
+				tokens.put(key, AccessToken.create(Duration.ofHours(1)));
 			}
 			t.setMultipleAccessTokens(tokens);
 		} else {
 			// otherwise set a single access token
-			t.setAccessToken(Handle.create(Duration.ofHours(1)));
+			t.setAccessToken(
+				AccessToken.create(Duration.ofHours(1)));
 		}
 	}
 

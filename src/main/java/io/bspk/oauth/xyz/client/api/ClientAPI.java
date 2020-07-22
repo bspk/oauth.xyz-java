@@ -49,10 +49,10 @@ public class ClientAPI {
 	@Value("${oauth.xyz.root}api/client/callback")
 	private String callbackBaseUrl;
 
-	//@Value("${oauth.xyz.root}api/as/transaction")
-	//private String asEndpoint;// = "http://localhost:3000/transaction";
+	@Value("${oauth.xyz.root}api/as/transaction")
+	private String asEndpoint;// = "http://localhost:3000/transaction";
 	//private String asEndpoint = "http://localhost:8080/openid-connect-server-webapp/transaction";
-	private String asEndpoint = "http://localhost:8080/as/transaction";
+	//private String asEndpoint = "http://localhost:8080/as/transaction";
 
 	@Value("${oauth.xyz.root}c")
 	private String clientPage;
@@ -130,7 +130,7 @@ public class ClientAPI {
 			.add(request, response)
 			.setCallbackId(callbackId)
 			.setClientNonce(nonce)
-			.setServerNonce(response.getServerNonce())
+			.setServerNonce(response.getCallbackServerNonce())
 			.setHashMethod(request.getInteract().getCallback().getHashMethod())
 			.setOwner(session.getId())
 			.setProofMethod(proof)
@@ -242,7 +242,7 @@ public class ClientAPI {
 	}
 
 	@GetMapping(path = "/callback/{id}")
-	public ResponseEntity<?> callbackEndpoint(@PathVariable("id") String callbackId, @RequestParam("hash") String interactHash, @RequestParam("interact") String interact, HttpSession session) {
+	public ResponseEntity<?> callbackEndpoint(@PathVariable("id") String callbackId, @RequestParam("hash") String interactHash, @RequestParam("interact_ref") String interact, HttpSession session) {
 
 		List<PendingTransaction> transactions = pendingTransactionRepository.findByCallbackIdAndOwner(callbackId, session.getId());
 
@@ -268,13 +268,13 @@ public class ClientAPI {
 			// get the handle
 
 			TransactionRequest request = new TransactionRequest()
-				.setHandle(lastResponse.getHandle().getValue())
+				.setHandle(pending.getContinueHandle())
 				.setInteractRef(interact)
 				;
 
 			RestTemplate restTemplate = requestSigners.getSignerFor(pending.getProofMethod());
 
-			ResponseEntity<TransactionResponse> responseEntity = restTemplate.postForEntity(asEndpoint, request, TransactionResponse.class);
+			ResponseEntity<TransactionResponse> responseEntity = restTemplate.postForEntity(pending.getContinueUri(), request, TransactionResponse.class);
 
 			TransactionResponse response = responseEntity.getBody();
 
@@ -306,17 +306,17 @@ public class ClientAPI {
 
 			TransactionResponse lastResponse = lastEntry.getResponse();
 
-			if (lastResponse.getHandle() == null) {
+			if (lastResponse.getCont() == null) {
 				return ResponseEntity.notFound().build();
 			}
 
 			TransactionRequest request = new TransactionRequest()
-				.setHandle(lastResponse.getHandle().getValue())
+				.setHandle(pending.getContinueHandle())
 				;
 
 			RestTemplate restTemplate = requestSigners.getSignerFor(pending.getProofMethod());
 
-			ResponseEntity<TransactionResponse> responseEntity = restTemplate.postForEntity(asEndpoint, request, TransactionResponse.class);
+			ResponseEntity<TransactionResponse> responseEntity = restTemplate.postForEntity(pending.getContinueUri(), request, TransactionResponse.class);
 
 			TransactionResponse response = responseEntity.getBody();
 

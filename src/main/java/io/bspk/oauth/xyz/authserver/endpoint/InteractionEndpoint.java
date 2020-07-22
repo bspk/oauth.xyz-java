@@ -113,7 +113,7 @@ public class InteractionEndpoint {
 				String callback = transaction.getInteract().getCallback().getUri();
 				URI callbackUri = UriComponentsBuilder.fromUriString(callback)
 					.queryParam("hash", hash)
-					.queryParam("interact", interactRef)
+					.queryParam("interact_ref", interactRef)
 					.build().toUri();
 
 				res.setUri(callbackUri);

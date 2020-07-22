@@ -4,11 +4,13 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
+import org.springframework.beans.factory.annotation.Value;
+
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.PropertyNamingStrategy;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
 
 import io.bspk.oauth.xyz.data.Capability;
-import io.bspk.oauth.xyz.data.Handle;
 import io.bspk.oauth.xyz.data.Interact;
 import io.bspk.oauth.xyz.data.Subject;
 import io.bspk.oauth.xyz.data.Transaction;
@@ -24,33 +26,36 @@ import lombok.experimental.Accessors;
 @JsonNaming(PropertyNamingStrategy.SnakeCaseStrategy.class)
 public class TransactionResponse {
 
-	private Handle handle;
-	private Handle displayHandle;
-	private Handle interactHandle;
-	private Handle resourceHandle;
-	private Handle userHandle;
-	private Handle keyHandle;
-	private Handle accessToken;
-	private Map<String, Handle> multipleAccessTokens;
+	@JsonProperty("continue") // "continue" is a java keyword
+	private ContinueResponse cont;
+	private String displayHandle;
+	private String userHandle;
+	private String keyHandle;
+	private AccessTokenResponse accessToken;
+	private Map<String, AccessTokenResponse> multipleAccessTokens;
 	private String interactionUrl;
+	private String shortInteractionUrl;
+	private String pushbackServerNonce;
+	private String callbackServerNonce;
 	private String userCodeUrl;
 	private String userCode;
-	private Integer wait;
-	private String serverNonce;
 	private Set<Capability> capabilities;
 	private Subject subject;
+
+	@Value("${oauth.xyz.root}")
+	private String baseUrl;
 
 	/**
 	 * @param t
 	 * @return
 	 */
-	public static TransactionResponse of(Transaction t) {
+	public static TransactionResponse of(Transaction t, String continueUri) {
 
 		Optional<Interact> interact = Optional.ofNullable(t.getInteract());
 
 		return new TransactionResponse()
-			.setAccessToken(t.getAccessToken())
-			.setMultipleAccessTokens(t.getMultipleAccessTokens())
+			.setAccessToken(AccessTokenResponse.of(t.getAccessToken()))
+			.setMultipleAccessTokens(AccessTokenResponse.of(t.getMultipleAccessTokens()))
 			.setInteractionUrl(interact
 				.map(Interact::getInteractionUrl)
 				.orElse(null))
@@ -60,16 +65,19 @@ public class TransactionResponse {
 			.setUserCode(interact
 				.map(Interact::getUserCode)
 				.orElse(null))
-			.setServerNonce(interact
+			.setCallbackServerNonce(interact
 				.map(Interact::getServerNonce)
 				.orElse(null))
-			.setHandle(t.getHandles().getTransaction())
-			.setDisplayHandle(t.getHandles().getClient())
-			.setInteractHandle(t.getHandles().getInteract())
-			.setResourceHandle(t.getHandles().getResource())
+			.setPushbackServerNonce(interact
+				.map(Interact::getServerNonce)
+				.orElse(null))
+			.setCont(new ContinueResponse()
+				.setHandle(t.getHandles().getTransaction())
+				.setUri(continueUri))
+			.setDisplayHandle(t.getHandles().getDisplay())
 			.setUserHandle(t.getHandles().getUser())
-			.setSubject(t.getSubject())
 			.setKeyHandle(t.getHandles().getKey())
+			.setSubject(t.getSubject())
 			.setCapabilities(t.getCapabilities());
 
 	}

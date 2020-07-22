@@ -52,10 +52,10 @@ public class Transaction {
 	private Interact interact;
 	private String interactHandle;
 	private @NonNull HandleSet handles = new HandleSet();
-	private Handle accessToken;
-	private Map<String, Handle> multipleAccessTokens;
+	private AccessToken accessToken;
+	private Map<String, AccessToken> multipleAccessTokens;
 	private @NonNull Status status = Status.NEW;
-	private Keys keys;
+	private Keys key;
 	private Subject subject;
 	private SubjectRequest subjectRequest;
 	private ResourceRequest resourceRequest;
