@@ -8,9 +8,9 @@ import com.fasterxml.jackson.databind.PropertyNamingStrategy;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
 
 import io.bspk.oauth.xyz.data.Capability;
-import io.bspk.oauth.xyz.data.Claims;
 import io.bspk.oauth.xyz.data.Handle;
 import io.bspk.oauth.xyz.data.Interact;
+import io.bspk.oauth.xyz.data.Subject;
 import io.bspk.oauth.xyz.data.Transaction;
 import lombok.Data;
 import lombok.experimental.Accessors;
@@ -38,7 +38,7 @@ public class TransactionResponse {
 	private Integer wait;
 	private String serverNonce;
 	private Set<Capability> capabilities;
-	private Claims claims;
+	private Subject subject;
 
 	/**
 	 * @param t
@@ -68,7 +68,7 @@ public class TransactionResponse {
 			.setInteractHandle(t.getHandles().getInteract())
 			.setResourceHandle(t.getHandles().getResource())
 			.setUserHandle(t.getHandles().getUser())
-			.setClaims(t.getClaims())
+			.setSubject(t.getSubject())
 			.setKeyHandle(t.getHandles().getKey())
 			.setCapabilities(t.getCapabilities());
 

@@ -59,12 +59,12 @@ import com.nimbusds.jwt.SignedJWT;
 import io.bspk.oauth.xyz.authserver.repository.TransactionRepository;
 import io.bspk.oauth.xyz.crypto.Hash;
 import io.bspk.oauth.xyz.data.Capability;
-import io.bspk.oauth.xyz.data.Claims;
 import io.bspk.oauth.xyz.data.Display;
 import io.bspk.oauth.xyz.data.Handle;
 import io.bspk.oauth.xyz.data.Interact;
 import io.bspk.oauth.xyz.data.Keys;
 import io.bspk.oauth.xyz.data.Keys.Proof;
+import io.bspk.oauth.xyz.data.Subject;
 import io.bspk.oauth.xyz.data.Transaction;
 import io.bspk.oauth.xyz.data.Transaction.Status;
 import io.bspk.oauth.xyz.data.api.DisplayRequest;
@@ -165,11 +165,11 @@ public class TransactionEndpoint {
 			}
 
 			// check key presentation
-			if (incoming.getKeys() != null) {
-				t.setKeys(Keys.of(incoming.getKeys()));
+			if (incoming.getKey() != null) {
+				t.setKeys(Keys.of(incoming.getKey()));
 			}
 
-			t.setClaimsRequest(incoming.getClaims());
+			t.setSubjectRequest(incoming.getSubject());
 
 			t.setResourceRequest(incoming.getResources());
 
@@ -254,11 +254,11 @@ public class TransactionEndpoint {
 				createNewAccessTokens(t);
 
 				// if we're issuing any claims, add them here
-				if (t.getClaimsRequest() != null) {
-					t.setClaims(Claims.of(t.getClaimsRequest(), t.getUser()));
+				if (t.getSubjectRequest() != null) {
+					t.setSubject(Subject.of(t.getSubjectRequest(), t.getUser()));
 
 					// remove the claims request so that we don't issue claims on refresh
-					t.setClaimsRequest(null);
+					t.setSubjectRequest(null);
 				}
 
 				break;

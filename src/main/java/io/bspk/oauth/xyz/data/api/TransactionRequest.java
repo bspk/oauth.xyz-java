@@ -30,9 +30,9 @@ public class TransactionRequest {
 	@JsonSerialize(using = ResourceRequestSerializer.class)
 	@JsonDeserialize(using = ResourceRequestDeserializer.class)
 	private ResourceRequest resources;
-	private KeyRequest keys;
+	private KeyRequest key;
 	private String interactRef;
 	private Set<Capability> capabilities;
-	private ClaimsRequest claims;
+	private SubjectRequest subject;
 
 }

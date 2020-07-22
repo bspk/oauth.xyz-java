@@ -10,8 +10,8 @@ import com.fasterxml.jackson.annotation.JsonValue;
 import com.fasterxml.jackson.databind.PropertyNamingStrategy;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
 
-import io.bspk.oauth.xyz.data.api.ClaimsRequest;
 import io.bspk.oauth.xyz.data.api.ResourceRequest;
+import io.bspk.oauth.xyz.data.api.SubjectRequest;
 import lombok.Data;
 import lombok.NonNull;
 import lombok.experimental.Accessors;
@@ -56,8 +56,8 @@ public class Transaction {
 	private Map<String, Handle> multipleAccessTokens;
 	private @NonNull Status status = Status.NEW;
 	private Keys keys;
-	private Claims claims;
-	private ClaimsRequest claimsRequest;
+	private Subject subject;
+	private SubjectRequest subjectRequest;
 	private ResourceRequest resourceRequest;
 	private Set<Capability> capabilitiesRequest;
 	private Set<Capability> capabilities;

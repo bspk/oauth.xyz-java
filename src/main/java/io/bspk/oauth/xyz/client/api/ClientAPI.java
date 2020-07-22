@@ -1,7 +1,6 @@
 package io.bspk.oauth.xyz.client.api;
 
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 
 import javax.servlet.http.HttpSession;
@@ -32,7 +31,6 @@ import io.bspk.oauth.xyz.data.PendingTransaction.Entry;
 import io.bspk.oauth.xyz.data.api.DisplayRequest;
 import io.bspk.oauth.xyz.data.api.InteractRequest;
 import io.bspk.oauth.xyz.data.api.KeyRequest;
-import io.bspk.oauth.xyz.data.api.MultiTokenResourceRequest;
 import io.bspk.oauth.xyz.data.api.RequestedResource;
 import io.bspk.oauth.xyz.data.api.SingleTokenResourceRequest;
 import io.bspk.oauth.xyz.data.api.TransactionRequest;
@@ -51,8 +49,10 @@ public class ClientAPI {
 	@Value("${oauth.xyz.root}api/client/callback")
 	private String callbackBaseUrl;
 
-	@Value("${oauth.xyz.root}api/as/transaction")
-	private String asEndpoint;// = "http://localhost:3000/transaction";
+	//@Value("${oauth.xyz.root}api/as/transaction")
+	//private String asEndpoint;// = "http://localhost:3000/transaction";
+	//private String asEndpoint = "http://localhost:8080/openid-connect-server-webapp/transaction";
+	private String asEndpoint = "http://localhost:8080/as/transaction";
 
 	@Value("${oauth.xyz.root}c")
 	private String clientPage;
@@ -85,7 +85,7 @@ public class ClientAPI {
 				.setRedirect(true))
 			.setResources(new SingleTokenResourceRequest()
 				.setResources(List.of(new RequestedResource().setHandle("foo"))))
-			.setClaims(new ClaimsRequest()
+			.setClaims(new SubjectRequest()
 				.setEmail(true)
 				.setSubject(true))
 			.setUser(new UserRequest())
@@ -111,7 +111,7 @@ public class ClientAPI {
 					new RequestedResource().setHandle("email"),
 					new RequestedResource().setHandle("phone")
 					)))
-			.setKeys(new KeyRequest()
+			.setKey(new KeyRequest()
 				.setJwk(clientKey.toPublicJWK())
 				.setProof(Proof.JWSD));
 //			.setKeys(new KeyRequest()
@@ -156,7 +156,7 @@ public class ClientAPI {
 			.setResources(new SingleTokenResourceRequest()
 				.setResources(List.of(new RequestedResource().setHandle("foo"))))
 			.setUser(new UserRequest())
-			.setKeys(new KeyRequest()
+			.setKey(new KeyRequest()
 				.setJwk(clientKey.toPublicJWK())
 				.setProof(proof));
 
@@ -214,7 +214,7 @@ public class ClientAPI {
 					new RequestedResource().setHandle("email"),
 					new RequestedResource().setHandle("phone")
 					)))
-			.setKeys(new KeyRequest()
+			.setKey(new KeyRequest()
 				.setHandle("client")
 				);
 
@@ -306,6 +306,9 @@ public class ClientAPI {
 
 			TransactionResponse lastResponse = lastEntry.getResponse();
 
+			if (lastResponse.getHandle() == null) {
+				return ResponseEntity.notFound().build();
+			}
 
 			TransactionRequest request = new TransactionRequest()
 				.setHandle(lastResponse.getHandle().getValue())
