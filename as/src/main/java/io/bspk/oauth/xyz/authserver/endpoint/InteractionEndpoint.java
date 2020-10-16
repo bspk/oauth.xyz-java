@@ -204,7 +204,7 @@ public class InteractionEndpoint {
 
 	private ResponseEntity<?> redirectToInteractionPage() {
 		URI interactionPage = UriComponentsBuilder.fromUriString(baseUrl)
-			.path("/as/interact")
+			.path("/interact")
 			.build().toUri();
 
 		return ResponseEntity.status(HttpStatus.FOUND)

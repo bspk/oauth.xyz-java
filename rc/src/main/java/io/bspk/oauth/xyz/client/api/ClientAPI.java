@@ -6,6 +6,8 @@ import java.util.Optional;
 import javax.servlet.http.HttpSession;
 
 import org.apache.commons.lang3.RandomStringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
@@ -46,15 +48,17 @@ import io.bspk.oauth.xyz.http.SigningRestTemplates;
 @RequestMapping("/api/client")
 public class ClientAPI {
 
+	private final Logger log = LoggerFactory.getLogger(this.getClass());
+
 	@Value("${oauth.xyz.root}api/client/callback")
 	private String callbackBaseUrl;
 
-	@Value("${oauth.xyz.root}api/as/transaction")
+	@Value("${oauth.xyz.asEndpoint}")
 	private String asEndpoint;// = "http://localhost:3000/transaction";
 	//private String asEndpoint = "http://localhost:8080/openid-connect-server-webapp/transaction";
 	//private String asEndpoint = "http://localhost:8080/as/transaction";
 
-	@Value("${oauth.xyz.root}c")
+	@Value("${oauth.xyz.root}")
 	private String clientPage;
 
 	@Autowired
@@ -72,6 +76,8 @@ public class ClientAPI {
 		String callbackId = RandomStringUtils.randomAlphanumeric(30);
 
 		String nonce = RandomStringUtils.randomAlphanumeric(20);
+
+		log.info("In create: " + session.getId());
 
 		/*
 		TransactionRequest request = new TransactionRequest()
@@ -98,7 +104,7 @@ public class ClientAPI {
 		TransactionRequest request = new TransactionRequest()
 			.setDisplay(new DisplayRequest()
 				.setName("XYZ Redirect Client")
-				.setUri("http://host.docker.internal:9834/c"))
+				.setUri(clientPage))
 			.setInteract(new InteractRequest()
 				.setCallback(new InteractRequest.Callback()
 					.setUri(callbackBaseUrl + "/" + callbackId)
@@ -150,7 +156,7 @@ public class ClientAPI {
 		TransactionRequest request = new TransactionRequest()
 			.setDisplay(new DisplayRequest()
 				.setName("XYZ Device Client")
-				.setUri("http://host.docker.internal:9834/c"))
+				.setUri(clientPage))
 			.setInteract(new InteractRequest()
 				.setUserCode(true))
 			.setResources(new SingleTokenResourceRequest()
@@ -243,6 +249,8 @@ public class ClientAPI {
 
 	@GetMapping(path = "/callback/{id}")
 	public ResponseEntity<?> callbackEndpoint(@PathVariable("id") String callbackId, @RequestParam("hash") String interactHash, @RequestParam("interact_ref") String interact, HttpSession session) {
+
+		log.info("In callback: " + session.getId());
 
 		List<PendingTransaction> transactions = pendingTransactionRepository.findByCallbackIdAndOwner(callbackId, session.getId());
 

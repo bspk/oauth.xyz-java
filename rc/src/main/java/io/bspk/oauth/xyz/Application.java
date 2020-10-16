@@ -8,8 +8,6 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
 import org.springframework.core.convert.converter.Converter;
 import org.springframework.data.mongodb.core.convert.MongoCustomConversions;
-import org.springframework.web.servlet.config.annotation.ViewControllerRegistry;
-import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 import com.fasterxml.jackson.databind.BeanDescription;
 import com.fasterxml.jackson.databind.DeserializationConfig;
@@ -94,21 +92,5 @@ public class Application {
 	    	new JWTDeserializer(),
 	    	new JWTSerializer());
 	    return new MongoCustomConversions(list);
-	}
-
-	@Bean
-	public WebMvcConfigurer webMvcConfigurer() {
-		WebMvcConfigurer configurer = new WebMvcConfigurer() {
-			@Override
-			public void addViewControllers(ViewControllerRegistry registry) {
-
-				// map all of the front-end pages to React
-
-				registry.addViewController("/interact").setViewName("/");
-				registry.addViewController("/as").setViewName("/");
-			}
-		};
-
-		return configurer;
 	}
 }
