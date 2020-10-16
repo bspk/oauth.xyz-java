@@ -122,7 +122,7 @@ public class TransactionEndpoint {
 	}
 
 	@PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
-	public ResponseEntity<TransactionResponse> transaction(@RequestBody TransactionRequest incoming,
+	public ResponseEntity<TransactionResponse> createTransaction(@RequestBody TransactionRequest incoming,
 		@RequestHeader(name = HttpHeaders.AUTHORIZATION, required = false) String auth,
 		@RequestHeader(name = "Signature", required = false) String signature,
 		@RequestHeader(name = "Digest", required = false) String digest,
@@ -131,20 +131,11 @@ public class TransactionEndpoint {
 		@RequestHeader(name = "PoP", required = false) String oauthPop,
 		HttpServletRequest req) {
 
-		Transaction t = null;
-
 		if (incoming.getHandle() != null) {
-			// load a transaction in progress
-
-			t = transactionRepository.findFirstByHandlesTransaction(incoming.getHandle());
-
-			if (t == null) {
-				return ResponseEntity.notFound().build();
-			}
-
+			return ResponseEntity.badRequest().build();
 		} else {
 			// create a new one
-			t = new Transaction();
+			Transaction t = new Transaction();
 
 			DisplayRequest displayRequest = processDisplayRequest(incoming.getDisplay());
 
@@ -193,7 +184,48 @@ public class TransactionEndpoint {
 				t.getHandles().setResource(Handle.create()); // create a handle for the resource, equivalent to scopes, resource sets, etc
 			}
 			*/
+
+			return processTransaction(t, incoming, auth, signature, digest, jwsd, dpop, oauthPop, req);
 		}
+
+
+	}
+
+	@PostMapping(value = "/continue", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
+	public ResponseEntity<TransactionResponse> continueTransaction(@RequestBody TransactionRequest incoming,
+		@RequestHeader(name = HttpHeaders.AUTHORIZATION, required = false) String auth,
+		@RequestHeader(name = "Signature", required = false) String signature,
+		@RequestHeader(name = "Digest", required = false) String digest,
+		@RequestHeader(name = "Detached-JWS", required = false) String jwsd,
+		@RequestHeader(name = "DPoP", required = false) String dpop,
+		@RequestHeader(name = "PoP", required = false) String oauthPop,
+		HttpServletRequest req) {
+
+		if (incoming.getHandle() != null) {
+			// load a transaction in progress
+
+			Transaction t = transactionRepository.findFirstByHandlesTransaction(incoming.getHandle());
+
+			if (t == null) {
+				return ResponseEntity.notFound().build();
+			} else {
+				return processTransaction(t, incoming, auth, signature, digest, jwsd, dpop, oauthPop, req);
+			}
+
+		} else {
+			return ResponseEntity.notFound().build();
+		}
+
+	}
+
+	private ResponseEntity<TransactionResponse> processTransaction(Transaction t, TransactionRequest incoming,
+		String auth,
+		String signature,
+		String digest,
+		String jwsd,
+		String dpop,
+		String oauthPop,
+		HttpServletRequest req) {
 
 		// process the capabilities list if needed
 		if (t.getCapabilitiesRequest() != null && t.getCapabilities() == null) {
@@ -277,7 +309,7 @@ public class TransactionEndpoint {
 				// TODO: see if the client should back off
 
 				transactionRepository.save(t);
-				return ResponseEntity.status(HttpStatus.ACCEPTED).body(TransactionResponse.of(t, baseUrl + "/api/as/transaction"));
+				return ResponseEntity.status(HttpStatus.ACCEPTED).body(TransactionResponse.of(t, baseUrl + "/api/as/transaction/continue"));
 
 				//break;
 			case DENIED:
@@ -285,7 +317,7 @@ public class TransactionEndpoint {
 				// the user said no, not much to do here
 
 				transactionRepository.save(t);
-				return ResponseEntity.ok(TransactionResponse.of(t, baseUrl + "/api/as/transaction"));
+				return ResponseEntity.ok(TransactionResponse.of(t, baseUrl + "/api/as/transaction/continue"));
 
 			case NEW:
 
@@ -343,7 +375,7 @@ public class TransactionEndpoint {
 		}
 
 		transactionRepository.save(t);
-		return ResponseEntity.ok(TransactionResponse.of(t, baseUrl + "/api/as/transaction"));
+		return ResponseEntity.ok(TransactionResponse.of(t, baseUrl + "/api/as/transaction/continue"));
 	}
 
 	private void createNewAccessTokens(Transaction t) {
