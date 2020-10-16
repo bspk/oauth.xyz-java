@@ -6,17 +6,17 @@
 	<parent>
 		<groupId>org.springframework.boot</groupId>
 		<artifactId>spring-boot-starter-parent</artifactId>
-		<version>2.1.13.RELEASE</version>
+		<version>2.3.4.RELEASE</version>
 		<relativePath /> <!-- lookup parent from repository -->
 	</parent>
 	<groupId>io.bspk</groupId>
-	<artifactId>oauth.xyz</artifactId>
-	<version>0.0.1-SNAPSHOT</version>
+	<artifactId>oauth.xyz.as</artifactId>
+	<version>0.0.14-SNAPSHOT</version>
 	<name>oauth.xyz-java</name>
 	<description>Transactional Authorization Strawman</description>
 
 	<properties>
-		<java.version>11</java.version>
+		<java.version>14</java.version>
 	</properties>
 
 	<dependencies>

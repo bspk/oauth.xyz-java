@@ -2,7 +2,7 @@ server:
   port: 9834
 spring:
   data.mongodb.uri:
-    mongodb://host.docker.internal:27017/oauth_xyz
+    mongodb://host.docker.internal:27017/oauth_xyz_as
 
 spring.data.rest.base-path: /api
 
