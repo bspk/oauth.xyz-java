@@ -22,8 +22,6 @@ import lombok.experimental.Accessors;
 @JsonNaming(PropertyNamingStrategy.SnakeCaseStrategy.class)
 public class TransactionRequest {
 
-	private String handle;
-
 	private InteractRequest interact;
 	private DisplayRequest display;
 	private UserRequest user;

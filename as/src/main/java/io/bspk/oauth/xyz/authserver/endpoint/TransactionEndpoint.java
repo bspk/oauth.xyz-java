@@ -123,7 +123,6 @@ public class TransactionEndpoint {
 
 	@PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
 	public ResponseEntity<TransactionResponse> createTransaction(@RequestBody TransactionRequest incoming,
-		@RequestHeader(name = HttpHeaders.AUTHORIZATION, required = false) String auth,
 		@RequestHeader(name = "Signature", required = false) String signature,
 		@RequestHeader(name = "Digest", required = false) String digest,
 		@RequestHeader(name = "Detached-JWS", required = false) String jwsd,
@@ -185,7 +184,7 @@ public class TransactionEndpoint {
 			}
 			*/
 
-			return processTransaction(t, incoming, auth, signature, digest, jwsd, dpop, oauthPop, req);
+			return processTransaction(t, incoming, signature, digest, jwsd, dpop, oauthPop, req);
 		}
 
 
@@ -209,7 +208,7 @@ public class TransactionEndpoint {
 			if (t == null) {
 				return ResponseEntity.notFound().build();
 			} else {
-				return processTransaction(t, incoming, auth, signature, digest, jwsd, dpop, oauthPop, req);
+				return processTransaction(t, incoming, signature, digest, jwsd, dpop, oauthPop, req);
 			}
 
 		} else {
@@ -219,7 +218,6 @@ public class TransactionEndpoint {
 	}
 
 	private ResponseEntity<TransactionResponse> processTransaction(Transaction t, TransactionRequest incoming,
-		String auth,
 		String signature,
 		String digest,
 		String jwsd,

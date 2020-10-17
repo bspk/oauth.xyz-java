@@ -23,8 +23,7 @@ import lombok.experimental.Accessors;
 public class AccessTokenResponse {
 
 	private String value;
-	private String proof;
-	private Keys keys;
+	private Keys key;
 	private String manage;
 	private SingleTokenResourceRequest resources;
 	private Long expiresIn;
@@ -33,8 +32,7 @@ public class AccessTokenResponse {
 		if (t != null) {
 			return new AccessTokenResponse()
 				.setValue(t.getValue())
-				.setProof(t.getProof() != null ? t.getProof().name() : "bearer")
-				.setKeys(t.getKeys())
+				.setKey(t.getKey())
 				.setManage(t.getManage())
 				.setResources(t.getResourceRequest())
 				.setExpiresIn(t.getExpiration() != null ?

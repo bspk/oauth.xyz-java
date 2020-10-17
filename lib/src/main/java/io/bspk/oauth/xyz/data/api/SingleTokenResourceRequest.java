@@ -1,7 +1,9 @@
 package io.bspk.oauth.xyz.data.api;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import com.fasterxml.jackson.databind.PropertyNamingStrategy;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
@@ -23,6 +25,13 @@ public class SingleTokenResourceRequest implements ResourceRequest {
 	@Override
 	public boolean isMultiple() {
 		return false;
+	}
+
+	public static SingleTokenResourceRequest ofReferences(String... references) {
+		return new SingleTokenResourceRequest()
+			.setResources(Arrays.stream(references)
+				.map(r -> new RequestedResource().setHandle(r))
+				.collect(Collectors.toList()));
 	}
 
 }

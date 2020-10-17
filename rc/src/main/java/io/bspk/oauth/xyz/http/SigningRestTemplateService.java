@@ -64,7 +64,7 @@ import io.bspk.oauth.xyz.data.Keys.Proof;
  *
  */
 @Service
-public class SigningRestTemplates {
+public class SigningRestTemplateService {
 
 	@Autowired
 	private Module jacksonModule;
@@ -72,12 +72,12 @@ public class SigningRestTemplates {
 	@Autowired
 	private JWK clientKey;
 
-	private RestTemplate noSigner;
-	private RestTemplate cavageSigner;
-	private RestTemplate dpopSigner;
-	private RestTemplate detachedSigner;
-	private RestTemplate oauthPopSigner;
-	private RestTemplate jwsSigner;
+	private SigningRestTemplate noSigner;
+	private SigningRestTemplate cavageSigner;
+	private SigningRestTemplate dpopSigner;
+	private SigningRestTemplate detachedSigner;
+	private SigningRestTemplate oauthPopSigner;
+	private SigningRestTemplate jwsSigner;
 
 	@PostConstruct
 	public void init() {
@@ -108,7 +108,7 @@ public class SigningRestTemplates {
 			));
 	}
 
-	public RestTemplate getSignerFor(Proof proof) {
+	public SigningRestTemplate getSignerFor(Proof proof) {
 		switch (proof) {
 			case DPOP:
 				return dpopSigner;
@@ -126,7 +126,7 @@ public class SigningRestTemplates {
 		}
 	}
 
-	private RestTemplate createRestTemplate(List<ClientHttpRequestInterceptor> interceptors) {
+	private SigningRestTemplate createRestTemplate(List<ClientHttpRequestInterceptor> interceptors) {
 		ClientHttpRequestFactory factory = new BufferingClientHttpRequestFactory(new SimpleClientHttpRequestFactory());
 
 		RestTemplate restTemplate = new RestTemplate(factory);
@@ -140,7 +140,7 @@ public class SigningRestTemplates {
 		messageConverter.getObjectMapper().registerModule(jacksonModule);
 		messageConverter.getObjectMapper().setSerializationInclusion(Include.NON_NULL);
 
-		return restTemplate;
+		return new SigningRestTemplate().setRestTemplate(restTemplate);
 	}
 
 	private static class RequestResponseLoggingInterceptor implements ClientHttpRequestInterceptor {
@@ -203,11 +203,23 @@ public class SigningRestTemplates {
 
 		@Override
 		public ClientHttpResponse intercept(HttpRequest request, byte[] body, ClientHttpRequestExecution execution) throws IOException {
-			JWSHeader header = new JWSHeader.Builder(JWSAlgorithm.parse(clientKey.getAlgorithm().getName()))
+			JWSHeader.Builder headerBuilder = new JWSHeader.Builder(JWSAlgorithm.parse(clientKey.getAlgorithm().getName()))
 				.base64URLEncodePayload(false)
 				.criticalParams(Set.of("b64"))
 				.type(JOSEObjectType.JOSE)
-				.keyID(clientKey.getKeyID())
+				.keyID(clientKey.getKeyID());
+
+			// look for the access token
+			String accessToken = request.getHeaders().entrySet().stream()
+				.filter(e -> e.getKey().equalsIgnoreCase("Authorization"))
+				.filter(e -> e.getValue().size() == 1)
+				.map(e -> e.getValue().get(0))
+				.filter(v -> v.startsWith("GNAP "))
+				.map(v -> v.substring("GNAP ".length()))
+				.collect(Collectors.collectingAndThen(Collectors.toList(),
+					l -> l.get(0)));
+
+			JWSHeader header = headerBuilder
 				.build();
 
 			Payload payload = new Payload(body);
@@ -435,6 +447,8 @@ public class SigningRestTemplates {
 			JWSHeader header = new JWSHeader.Builder(JWSAlgorithm.parse(clientKey.getAlgorithm().getName()))
 				.type(JOSEObjectType.JOSE)
 				.keyID(clientKey.getKeyID())
+				.customParam("htm", request.getMethod().toString())
+				.customParam("htu", request.getURI().toString())
 				.build();
 
 			Payload payload = new Payload(body);

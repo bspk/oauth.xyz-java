@@ -6,9 +6,7 @@ import { Button, Badge, Row, Col, Container, Card, CardImg, CardText, CardBody, 
 import { BrowserRouter, Switch, Route } from 'react-router-dom';
 
 import AuthServer from './authserver';
-import Client from './client';
 import Interact from './interact';
-import SPA from './spa';
 
 ReactDOM.render((
 	<BrowserRouter>

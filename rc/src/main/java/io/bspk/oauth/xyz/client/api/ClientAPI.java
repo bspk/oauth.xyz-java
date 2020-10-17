@@ -20,7 +20,6 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import com.nimbusds.jose.jwk.JWK;
@@ -38,7 +37,8 @@ import io.bspk.oauth.xyz.data.api.SingleTokenResourceRequest;
 import io.bspk.oauth.xyz.data.api.TransactionRequest;
 import io.bspk.oauth.xyz.data.api.TransactionResponse;
 import io.bspk.oauth.xyz.data.api.UserRequest;
-import io.bspk.oauth.xyz.http.SigningRestTemplates;
+import io.bspk.oauth.xyz.http.SigningRestTemplate;
+import io.bspk.oauth.xyz.http.SigningRestTemplateService;
 
 /**
  * @author jricher
@@ -65,7 +65,7 @@ public class ClientAPI {
 	private PendingTransactionRepository pendingTransactionRepository;
 
 	@Autowired
-	private SigningRestTemplates requestSigners;
+	private SigningRestTemplateService requestSigners;
 
 	@Autowired
 	private JWK clientKey;
@@ -110,13 +110,12 @@ public class ClientAPI {
 					.setUri(callbackBaseUrl + "/" + callbackId)
 					.setNonce(nonce))
 				.setRedirect(true))
-			.setResources(new SingleTokenResourceRequest()
-				.setResources(List.of(
-					new RequestedResource().setHandle("openid"),
-					new RequestedResource().setHandle("profile"),
-					new RequestedResource().setHandle("email"),
-					new RequestedResource().setHandle("phone")
-					)))
+			.setResources(SingleTokenResourceRequest.ofReferences(
+					"openid",
+					"profile",
+					"email",
+					"phone"
+					))
 			.setKey(new KeyRequest()
 				.setJwk(clientKey.toPublicJWK())
 				.setProof(Proof.JWSD));
@@ -126,11 +125,9 @@ public class ClientAPI {
 
 		Proof proof = Proof.JWSD;
 
-		RestTemplate restTemplate = requestSigners.getSignerFor(proof);
+		SigningRestTemplate restTemplate = requestSigners.getSignerFor(proof);
 
-		ResponseEntity<TransactionResponse> responseEntity = restTemplate.postForEntity(asEndpoint, request, TransactionResponse.class);
-
-		TransactionResponse response = responseEntity.getBody();
+		TransactionResponse response = restTemplate.createTransaction(nonce, request);
 
 		PendingTransaction pending = new PendingTransaction()
 			.add(request, response)
@@ -166,7 +163,7 @@ public class ClientAPI {
 				.setJwk(clientKey.toPublicJWK())
 				.setProof(proof));
 
-		RestTemplate restTemplate = requestSigners.getSignerFor(proof);
+		SigningRestTemplate restTemplate = requestSigners.getSignerFor(proof);
 
 		ResponseEntity<TransactionResponse> responseEntity = restTemplate.postForEntity(asEndpoint, request, TransactionResponse.class);
 
@@ -225,7 +222,7 @@ public class ClientAPI {
 				);
 
 
-		RestTemplate restTemplate = requestSigners.getSignerFor(proof);
+		SigningRestTemplate restTemplate = requestSigners.getSignerFor(proof);
 
 		ResponseEntity<TransactionResponse> responseEntity = restTemplate.postForEntity(asEndpoint, request, TransactionResponse.class);
 
@@ -280,7 +277,7 @@ public class ClientAPI {
 				.setInteractRef(interact)
 				;
 
-			RestTemplate restTemplate = requestSigners.getSignerFor(pending.getProofMethod());
+			SigningRestTemplate restTemplate = requestSigners.getSignerFor(pending.getProofMethod());
 
 			ResponseEntity<TransactionResponse> responseEntity = restTemplate.postForEntity(pending.getContinueUri(), request, TransactionResponse.class);
 
@@ -322,7 +319,7 @@ public class ClientAPI {
 				.setHandle(pending.getContinueHandle())
 				;
 
-			RestTemplate restTemplate = requestSigners.getSignerFor(pending.getProofMethod());
+			SigningRestTemplate restTemplate = requestSigners.getSignerFor(pending.getProofMethod());
 
 			ResponseEntity<TransactionResponse> responseEntity = restTemplate.postForEntity(pending.getContinueUri(), request, TransactionResponse.class);
 
