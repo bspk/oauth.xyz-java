@@ -27,6 +27,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -45,12 +46,15 @@ import com.google.common.base.Strings;
 import com.google.common.collect.Sets;
 import com.nimbusds.jose.JOSEException;
 import com.nimbusds.jose.JOSEObject;
+import com.nimbusds.jose.JWSHeader;
 import com.nimbusds.jose.JWSObject;
 import com.nimbusds.jose.JWSVerifier;
 import com.nimbusds.jose.Payload;
-import com.nimbusds.jose.crypto.RSASSAVerifier;
 import com.nimbusds.jose.crypto.factories.DefaultJWSVerifierFactory;
+import com.nimbusds.jose.jwk.ECKey;
 import com.nimbusds.jose.jwk.JWK;
+import com.nimbusds.jose.jwk.OctetKeyPair;
+import com.nimbusds.jose.jwk.OctetSequenceKey;
 import com.nimbusds.jose.jwk.RSAKey;
 import com.nimbusds.jose.util.Base64URL;
 import com.nimbusds.jwt.JWTClaimsSet;
@@ -252,7 +256,17 @@ public class TransactionEndpoint {
 					checkOAuthPop(oauthPop, req, t.getKey().getJwk());
 					break;
 				case JWS:
-					checkAttachedJws(req, t.getKey().getJwk());
+					if (req.getMethod().equals(HttpMethod.GET.toString())
+						|| req.getMethod().equals(HttpMethod.OPTIONS.toString())
+						|| req.getMethod().equals(HttpMethod.DELETE.toString())
+						|| req.getMethod().equals(HttpMethod.HEAD.toString())
+						|| req.getMethod().equals(HttpMethod.TRACE.toString())) {
+
+						// a body-less method was used, check the header instead
+						checkDetachedJws(jwsd, req, t.getKey().getJwk());
+					} else {
+						checkAttachedJws(req, t.getKey().getJwk());
+					}
 					break;
 				case MTLS:
 				default:
@@ -606,11 +620,29 @@ public class TransactionEndpoint {
 
 			JWSObject jwsObject = new JWSObject(parts[0], payload, parts[2]);
 
-			JWSVerifier verifier = new DefaultJWSVerifierFactory().createJWSVerifier(jwsObject.getHeader(),
-				((RSAKey)clientKey).toRSAPublicKey());
+			JWSVerifier verifier = new DefaultJWSVerifierFactory().createJWSVerifier(jwsObject.getHeader(), extractKeyForVerify(clientKey));
 
 			if (!jwsObject.verify(verifier)) {
 				throw new RuntimeException("Unable to verify JWS");
+			}
+
+			// check the URI and method
+			JWSHeader header = jwsObject.getHeader();
+
+			if (header.getCustomParam("htm") == null || !((String)header.getCustomParam("htm")).equals(request.getMethod())) {
+				throw new RuntimeException("Couldn't verify method");
+			}
+
+			if (header.getCustomParam("htu") == null) {
+				throw new RuntimeException("Couldn't get uri");
+			} else {
+				StringBuffer url = request.getRequestURL();
+				if (request.getQueryString() != null) {
+					url.append('?').append(request.getQueryString());
+				}
+				if (!header.getCustomParam("htu").equals(url.toString())) {
+					throw new RuntimeException("Couldn't verify uri");
+				}
 			}
 
 		} catch (ParseException | JOSEException e) {
@@ -632,8 +664,7 @@ public class TransactionEndpoint {
 			if (jose instanceof JWSObject) {
 				JWSObject jws = (JWSObject)jose;
 
-				JWSVerifier verifier = new DefaultJWSVerifierFactory().createJWSVerifier(jws.getHeader(),
-					((RSAKey)clientKey).toRSAPublicKey());
+				JWSVerifier verifier = new DefaultJWSVerifierFactory().createJWSVerifier(jws.getHeader(), extractKeyForVerify(clientKey));
 
 				if (!jws.verify(verifier)) {
 					throw new RuntimeException("Unable to verify JWS");
@@ -658,7 +689,7 @@ public class TransactionEndpoint {
 				throw new RuntimeException("Client key did not match DPoP key");
 			}
 
-			RSASSAVerifier verifier = new RSASSAVerifier((RSAKey)clientKey);
+			JWSVerifier verifier = new DefaultJWSVerifierFactory().createJWSVerifier(jwt.getHeader(), extractKeyForVerify(clientKey));
 
 			if (!jwt.verify(verifier)) {
 				throw new RuntimeException("Unable to verify DPOP Signature");
@@ -666,18 +697,18 @@ public class TransactionEndpoint {
 
 			JWTClaimsSet claims = jwt.getJWTClaimsSet();
 
-			if (claims.getClaim("http_method") == null || !claims.getClaim("http_method").equals(request.getMethod())) {
+			if (claims.getClaim("htm") == null || !claims.getClaim("htm").equals(request.getMethod())) {
 				throw new RuntimeException("Couldn't verify method");
 			}
 
-			if (claims.getClaim("http_uri") == null) {
+			if (claims.getClaim("htu") == null) {
 				throw new RuntimeException("Couldn't get uri");
 			} else {
 				StringBuffer url = request.getRequestURL();
 				if (request.getQueryString() != null) {
 					url.append('?').append(request.getQueryString());
 				}
-				if (!claims.getClaim("http_uri").equals(url.toString())) {
+				if (!claims.getClaim("htu").equals(url.toString())) {
 					throw new RuntimeException("Couldn't verify uri");
 				}
 			}
@@ -707,5 +738,20 @@ public class TransactionEndpoint {
 			return display;
 		}
 	}
+
+	private static java.security.Key extractKeyForVerify(JWK jwk) throws JOSEException {
+		if (jwk instanceof OctetSequenceKey) {
+			return jwk.toOctetSequenceKey().toSecretKey();
+		} else if (jwk instanceof RSAKey) {
+			return jwk.toRSAKey().toPublicKey();
+		} else if (jwk instanceof ECKey) {
+			return jwk.toECKey().toECPublicKey();
+		} else if (jwk instanceof OctetKeyPair) {
+			return jwk.toOctetKeyPair().toPublicKey();
+		} else {
+			throw new JOSEException("Unable to create signer for key: " + jwk);
+		}
+	}
+
 
 }

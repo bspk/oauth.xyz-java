@@ -106,7 +106,7 @@ public class ClientAPI {
 
 		Key key = new Key()
 			.setJwk(clientKey)
-			.setProof(Proof.JWSD);
+			.setProof(Proof.JWS);
 
 		TransactionRequest request = new TransactionRequest()
 			.setDisplay(new DisplayRequest()
@@ -134,14 +134,14 @@ public class ClientAPI {
 		TransactionResponse response = responseEntity.getBody();
 
 		PendingTransaction pending = new PendingTransaction()
-			.add(request, response)
 			.setCallbackId(callbackId)
 			.setClientNonce(nonce)
-			.setServerNonce(response.getCallbackServerNonce())
 			.setHashMethod(request.getInteract().getCallback().getHashMethod())
 			.setOwner(session.getId())
 			.setKey(key)
-			.setKeyHandle(response.getKeyHandle()); // we save the key handle for display, but we could re-use it in future calls if we remembered it
+			.add(request, response);
+
+			//.setKeyHandle(response.getKeyHandle()); // we save the key handle for display, but we could re-use it in future calls if we remembered it
 
 		pendingTransactionRepository.save(pending);
 
@@ -174,9 +174,9 @@ public class ClientAPI {
 		TransactionResponse response = responseEntity.getBody();
 
 		PendingTransaction pending = new PendingTransaction()
-			.add(request, response)
 			.setOwner(session.getId())
-			.setKey(key);
+			.setKey(key)
+			.add(request, response);
 
 		pendingTransactionRepository.save(pending);
 
@@ -232,9 +232,9 @@ public class ClientAPI {
 		TransactionResponse response = responseEntity.getBody();
 
 		PendingTransaction pending = new PendingTransaction()
-			.add(request, response)
 			.setOwner(session.getId())
-			.setKey(key);
+			.setKey(key)
+			.add(request, response);
 
 		pendingTransactionRepository.save(pending);
 
@@ -242,7 +242,7 @@ public class ClientAPI {
 	}
 
 
-	@GetMapping(path = "/pending", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
+	@GetMapping(path = "/pending", produces = MediaType.APPLICATION_JSON_VALUE)
 	public ResponseEntity<?> getPendingTransactions(HttpSession session) {
 		return ResponseEntity.ok(pendingTransactionRepository.findByOwner(session.getId()));
 	}
