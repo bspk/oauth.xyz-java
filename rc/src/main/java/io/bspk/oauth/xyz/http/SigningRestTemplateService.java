@@ -28,7 +28,7 @@ import org.springframework.http.client.ClientHttpRequestExecution;
 import org.springframework.http.client.ClientHttpRequestFactory;
 import org.springframework.http.client.ClientHttpRequestInterceptor;
 import org.springframework.http.client.ClientHttpResponse;
-import org.springframework.http.client.SimpleClientHttpRequestFactory;
+import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
 import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
 import org.springframework.stereotype.Service;
 import org.springframework.util.MultiValueMap;
@@ -41,6 +41,7 @@ import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.databind.Module;
 import com.google.common.base.Joiner;
 import com.google.common.base.Strings;
+import com.google.common.collect.Lists;
 import com.nimbusds.jose.JOSEException;
 import com.nimbusds.jose.JOSEObjectType;
 import com.nimbusds.jose.JWSAlgorithm;
@@ -70,7 +71,7 @@ public class SigningRestTemplateService {
 	@Autowired
 	private Module jacksonModule;
 
-	private ClientHttpRequestFactory factory = new BufferingClientHttpRequestFactory(new SimpleClientHttpRequestFactory());
+	private ClientHttpRequestFactory factory = new BufferingClientHttpRequestFactory(new HttpComponentsClientHttpRequestFactory());
 
 	// TODO: cache and memoize this per key/proof and access token
 	public RestTemplate getSignerFor(Key key, String accessTokenValue) {
@@ -91,6 +92,7 @@ public class SigningRestTemplateService {
 
 		switch (proof) {
 			case JWS:
+			case JWSD:
 				return createRestTemplate(List.of(
 					new AccessTokenInjectingInterceptor(key, accessTokenValue),
 					new JwsSigningInterceptor(key, accessTokenValue),
@@ -259,6 +261,12 @@ public class SigningRestTemplateService {
 		@Override
 		public ClientHttpResponse intercept(HttpRequest request, byte[] body, ClientHttpRequestExecution execution) throws IOException {
 
+			// are we doing attached or not?
+			boolean attached = (getKey().getProof() == Proof.JWS &&
+				(request.getMethod() == HttpMethod.PUT ||
+				request.getMethod() == HttpMethod.PATCH ||
+				request.getMethod() == HttpMethod.POST));
+
 			JWK clientKey = getKey().getJwk();
 
 			JWSHeader.Builder headerBuilder = new JWSHeader.Builder(JWSAlgorithm.parse(clientKey.getAlgorithm().getName()))
@@ -267,8 +275,8 @@ public class SigningRestTemplateService {
 				.customParam("htm", request.getMethod().toString())
 				.customParam("htu", request.getURI().toString());
 
-			if (getKey().getProof() == Proof.JWS) {
-				// if it's the detached version, set the detached headers
+			if (!attached) {
+				// if it's the detached version, set the detached JWS headers
 				headerBuilder.base64URLEncodePayload(false)
 					.criticalParams(Set.of("b64"));
 			}
@@ -299,20 +307,18 @@ public class SigningRestTemplateService {
 
 				String signature = jwsObject.serialize(true);
 
-				if (getKey().getProof() == Proof.JWS &&
-					(request.getMethod() == HttpMethod.PUT ||
-					request.getMethod() == HttpMethod.PATCH ||
-					request.getMethod() == HttpMethod.POST)) {
-					// if we're doing detached JWS or if we're doing attached JWS and there is no body, put the results in the header
+				if (attached) {
 
-					request.getHeaders().add("Detached-JWS", signature);
-				} else {
 					// if we're doing attached JWS and there is a body to the request, replace the body and make the content type JOSE
 					request.getHeaders().setContentType(new MediaType("application", "jose"));
 
 					byte[] newBody = jwsObject.serialize().getBytes();
 
 					return execution.execute(request, newBody);
+				} else {
+					// if we're doing detached JWS or if we're doing attached JWS and there is no body, put the results in the header
+
+					request.getHeaders().add("Detached-JWS", signature);
 				}
 
 			} catch (JOSEException e) {
@@ -346,7 +352,7 @@ public class SigningRestTemplateService {
 				String requestTarget = request.getMethodValue().toLowerCase() + " " + request.getURI().getRawPath();
 				signatureBlock.put("(request-target)", requestTarget);
 
-				List<String> headersToSign = List.of("Host", "Date", "Digest", "Content-length");
+				List<String> headersToSign = Lists.newArrayList("Host", "Date", "Digest", "Content-length");
 
 				if (hasAccessToken()) {
 					headersToSign.add("Authorization");

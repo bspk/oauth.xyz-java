@@ -11,6 +11,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -272,14 +273,11 @@ public class ClientAPI {
 			TransactionResponse lastResponse = lastEntry.getResponse();
 
 
-			// get the handle
-
 			TransactionRequest request = new TransactionRequest()
-				// FIXME .setHandle(pending.getContinueHandle())
 				.setInteractRef(interact)
 				;
 
-			RestTemplate restTemplate = requestSigners.getSignerFor(pending.getKey(), null); // FIXME
+			RestTemplate restTemplate = requestSigners.getSignerFor(pending.getKey(), pending.getContinueToken());
 
 			ResponseEntity<TransactionResponse> responseEntity = restTemplate.postForEntity(pending.getContinueUri(), request, TransactionResponse.class);
 
@@ -317,17 +315,13 @@ public class ClientAPI {
 				return ResponseEntity.notFound().build();
 			}
 
-			TransactionRequest request = new TransactionRequest()
-				// FIXME .setHandle(pending.getContinueHandle())
-				;
+			RestTemplate restTemplate = requestSigners.getSignerFor(pending.getKey(), pending.getContinueToken());
 
-			RestTemplate restTemplate = requestSigners.getSignerFor(pending.getKey(), null); // FIXME
-
-			ResponseEntity<TransactionResponse> responseEntity = restTemplate.postForEntity(pending.getContinueUri(), request, TransactionResponse.class);
+			ResponseEntity<TransactionResponse> responseEntity = restTemplate.exchange(pending.getContinueUri(), HttpMethod.POST, null, TransactionResponse.class);
 
 			TransactionResponse response = responseEntity.getBody();
 
-			pending.add(request, response);
+			pending.add(null, response);
 
 			pendingTransactionRepository.save(pending);
 

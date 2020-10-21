@@ -72,11 +72,8 @@ public class TransactionResponse {
 				.map(Interact::getServerNonce)
 				.orElse(null))
 			.setCont(new ContinueResponse()
-				.setHandle(t.getHandles().getTransaction())
+				.setAccessToken(AccessTokenResponse.ofClientBoundToken(t.getContinueAccessToken()))
 				.setUri(continueUri))
-			.setDisplayHandle(t.getHandles().getDisplay())
-			.setUserHandle(t.getHandles().getUser())
-			.setKeyHandle(t.getHandles().getKey())
 			.setSubject(t.getSubject())
 			.setCapabilities(t.getCapabilities());
 

@@ -3,6 +3,7 @@ package io.bspk.oauth.xyz.json;
 import java.io.IOException;
 import java.text.ParseException;
 
+import org.springframework.boot.jackson.JsonComponent;
 import org.springframework.core.convert.converter.Converter;
 import org.springframework.data.convert.ReadingConverter;
 
@@ -19,6 +20,7 @@ import com.nimbusds.jose.jwk.JWK;
  *
  */
 @ReadingConverter
+@JsonComponent
 public class JWKDeserializer extends StdDeserializer<JWK> implements Converter<String, JWK> {
 
 	/**

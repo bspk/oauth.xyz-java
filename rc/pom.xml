@@ -71,6 +71,10 @@
 			<artifactId>oauth.xyz.lib</artifactId>
 			<version>0.0.14-SNAPSHOT</version>
 		</dependency>
+		<dependency>
+			<groupId>org.apache.httpcomponents</groupId>
+			<artifactId>httpclient</artifactId>
+		</dependency>
 	</dependencies>
 
 	<build>

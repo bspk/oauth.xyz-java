@@ -51,7 +51,7 @@ public class Transaction {
 	private User user;
 	private Interact interact;
 	private String interactHandle;
-	private @NonNull HandleSet handles = new HandleSet();
+	private AccessToken continueAccessToken;
 	private AccessToken accessToken;
 	private Map<String, AccessToken> multipleAccessTokens;
 	private @NonNull Status status = Status.NEW;

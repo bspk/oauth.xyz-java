@@ -40,4 +40,8 @@ public class AccessToken {
 	public static AccessToken create(Duration lifetime) {
 		return create().setExpiration(Instant.now().plus(lifetime));
 	}
+
+	public static AccessToken create(Key key) {
+		return create().setKey(key);
+	}
 }

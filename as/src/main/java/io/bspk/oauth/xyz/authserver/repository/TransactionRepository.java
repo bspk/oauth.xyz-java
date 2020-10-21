@@ -10,8 +10,7 @@ import io.bspk.oauth.xyz.data.Transaction;
  */
 public interface TransactionRepository extends CrudRepository<Transaction, String> {
 
-	// TODO: this only works for bearer tokens
-	Transaction findFirstByHandlesTransaction(String value);
+	Transaction findFirstByContinueAccessTokenValue(String value);
 
 	Transaction findFirstByInteractInteractId(String id);
 

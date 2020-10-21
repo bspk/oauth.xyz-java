@@ -15,3 +15,5 @@ spring.jackson.default-property-inclusion: NON_NULL
 spring.mvc.dispatch-options-request: true
 
 server.servlet.session.cookie.path: /api/as/interact
+
+# logging.level.org.springframework.web.filter.CommonsRequestLoggingFilter: DEBUG

@@ -22,7 +22,9 @@ import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.fasterxml.jackson.databind.ser.BeanSerializerModifier;
 import com.nimbusds.jose.jwk.JWK;
 
+import io.bspk.oauth.xyz.data.BoundKey;
 import io.bspk.oauth.xyz.data.api.HandleReplaceable;
+import io.bspk.oauth.xyz.json.BoundKeyDeserializer;
 import io.bspk.oauth.xyz.json.HandleAwareDeserializer;
 import io.bspk.oauth.xyz.json.HandleAwareSerializer;
 import io.bspk.oauth.xyz.json.JWKDeserializer;
@@ -46,6 +48,8 @@ public class Application {
 			public JsonDeserializer<?> modifyDeserializer(DeserializationConfig config, BeanDescription beanDesc, JsonDeserializer<?> deserializer) {
 				if (HandleReplaceable.class.isAssignableFrom(beanDesc.getBeanClass())) {
 					return new HandleAwareDeserializer(deserializer);
+				} else if (BoundKey.class.isAssignableFrom(beanDesc.getBeanClass())) {
+					return new BoundKeyDeserializer(deserializer);
 				} else {
 					return deserializer;
 				}
@@ -111,4 +115,18 @@ public class Application {
 
 		return configurer;
 	}
+
+	// for logging incoming requests in full, for debugging
+	/*
+	@Bean
+	public CommonsRequestLoggingFilter logFilter() {
+		CommonsRequestLoggingFilter filter = new CommonsRequestLoggingFilter();
+		filter.setIncludeQueryString(true);
+		filter.setIncludePayload(true);
+		filter.setMaxPayloadLength(10000);
+		filter.setIncludeHeaders(true);
+		filter.setAfterMessagePrefix("REQUEST DATA : ");
+		return filter;
+	}
+	 */
 }

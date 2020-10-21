@@ -9,7 +9,7 @@ import com.fasterxml.jackson.databind.annotation.JsonNaming;
 import com.google.common.collect.Maps;
 
 import io.bspk.oauth.xyz.data.AccessToken;
-import io.bspk.oauth.xyz.data.Key;
+import io.bspk.oauth.xyz.data.BoundKey;
 import lombok.Data;
 import lombok.experimental.Accessors;
 
@@ -23,7 +23,7 @@ import lombok.experimental.Accessors;
 public class AccessTokenResponse {
 
 	private String value;
-	private Key key;
+	private BoundKey key;
 	private String manage;
 	private SingleTokenResourceRequest resources;
 	private Long expiresIn;
@@ -32,11 +32,28 @@ public class AccessTokenResponse {
 		if (t != null) {
 			return new AccessTokenResponse()
 				.setValue(t.getValue())
-				.setKey(t.getKey())
+				.setKey(new BoundKey().setKey(t.getKey()))
 				.setManage(t.getManage())
 				.setResources(t.getResourceRequest())
 				.setExpiresIn(t.getExpiration() != null ?
-					Duration.between(t.getExpiration(), Instant.now()).toSeconds()
+					Duration.between(Instant.now(), t.getExpiration()).toSeconds()
+					: null);
+		} else {
+			return null;
+		}
+	}
+
+	public static AccessTokenResponse ofClientBoundToken(AccessToken t) {
+		if (t != null) {
+			return new AccessTokenResponse()
+				.setValue(t.getValue())
+				.setKey(new BoundKey()
+					.setKey(t.getKey())
+					.setClientKey(true))
+				.setManage(t.getManage())
+				.setResources(t.getResourceRequest())
+				.setExpiresIn(t.getExpiration() != null ?
+					Duration.between(Instant.now(), t.getExpiration()).toSeconds()
 					: null);
 		} else {
 			return null;

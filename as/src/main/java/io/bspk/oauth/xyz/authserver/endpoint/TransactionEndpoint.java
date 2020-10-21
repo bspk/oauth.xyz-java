@@ -61,10 +61,9 @@ import io.bspk.oauth.xyz.crypto.Hash;
 import io.bspk.oauth.xyz.data.AccessToken;
 import io.bspk.oauth.xyz.data.Capability;
 import io.bspk.oauth.xyz.data.Display;
-import io.bspk.oauth.xyz.data.Handle;
 import io.bspk.oauth.xyz.data.Interact;
-import io.bspk.oauth.xyz.data.Keys;
-import io.bspk.oauth.xyz.data.Keys.Proof;
+import io.bspk.oauth.xyz.data.Key;
+import io.bspk.oauth.xyz.data.Key.Proof;
 import io.bspk.oauth.xyz.data.Subject;
 import io.bspk.oauth.xyz.data.Transaction;
 import io.bspk.oauth.xyz.data.Transaction.Status;
@@ -123,6 +122,7 @@ public class TransactionEndpoint {
 
 	@PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
 	public ResponseEntity<TransactionResponse> createTransaction(@RequestBody TransactionRequest incoming,
+		@RequestHeader(name = HttpHeaders.AUTHORIZATION, required = false) String auth,
 		@RequestHeader(name = "Signature", required = false) String signature,
 		@RequestHeader(name = "Digest", required = false) String digest,
 		@RequestHeader(name = "Detached-JWS", required = false) String jwsd,
@@ -130,7 +130,10 @@ public class TransactionEndpoint {
 		@RequestHeader(name = "PoP", required = false) String oauthPop,
 		HttpServletRequest req) {
 
-		if (incoming.getHandle() != null) {
+		// if there's a bound access token we bail
+		String accessToken = extractBoundAccessToken(auth, oauthPop);
+
+		if (accessToken != null) {
 			return ResponseEntity.badRequest().build();
 		} else {
 			// create a new one
@@ -157,7 +160,7 @@ public class TransactionEndpoint {
 
 			// check key presentation
 			if (incoming.getKey() != null) {
-				t.setKey(Keys.of(incoming.getKey()));
+				t.setKey(Key.of(incoming.getKey()));
 			}
 
 			t.setSubjectRequest(incoming.getSubject());
@@ -191,7 +194,7 @@ public class TransactionEndpoint {
 	}
 
 	@PostMapping(value = "/continue", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
-	public ResponseEntity<TransactionResponse> continueTransaction(@RequestBody TransactionRequest incoming,
+	public ResponseEntity<TransactionResponse> continueTransaction(@RequestBody(required = false) TransactionRequest incoming,
 		@RequestHeader(name = HttpHeaders.AUTHORIZATION, required = false) String auth,
 		@RequestHeader(name = "Signature", required = false) String signature,
 		@RequestHeader(name = "Digest", required = false) String digest,
@@ -200,10 +203,12 @@ public class TransactionEndpoint {
 		@RequestHeader(name = "PoP", required = false) String oauthPop,
 		HttpServletRequest req) {
 
-		if (incoming.getHandle() != null) {
+		String accessToken = extractBoundAccessToken(auth, oauthPop);
+
+		if (accessToken != null) {
 			// load a transaction in progress
 
-			Transaction t = transactionRepository.findFirstByHandlesTransaction(incoming.getHandle());
+			Transaction t = transactionRepository.findFirstByContinueAccessTokenValue(accessToken);
 
 			if (t == null) {
 				return ResponseEntity.notFound().build();
@@ -270,7 +275,7 @@ public class TransactionEndpoint {
 		}
 
 		// rotate the transaction's own handle every time it's used (this creates one on the first time through)
-		t.getHandles().setTransaction(Handle.create().getValue());
+		t.setContinueAccessToken(AccessToken.create(t.getKey()));
 
 		switch (t.getStatus()) {
 			case AUTHORIZED:
@@ -391,6 +396,28 @@ public class TransactionEndpoint {
 			// otherwise set a single access token
 			t.setAccessToken(
 				AccessToken.create(Duration.ofHours(1)));
+		}
+	}
+
+	private String extractBoundAccessToken(String auth, String oauthPop) {
+
+		// if there's an OAuth PoP style presentation, use that header's internal value
+		if (!Strings.isNullOrEmpty(oauthPop)) {
+			try {
+				SignedJWT jwt = SignedJWT.parse(oauthPop);
+				JWTClaimsSet claims = jwt.getJWTClaimsSet();
+				String at = claims.getStringClaim("at");
+				return Strings.emptyToNull(at);
+			} catch (ParseException e) {
+				log.error("Unable to parse OAuth PoP to look for token", e);
+				return null;
+			}
+		} else if (Strings.isNullOrEmpty(auth)) {
+			return null;
+		} else if (!auth.startsWith("GNAP ")) {
+			return null;
+		} else {
+			return auth.substring("GNAP ".length());
 		}
 	}
 
@@ -566,6 +593,10 @@ public class TransactionEndpoint {
 	}
 
 	private void checkDetachedJws(String jwsd, HttpServletRequest request, JWK clientKey) {
+		if (Strings.isNullOrEmpty(jwsd)) {
+			throw new RuntimeException("Missing JWS value");
+		}
+
 		try {
 
 			Base64URL[] parts = JOSEObject.split(jwsd);

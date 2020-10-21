@@ -43,13 +43,13 @@ public class PendingTransaction {
 	private Key key;
 	private String keyHandle;
 	private String continueUri;
-	private String continueHandle;
+	private String continueToken;
 
 	public PendingTransaction add (TransactionRequest request, TransactionResponse response) {
 		entries.add(new Entry().setRequest(request).setResponse(response));
 
 		if (response.getCont() != null) {
-			setContinueHandle(response.getCont().getHandle());
+			setContinueToken(response.getCont().getAccessToken().getValue());
 			setContinueUri(response.getCont().getUri());
 		}
 
