@@ -22,7 +22,7 @@ import lombok.experimental.Accessors;
 public class AccessToken {
 
 	private String value;
-	private Keys key;
+	private Key key;
 	private String manage;
 	private SingleTokenResourceRequest resourceRequest;
 	private Instant expiration;

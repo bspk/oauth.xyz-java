@@ -1,6 +1,7 @@
 package io.bspk.oauth.xyz.client.api;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import javax.servlet.http.HttpSession;
@@ -20,24 +21,26 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import com.nimbusds.jose.jwk.JWK;
 
 import io.bspk.oauth.xyz.client.repository.PendingTransactionRepository;
 import io.bspk.oauth.xyz.crypto.Hash;
-import io.bspk.oauth.xyz.data.Keys.Proof;
+import io.bspk.oauth.xyz.data.Key;
+import io.bspk.oauth.xyz.data.Key.Proof;
 import io.bspk.oauth.xyz.data.PendingTransaction;
 import io.bspk.oauth.xyz.data.PendingTransaction.Entry;
 import io.bspk.oauth.xyz.data.api.DisplayRequest;
 import io.bspk.oauth.xyz.data.api.InteractRequest;
 import io.bspk.oauth.xyz.data.api.KeyRequest;
+import io.bspk.oauth.xyz.data.api.MultiTokenResourceRequest;
 import io.bspk.oauth.xyz.data.api.RequestedResource;
 import io.bspk.oauth.xyz.data.api.SingleTokenResourceRequest;
 import io.bspk.oauth.xyz.data.api.TransactionRequest;
 import io.bspk.oauth.xyz.data.api.TransactionResponse;
 import io.bspk.oauth.xyz.data.api.UserRequest;
-import io.bspk.oauth.xyz.http.SigningRestTemplate;
 import io.bspk.oauth.xyz.http.SigningRestTemplateService;
 
 /**
@@ -100,6 +103,9 @@ public class ClientAPI {
 				.setProof(Proof.JWSD));
 		 */
 
+		Key key = new Key()
+			.setJwk(clientKey)
+			.setProof(Proof.JWSD);
 
 		TransactionRequest request = new TransactionRequest()
 			.setDisplay(new DisplayRequest()
@@ -116,18 +122,15 @@ public class ClientAPI {
 					"email",
 					"phone"
 					))
-			.setKey(new KeyRequest()
-				.setJwk(clientKey.toPublicJWK())
-				.setProof(Proof.JWSD));
+			.setKey(KeyRequest.of(key));
 //			.setKeys(new KeyRequest()
 //				.setHandle("client"));
 
+		RestTemplate restTemplate = requestSigners.getSignerFor(key, null);
 
-		Proof proof = Proof.JWSD;
+		ResponseEntity<TransactionResponse> responseEntity = restTemplate.postForEntity(asEndpoint, request, TransactionResponse.class);
 
-		SigningRestTemplate restTemplate = requestSigners.getSignerFor(proof);
-
-		TransactionResponse response = restTemplate.createTransaction(nonce, request);
+		TransactionResponse response = responseEntity.getBody();
 
 		PendingTransaction pending = new PendingTransaction()
 			.add(request, response)
@@ -136,7 +139,7 @@ public class ClientAPI {
 			.setServerNonce(response.getCallbackServerNonce())
 			.setHashMethod(request.getInteract().getCallback().getHashMethod())
 			.setOwner(session.getId())
-			.setProofMethod(proof)
+			.setKey(key)
 			.setKeyHandle(response.getKeyHandle()); // we save the key handle for display, but we could re-use it in future calls if we remembered it
 
 		pendingTransactionRepository.save(pending);
@@ -148,7 +151,9 @@ public class ClientAPI {
 	@PostMapping(path = "/device", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
 	public ResponseEntity<?> startDeviceFlow(HttpSession session) {
 
-		Proof proof = Proof.HTTPSIG;
+		Key key = new Key()
+			.setJwk(clientKey)
+			.setProof(Proof.HTTPSIG);
 
 		TransactionRequest request = new TransactionRequest()
 			.setDisplay(new DisplayRequest()
@@ -159,11 +164,9 @@ public class ClientAPI {
 			.setResources(new SingleTokenResourceRequest()
 				.setResources(List.of(new RequestedResource().setHandle("foo"))))
 			.setUser(new UserRequest())
-			.setKey(new KeyRequest()
-				.setJwk(clientKey.toPublicJWK())
-				.setProof(proof));
+			.setKey(KeyRequest.of(key));
 
-		SigningRestTemplate restTemplate = requestSigners.getSignerFor(proof);
+		RestTemplate restTemplate = requestSigners.getSignerFor(key, null);
 
 		ResponseEntity<TransactionResponse> responseEntity = restTemplate.postForEntity(asEndpoint, request, TransactionResponse.class);
 
@@ -172,7 +175,7 @@ public class ClientAPI {
 		PendingTransaction pending = new PendingTransaction()
 			.add(request, response)
 			.setOwner(session.getId())
-			.setProofMethod(proof);
+			.setKey(key);
 
 		pendingTransactionRepository.save(pending);
 
@@ -182,9 +185,10 @@ public class ClientAPI {
 	@PostMapping(path = "/scannable", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
 	public ResponseEntity<?> startScannableDeviceFlow(HttpSession session) {
 
-		Proof proof = Proof.JWSD;
+		Key key = new Key()
+			.setJwk(clientKey)
+			.setProof(Proof.JWSD);
 
-		/*
 		TransactionRequest request = new TransactionRequest()
 			.setDisplay(new DisplayRequest()
 				.setName("XYZ Scannable Client")
@@ -201,11 +205,9 @@ public class ClientAPI {
 						.setResources(List.of(new RequestedResource()
 							.setActions(List.of("foo", "bar", "baz")))))))
 			.setUser(new UserRequest())
-			.setKeys(new KeyRequest()
-				.setJwk(clientKey.toPublicJWK())
-				.setProof(proof));
-		 */
+			.setKey(KeyRequest.of(key));
 
+		/*
 		TransactionRequest request = new TransactionRequest()
 			.setInteract(new InteractRequest()
 				.setRedirect(true)
@@ -220,9 +222,9 @@ public class ClientAPI {
 			.setKey(new KeyRequest()
 				.setHandle("client")
 				);
+		 */
 
-
-		SigningRestTemplate restTemplate = requestSigners.getSignerFor(proof);
+		RestTemplate restTemplate = requestSigners.getSignerFor(key, null);
 
 		ResponseEntity<TransactionResponse> responseEntity = restTemplate.postForEntity(asEndpoint, request, TransactionResponse.class);
 
@@ -231,7 +233,7 @@ public class ClientAPI {
 		PendingTransaction pending = new PendingTransaction()
 			.add(request, response)
 			.setOwner(session.getId())
-			.setProofMethod(proof);
+			.setKey(key);
 
 		pendingTransactionRepository.save(pending);
 
@@ -273,11 +275,11 @@ public class ClientAPI {
 			// get the handle
 
 			TransactionRequest request = new TransactionRequest()
-				.setHandle(pending.getContinueHandle())
+				// FIXME .setHandle(pending.getContinueHandle())
 				.setInteractRef(interact)
 				;
 
-			SigningRestTemplate restTemplate = requestSigners.getSignerFor(pending.getProofMethod());
+			RestTemplate restTemplate = requestSigners.getSignerFor(pending.getKey(), null); // FIXME
 
 			ResponseEntity<TransactionResponse> responseEntity = restTemplate.postForEntity(pending.getContinueUri(), request, TransactionResponse.class);
 
@@ -316,10 +318,10 @@ public class ClientAPI {
 			}
 
 			TransactionRequest request = new TransactionRequest()
-				.setHandle(pending.getContinueHandle())
+				// FIXME .setHandle(pending.getContinueHandle())
 				;
 
-			SigningRestTemplate restTemplate = requestSigners.getSignerFor(pending.getProofMethod());
+			RestTemplate restTemplate = requestSigners.getSignerFor(pending.getKey(), null); // FIXME
 
 			ResponseEntity<TransactionResponse> responseEntity = restTemplate.postForEntity(pending.getContinueUri(), request, TransactionResponse.class);
 

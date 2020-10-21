@@ -55,7 +55,7 @@ public class Transaction {
 	private AccessToken accessToken;
 	private Map<String, AccessToken> multipleAccessTokens;
 	private @NonNull Status status = Status.NEW;
-	private Keys key;
+	private Key key;
 	private Subject subject;
 	private SubjectRequest subjectRequest;
 	private ResourceRequest resourceRequest;

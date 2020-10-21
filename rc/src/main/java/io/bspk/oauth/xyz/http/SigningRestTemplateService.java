@@ -16,12 +16,11 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import javax.annotation.PostConstruct;
-
 import org.apache.commons.lang3.RandomStringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpRequest;
 import org.springframework.http.MediaType;
 import org.springframework.http.client.BufferingClientHttpRequestFactory;
@@ -49,7 +48,6 @@ import com.nimbusds.jose.JWSHeader;
 import com.nimbusds.jose.JWSObject;
 import com.nimbusds.jose.JWSSigner;
 import com.nimbusds.jose.Payload;
-import com.nimbusds.jose.crypto.RSASSASigner;
 import com.nimbusds.jose.crypto.factories.DefaultJWSSignerFactory;
 import com.nimbusds.jose.jwk.JWK;
 import com.nimbusds.jose.jwk.RSAKey;
@@ -57,7 +55,8 @@ import com.nimbusds.jwt.JWTClaimsSet;
 import com.nimbusds.jwt.JWTClaimsSet.Builder;
 
 import io.bspk.oauth.xyz.crypto.Hash;
-import io.bspk.oauth.xyz.data.Keys.Proof;
+import io.bspk.oauth.xyz.data.Key;
+import io.bspk.oauth.xyz.data.Key.Proof;
 
 /**
  * @author jricher
@@ -66,72 +65,67 @@ import io.bspk.oauth.xyz.data.Keys.Proof;
 @Service
 public class SigningRestTemplateService {
 
+	private final Logger log = LoggerFactory.getLogger(this.getClass());
+
 	@Autowired
 	private Module jacksonModule;
 
-	@Autowired
-	private JWK clientKey;
+	private ClientHttpRequestFactory factory = new BufferingClientHttpRequestFactory(new SimpleClientHttpRequestFactory());
 
-	private SigningRestTemplate noSigner;
-	private SigningRestTemplate cavageSigner;
-	private SigningRestTemplate dpopSigner;
-	private SigningRestTemplate detachedSigner;
-	private SigningRestTemplate oauthPopSigner;
-	private SigningRestTemplate jwsSigner;
+	// TODO: cache and memoize this per key/proof and access token
+	public RestTemplate getSignerFor(Key key, String accessTokenValue) {
 
-	@PostConstruct
-	public void init() {
-		// create all the templates
-		noSigner = createRestTemplate(List.of(
-			new RequestResponseLoggingInterceptor()
+		if (key == null) {
+			return createRestTemplate(List.of(
+				new RequestResponseLoggingInterceptor()
 			));
-		cavageSigner = createRestTemplate(List.of(
-			new DigestInterceptor(),
-			new CavageSigningInterceptor(),
-			new RequestResponseLoggingInterceptor()
-			));
-		dpopSigner = createRestTemplate(List.of(
-			new DpopInterceptor(),
-			new RequestResponseLoggingInterceptor()
-			));
-		detachedSigner = createRestTemplate(List.of(
-			new DetachedJwsSigningInterceptor(),
-			new RequestResponseLoggingInterceptor()
-			));
-		oauthPopSigner = createRestTemplate(List.of(
-			new OAuthPoPSigningInterceptor(),
-			new RequestResponseLoggingInterceptor()
-			));
-		jwsSigner = createRestTemplate(List.of(
-			new JwsSigningInterceptor(),
-			new RequestResponseLoggingInterceptor()
-			));
-	}
+		}
 
-	public SigningRestTemplate getSignerFor(Proof proof) {
+		Proof proof = key.getProof();
+
+		if (proof == null) {
+			return createRestTemplate(List.of(
+				new RequestResponseLoggingInterceptor()
+			));
+		}
+
 		switch (proof) {
-			case DPOP:
-				return dpopSigner;
-			case HTTPSIG:
-				return cavageSigner;
-			case JWSD:
-				return detachedSigner;
-			case OAUTHPOP:
-				return oauthPopSigner;
 			case JWS:
-				return jwsSigner;
+				return createRestTemplate(List.of(
+					new AccessTokenInjectingInterceptor(key, accessTokenValue),
+					new JwsSigningInterceptor(key, accessTokenValue),
+					new RequestResponseLoggingInterceptor()
+				));
+			case DPOP:
+				return createRestTemplate(List.of(
+					new AccessTokenInjectingInterceptor(key, accessTokenValue),
+					new DpopInterceptor(key, accessTokenValue),
+					new RequestResponseLoggingInterceptor()
+				));
+			case HTTPSIG:
+				return createRestTemplate(List.of(
+					new AccessTokenInjectingInterceptor(key, accessTokenValue),
+					new CavageSigningInterceptor(key, accessTokenValue),
+					new RequestResponseLoggingInterceptor()
+				));
+			case OAUTHPOP:
+				return createRestTemplate(List.of(
+					new OAuthPoPSigningInterceptor(key, accessTokenValue),
+					new RequestResponseLoggingInterceptor()
+				));
 			case MTLS:
 			default:
-				return noSigner;
+				return createRestTemplate(List.of(
+					new RequestResponseLoggingInterceptor()
+				));
 		}
 	}
 
-	private SigningRestTemplate createRestTemplate(List<ClientHttpRequestInterceptor> interceptors) {
-		ClientHttpRequestFactory factory = new BufferingClientHttpRequestFactory(new SimpleClientHttpRequestFactory());
-
+	private RestTemplate createRestTemplate(List<ClientHttpRequestInterceptor> interceptors) {
 		RestTemplate restTemplate = new RestTemplate(factory);
 		restTemplate.setInterceptors(interceptors);
 
+		// set up Jackson
 		MappingJackson2HttpMessageConverter messageConverter = restTemplate.getMessageConverters().stream()
 			.filter(MappingJackson2HttpMessageConverter.class::isInstance)
 			.map(MappingJackson2HttpMessageConverter.class::cast)
@@ -140,7 +134,7 @@ public class SigningRestTemplateService {
 		messageConverter.getObjectMapper().registerModule(jacksonModule);
 		messageConverter.getObjectMapper().setSerializationInclusion(Include.NON_NULL);
 
-		return new SigningRestTemplate().setRestTemplate(restTemplate);
+		return restTemplate;
 	}
 
 	private static class RequestResponseLoggingInterceptor implements ClientHttpRequestInterceptor {
@@ -174,6 +168,62 @@ public class SigningRestTemplateService {
 		}
 	}
 
+	private abstract class KeyAndTokenAwareInterceptor {
+		private final String accessTokenValue;
+		private final Key key;
+
+		public KeyAndTokenAwareInterceptor(Key key, String accessTokenValue) {
+			// Either field may be null for different request types
+			//
+			//         | token        | no token         |
+			//  key    | bound token  | signed request   |
+			//  no key | bearer token | unsigned request |
+			//
+			this.accessTokenValue = accessTokenValue;
+			this.key = key;
+		}
+
+		public String getAccessTokenValue() {
+			return accessTokenValue;
+		}
+
+		public Key getKey() {
+			return key;
+		}
+		public boolean hasAccessToken() {
+			return !Strings.isNullOrEmpty(accessTokenValue);
+		}
+
+		public boolean isBearerToken() {
+			if (key == null || key.getProof() == null) {
+				return true;
+			} else {
+				return false;
+			}
+		}
+	}
+
+	private class AccessTokenInjectingInterceptor extends KeyAndTokenAwareInterceptor implements ClientHttpRequestInterceptor {
+		public AccessTokenInjectingInterceptor(Key key, String accessTokenValue) {
+			super(key, accessTokenValue);
+		}
+
+		@Override
+		public ClientHttpResponse intercept(HttpRequest request, byte[] body, ClientHttpRequestExecution execution) throws IOException {
+			if (!Strings.isNullOrEmpty(getAccessTokenValue())) {
+				// if there's a token, inject it into the authorization header, otherwise just bypass
+				if (isBearerToken()) {
+					// RFC6750 style
+					request.getHeaders().add("Authorization", "Bearer " + getAccessTokenValue());
+				} else {
+					// GNAP style
+					request.getHeaders().add("Authorization", "GNAP " + getAccessTokenValue());
+				}
+			}
+			return execution.execute(request, body);
+		}
+	}
+
 	private class DigestInterceptor implements ClientHttpRequestInterceptor {
 
 		private final Logger log = LoggerFactory.getLogger(this.getClass());
@@ -197,32 +247,46 @@ public class SigningRestTemplateService {
 
 	}
 
-	private class DetachedJwsSigningInterceptor implements ClientHttpRequestInterceptor {
+	// this handles both the detached and attached versions
+	private class JwsSigningInterceptor extends KeyAndTokenAwareInterceptor implements ClientHttpRequestInterceptor {
+
+		public JwsSigningInterceptor(Key key, String accessTokenValue) {
+			super(key, accessTokenValue);
+		}
 
 		private final Logger log = LoggerFactory.getLogger(this.getClass());
 
 		@Override
 		public ClientHttpResponse intercept(HttpRequest request, byte[] body, ClientHttpRequestExecution execution) throws IOException {
-			JWSHeader.Builder headerBuilder = new JWSHeader.Builder(JWSAlgorithm.parse(clientKey.getAlgorithm().getName()))
-				.base64URLEncodePayload(false)
-				.criticalParams(Set.of("b64"))
-				.type(JOSEObjectType.JOSE)
-				.keyID(clientKey.getKeyID());
 
-			// look for the access token
-			String accessToken = request.getHeaders().entrySet().stream()
-				.filter(e -> e.getKey().equalsIgnoreCase("Authorization"))
-				.filter(e -> e.getValue().size() == 1)
-				.map(e -> e.getValue().get(0))
-				.filter(v -> v.startsWith("GNAP "))
-				.map(v -> v.substring("GNAP ".length()))
-				.collect(Collectors.collectingAndThen(Collectors.toList(),
-					l -> l.get(0)));
+			JWK clientKey = getKey().getJwk();
+
+			JWSHeader.Builder headerBuilder = new JWSHeader.Builder(JWSAlgorithm.parse(clientKey.getAlgorithm().getName()))
+				.type(JOSEObjectType.JOSE)
+				.keyID(clientKey.getKeyID())
+				.customParam("htm", request.getMethod().toString())
+				.customParam("htu", request.getURI().toString());
+
+			if (getKey().getProof() == Proof.JWS) {
+				// if it's the detached version, set the detached headers
+				headerBuilder.base64URLEncodePayload(false)
+					.criticalParams(Set.of("b64"));
+			}
+
+			// cover the access token if it exists
+			if (hasAccessToken()) {
+				headerBuilder.customParam("at_hash", Hash.getAtHash(clientKey.getAlgorithm(), getAccessTokenValue().getBytes()));
+			}
 
 			JWSHeader header = headerBuilder
 				.build();
 
-			Payload payload = new Payload(body);
+			Payload payload;
+			if (body == null) {
+				payload = new Payload(new byte[0]);
+			} else {
+				payload = new Payload(body);
+			}
 
 			//log.info(">> " + payload.toBase64URL().toString());
 
@@ -235,7 +299,21 @@ public class SigningRestTemplateService {
 
 				String signature = jwsObject.serialize(true);
 
-				request.getHeaders().add("Detached-JWS", signature);
+				if (getKey().getProof() == Proof.JWS &&
+					(request.getMethod() == HttpMethod.PUT ||
+					request.getMethod() == HttpMethod.PATCH ||
+					request.getMethod() == HttpMethod.POST)) {
+					// if we're doing detached JWS or if we're doing attached JWS and there is no body, put the results in the header
+
+					request.getHeaders().add("Detached-JWS", signature);
+				} else {
+					// if we're doing attached JWS and there is a body to the request, replace the body and make the content type JOSE
+					request.getHeaders().setContentType(new MediaType("application", "jose"));
+
+					byte[] newBody = jwsObject.serialize().getBytes();
+
+					return execution.execute(request, newBody);
+				}
 
 			} catch (JOSEException e) {
 				// TODO Auto-generated catch block
@@ -247,14 +325,20 @@ public class SigningRestTemplateService {
 		}
 	}
 
-	private class CavageSigningInterceptor implements ClientHttpRequestInterceptor {
+	private class CavageSigningInterceptor extends KeyAndTokenAwareInterceptor implements ClientHttpRequestInterceptor {
 
 		private final Logger log = LoggerFactory.getLogger(this.getClass());
+
+		public CavageSigningInterceptor(Key key, String accessTokenValue) {
+			super(key, accessTokenValue);
+		}
 
 		@Override
 		public ClientHttpResponse intercept(HttpRequest request, byte[] body, ClientHttpRequestExecution execution) throws IOException {
 
 			try {
+
+				// TODO: update with new signature mechanisms, right now we only lock on RSA-256
 				String alg = "rsa-sha256";
 
 				// collect the base string
@@ -263,6 +347,10 @@ public class SigningRestTemplateService {
 				signatureBlock.put("(request-target)", requestTarget);
 
 				List<String> headersToSign = List.of("Host", "Date", "Digest", "Content-length");
+
+				if (hasAccessToken()) {
+					headersToSign.add("Authorization");
+				}
 
 				headersToSign.forEach((h) -> {
 					if (request.getHeaders().getFirst(h) != null) {
@@ -274,7 +362,7 @@ public class SigningRestTemplateService {
 					.map(e -> e.getKey().strip().toLowerCase() + ": " + e.getValue().strip())
 					.collect(Collectors.joining("\n"));
 
-				RSAKey rsaKey = (RSAKey)clientKey;
+				RSAKey rsaKey = getKey().getJwk().toRSAKey();
 
 				Signature signature = Signature.getInstance("SHA256withRSA");
 
@@ -290,7 +378,7 @@ public class SigningRestTemplateService {
 
 		        Map<String, String> signatureHeader = new LinkedHashMap<>();
 
-		        signatureHeader.put("keyId", clientKey.getKeyID());
+		        signatureHeader.put("keyId", getKey().getJwk().getKeyID());
 		        signatureHeader.put("algorithm", alg);
 		        signatureHeader.put("headers", headers);
 		        signatureHeader.put("signature", encoded);
@@ -311,12 +399,18 @@ public class SigningRestTemplateService {
 
 	}
 
-	private class DpopInterceptor implements ClientHttpRequestInterceptor {
+	private class DpopInterceptor extends KeyAndTokenAwareInterceptor implements ClientHttpRequestInterceptor {
 
 		private final Logger log = LoggerFactory.getLogger(this.getClass());
 
+		public DpopInterceptor(Key key, String accessTokenValue) {
+			super(key, accessTokenValue);
+		}
+
 		@Override
 		public ClientHttpResponse intercept(HttpRequest request, byte[] body, ClientHttpRequestExecution execution) throws IOException {
+
+			JWK clientKey = getKey().getJwk();
 
 			JWSHeader header = new JWSHeader.Builder(JWSAlgorithm.parse(clientKey.getAlgorithm().getName()))
 				.type(new JOSEObjectType("dpop+jwt"))
@@ -326,12 +420,12 @@ public class SigningRestTemplateService {
 			JWTClaimsSet claims = new JWTClaimsSet.Builder()
 				.jwtID(RandomStringUtils.randomAlphanumeric(20))
 				.issueTime(Date.from(Instant.now()))
-				.claim("http_method", request.getMethodValue())
-				.claim("http_uri", request.getURI().toString())
+				.claim("htm", request.getMethodValue())
+				.claim("htu", request.getURI().toString())
 				.build();
 
 			try {
-				RSASSASigner signer = new RSASSASigner((RSAKey)clientKey);
+				JWSSigner signer = new DefaultJWSSignerFactory().createJWSSigner(clientKey);
 
 				JWSObject jwsObject = new JWSObject(header, new Payload(claims.toJSONObject()));
 
@@ -351,10 +445,16 @@ public class SigningRestTemplateService {
 
 	}
 
-	private class OAuthPoPSigningInterceptor implements ClientHttpRequestInterceptor {
+	private class OAuthPoPSigningInterceptor extends KeyAndTokenAwareInterceptor implements ClientHttpRequestInterceptor {
+
+		public OAuthPoPSigningInterceptor(Key key, String accessTokenValue) {
+			super(key, accessTokenValue);
+		}
 
 		@Override
 		public ClientHttpResponse intercept(HttpRequest request, byte[] body, ClientHttpRequestExecution execution) throws IOException {
+
+			JWK clientKey = getKey().getJwk();
 
 			JWSHeader header = new JWSHeader.Builder(JWSAlgorithm.parse(clientKey.getAlgorithm().getName()))
 				.jwk(clientKey.toPublicJWK())
@@ -373,8 +473,12 @@ public class SigningRestTemplateService {
 			claimsSetBuilder.claim("p", request.getURI().getPath());
 			claimsSetBuilder.claim("ts", Instant.now().getEpochSecond());
 
+			if (hasAccessToken()) {
+				claimsSetBuilder.claim("at", getAccessTokenValue());
+			}
+
 			try {
-				RSASSASigner signer = new RSASSASigner((RSAKey)clientKey);
+				JWSSigner signer = new DefaultJWSSignerFactory().createJWSSigner(clientKey);
 
 				JWSObject jwsObject = new JWSObject(header, new Payload(claimsSetBuilder.build().toJSONObject()));
 
@@ -439,36 +543,4 @@ public class SigningRestTemplateService {
 		}
 	}
 
-	private class JwsSigningInterceptor implements ClientHttpRequestInterceptor {
-		private final Logger log = LoggerFactory.getLogger(this.getClass());
-
-		@Override
-		public ClientHttpResponse intercept(HttpRequest request, byte[] body, ClientHttpRequestExecution execution) throws IOException {
-			JWSHeader header = new JWSHeader.Builder(JWSAlgorithm.parse(clientKey.getAlgorithm().getName()))
-				.type(JOSEObjectType.JOSE)
-				.keyID(clientKey.getKeyID())
-				.customParam("htm", request.getMethod().toString())
-				.customParam("htu", request.getURI().toString())
-				.build();
-
-			Payload payload = new Payload(body);
-
-			try {
-				JWSSigner signer = new DefaultJWSSignerFactory().createJWSSigner(clientKey);
-
-				JWSObject jwsObject = new JWSObject(header, payload);
-
-				jwsObject.sign(signer);
-
-				request.getHeaders().setContentType(new MediaType("application", "jose"));
-
-				byte[] newBody = jwsObject.serialize().getBytes();
-
-				return execution.execute(request, newBody);
-
-			} catch (JOSEException e) {
-				throw new IOException(e);
-			}
-		}
-	}
 }

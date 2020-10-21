@@ -24,7 +24,7 @@ import lombok.experimental.Accessors;
 @Data
 @Accessors(chain = true)
 @JsonNaming(PropertyNamingStrategy.SnakeCaseStrategy.class)
-public class Keys {
+public class Key {
 	public enum Proof {
 		JWSD,
 		MTLS,
@@ -55,8 +55,8 @@ public class Keys {
 	private URI did;
 
 
-	public static Keys of(KeyRequest request) {
-		return new Keys()
+	public static Key of(KeyRequest request) {
+		return new Key()
 			.setProof(request.getProof())
 			.setCert(request.getCert())
 			.setDid(request.getDid())

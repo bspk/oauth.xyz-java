@@ -57,7 +57,7 @@ import com.nimbusds.jwt.JWTClaimsSet;
 import com.nimbusds.jwt.JWTClaimsSet.Builder;
 
 import io.bspk.oauth.xyz.crypto.Hash;
-import io.bspk.oauth.xyz.data.Keys.Proof;
+import io.bspk.oauth.xyz.data.Key.Proof;
 
 /**
  * @author jricher

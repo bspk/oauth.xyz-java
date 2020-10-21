@@ -9,7 +9,7 @@ import com.fasterxml.jackson.databind.annotation.JsonNaming;
 import com.google.common.collect.Maps;
 
 import io.bspk.oauth.xyz.data.AccessToken;
-import io.bspk.oauth.xyz.data.Keys;
+import io.bspk.oauth.xyz.data.Key;
 import lombok.Data;
 import lombok.experimental.Accessors;
 
@@ -23,7 +23,7 @@ import lombok.experimental.Accessors;
 public class AccessTokenResponse {
 
 	private String value;
-	private Keys key;
+	private Key key;
 	private String manage;
 	private SingleTokenResourceRequest resources;
 	private Long expiresIn;

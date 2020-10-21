@@ -10,7 +10,6 @@ import com.fasterxml.jackson.databind.PropertyNamingStrategy;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
 
 import io.bspk.oauth.xyz.crypto.Hash.Method;
-import io.bspk.oauth.xyz.data.Keys.Proof;
 import io.bspk.oauth.xyz.data.api.TransactionRequest;
 import io.bspk.oauth.xyz.data.api.TransactionResponse;
 import lombok.Data;
@@ -41,7 +40,7 @@ public class PendingTransaction {
 	private String clientNonce;
 	private String serverNonce;
 	private Method hashMethod;
-	private Proof proofMethod;
+	private Key key;
 	private String keyHandle;
 	private String continueUri;
 	private String continueHandle;
