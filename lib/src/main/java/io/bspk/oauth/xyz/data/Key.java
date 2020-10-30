@@ -3,12 +3,18 @@ package io.bspk.oauth.xyz.data;
 import java.net.URI;
 import java.security.cert.X509Certificate;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.data.annotation.Transient;
+
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonValue;
 import com.fasterxml.jackson.databind.PropertyNamingStrategy;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import com.nimbusds.jose.JOSEException;
 import com.nimbusds.jose.jwk.JWK;
 
 import io.bspk.oauth.xyz.data.api.KeyRequest;
@@ -47,6 +53,11 @@ public class Key {
 
 	}
 
+	@JsonIgnore
+	@Transient
+	private final Logger log = LoggerFactory.getLogger(this.getClass());
+
+
 	private Proof proof;
 	@JsonSerialize(using = JWKSerializer.class)
 	@JsonDeserialize(using = JWKDeserializer.class)
@@ -62,6 +73,24 @@ public class Key {
 			.setDid(request.getDid())
 			.setJwk(request.getJwk());
 	}
+
+	public String getHash() {
+		if (getJwk() != null) {
+			try {
+				return getJwk().computeThumbprint().toString();
+			} catch (JOSEException e) {
+				log.error("Couldn't compute thumbprint.", e);
+				return null;
+			}
+		} else if (getCert() != null) {
+			// TODO: calculate cert thumbprint
+			return null;
+		} else {
+			// couldn't find key to thumbprint
+			return null;
+		}
+	}
+
 
 }
 

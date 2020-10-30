@@ -1,8 +1,10 @@
 package io.bspk.oauth.xyz.client.api;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 import javax.servlet.http.HttpSession;
 
@@ -25,6 +27,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
 
+import com.google.common.base.Strings;
 import com.nimbusds.jose.jwk.JWK;
 
 import io.bspk.oauth.xyz.client.repository.PendingTransactionRepository;
@@ -33,12 +36,14 @@ import io.bspk.oauth.xyz.data.Key;
 import io.bspk.oauth.xyz.data.Key.Proof;
 import io.bspk.oauth.xyz.data.PendingTransaction;
 import io.bspk.oauth.xyz.data.PendingTransaction.Entry;
+import io.bspk.oauth.xyz.data.api.ClientRequest;
 import io.bspk.oauth.xyz.data.api.DisplayRequest;
 import io.bspk.oauth.xyz.data.api.InteractRequest;
 import io.bspk.oauth.xyz.data.api.KeyRequest;
 import io.bspk.oauth.xyz.data.api.MultiTokenResourceRequest;
 import io.bspk.oauth.xyz.data.api.RequestedResource;
 import io.bspk.oauth.xyz.data.api.SingleTokenResourceRequest;
+import io.bspk.oauth.xyz.data.api.TransactionContinueRequest;
 import io.bspk.oauth.xyz.data.api.TransactionRequest;
 import io.bspk.oauth.xyz.data.api.TransactionResponse;
 import io.bspk.oauth.xyz.data.api.UserRequest;
@@ -51,6 +56,10 @@ import io.bspk.oauth.xyz.http.SigningRestTemplateService;
 @Controller
 @RequestMapping("/api/client")
 public class ClientAPI {
+
+	private static final String AUTH_CODE_ID = "authCodeId";
+	private static final String DEVICE_ID = "deviceId";
+	private static final String SCANNABLE_ID = "scannableId";
 
 	private final Logger log = LoggerFactory.getLogger(this.getClass());
 
@@ -106,12 +115,9 @@ public class ClientAPI {
 
 		Key key = new Key()
 			.setJwk(clientKey)
-			.setProof(Proof.JWS);
+			.setProof(Proof.JWSD);
 
 		TransactionRequest request = new TransactionRequest()
-			.setDisplay(new DisplayRequest()
-				.setName("XYZ Redirect Client")
-				.setUri(clientPage))
 			.setInteract(new InteractRequest()
 				.setCallback(new InteractRequest.Callback()
 					.setUri(callbackBaseUrl + "/" + callbackId)
@@ -122,10 +128,23 @@ public class ClientAPI {
 					"profile",
 					"email",
 					"phone"
-					))
-			.setKey(KeyRequest.of(key));
+					));
 //			.setKeys(new KeyRequest()
 //				.setHandle("client"));
+
+
+		// load a known instance ID from this session
+		String instanceId = (String) session.getAttribute(AUTH_CODE_ID);
+		if (!Strings.isNullOrEmpty(instanceId)) {
+			request.setClient(new ClientRequest()
+				.setInstanceId(instanceId));
+		} else {
+			request.setClient(new ClientRequest()
+				.setDisplay(new DisplayRequest()
+					.setName("XYZ Redirect Client")
+					.setUri(clientPage))
+				.setKey(KeyRequest.of(key)));
+		}
 
 		RestTemplate restTemplate = requestSigners.getSignerFor(key, null);
 
@@ -141,7 +160,9 @@ public class ClientAPI {
 			.setKey(key)
 			.add(request, response);
 
-			//.setKeyHandle(response.getKeyHandle()); // we save the key handle for display, but we could re-use it in future calls if we remembered it
+		if (!Strings.isNullOrEmpty(response.getInstanceId())) {
+			session.setAttribute(AUTH_CODE_ID, response.getInstanceId());
+		}
 
 		pendingTransactionRepository.save(pending);
 
@@ -157,21 +178,34 @@ public class ClientAPI {
 			.setProof(Proof.HTTPSIG);
 
 		TransactionRequest request = new TransactionRequest()
-			.setDisplay(new DisplayRequest()
-				.setName("XYZ Device Client")
-				.setUri(clientPage))
 			.setInteract(new InteractRequest()
 				.setUserCode(true))
 			.setResources(new SingleTokenResourceRequest()
 				.setResources(List.of(new RequestedResource().setHandle("foo"))))
-			.setUser(new UserRequest())
-			.setKey(KeyRequest.of(key));
+			.setUser(new UserRequest());
+
+		// load a known instance ID from this session
+		String instanceId = (String) session.getAttribute(DEVICE_ID);
+		if (!Strings.isNullOrEmpty(instanceId)) {
+			request.setClient(new ClientRequest()
+				.setInstanceId(instanceId));
+		} else {
+			request.setClient(new ClientRequest()
+				.setDisplay(new DisplayRequest()
+					.setName("XYZ Device Client")
+					.setUri(clientPage))
+				.setKey(KeyRequest.of(key)));
+		}
 
 		RestTemplate restTemplate = requestSigners.getSignerFor(key, null);
 
 		ResponseEntity<TransactionResponse> responseEntity = restTemplate.postForEntity(asEndpoint, request, TransactionResponse.class);
 
 		TransactionResponse response = responseEntity.getBody();
+
+		if (!Strings.isNullOrEmpty(response.getInstanceId())) {
+			session.setAttribute(DEVICE_ID, response.getInstanceId());
+		}
 
 		PendingTransaction pending = new PendingTransaction()
 			.setOwner(session.getId())
@@ -191,9 +225,6 @@ public class ClientAPI {
 			.setProof(Proof.JWSD);
 
 		TransactionRequest request = new TransactionRequest()
-			.setDisplay(new DisplayRequest()
-				.setName("XYZ Scannable Client")
-				.setUri("http://host.docker.internal:9843/c"))
 			.setInteract(new InteractRequest()
 				.setUserCode(true)
 				.setRedirect(true))
@@ -205,8 +236,20 @@ public class ClientAPI {
 					"magic", new SingleTokenResourceRequest()
 						.setResources(List.of(new RequestedResource()
 							.setActions(List.of("foo", "bar", "baz")))))))
-			.setUser(new UserRequest())
-			.setKey(KeyRequest.of(key));
+			.setUser(new UserRequest());
+
+		// load a known instance ID from this session
+		String instanceId = (String) session.getAttribute(SCANNABLE_ID);
+		if (!Strings.isNullOrEmpty(instanceId)) {
+			request.setClient(new ClientRequest()
+				.setInstanceId(instanceId));
+		} else {
+			request.setClient(new ClientRequest()
+				.setDisplay(new DisplayRequest()
+					.setName("XYZ Scannable Client")
+					.setUri("http://host.docker.internal:9843/c"))
+				.setKey(KeyRequest.of(key)));
+		}
 
 		/*
 		TransactionRequest request = new TransactionRequest()
@@ -235,6 +278,10 @@ public class ClientAPI {
 			.setOwner(session.getId())
 			.setKey(key)
 			.add(request, response);
+
+		if (!Strings.isNullOrEmpty(response.getInstanceId())) {
+			session.setAttribute(SCANNABLE_ID, response.getInstanceId());
+		}
 
 		pendingTransactionRepository.save(pending);
 
@@ -273,7 +320,7 @@ public class ClientAPI {
 			TransactionResponse lastResponse = lastEntry.getResponse();
 
 
-			TransactionRequest request = new TransactionRequest()
+			TransactionContinueRequest request = new TransactionContinueRequest()
 				.setInteractRef(interact)
 				;
 
@@ -321,7 +368,7 @@ public class ClientAPI {
 
 			TransactionResponse response = responseEntity.getBody();
 
-			pending.add(null, response);
+			pending.add(response);
 
 			pendingTransactionRepository.save(pending);
 
@@ -351,6 +398,26 @@ public class ClientAPI {
 		}
 	}
 
+	@GetMapping("/ids")
+	public ResponseEntity<?> getIds(HttpSession session) {
+		Map<String, Object> ids = Collections.list(session.getAttributeNames()).stream()
+			.filter(e -> e.equals(AUTH_CODE_ID) || e.equals(DEVICE_ID) || e.equals(SCANNABLE_ID))
+			.collect(Collectors.toMap(
+				k -> k,
+				k -> session.getAttribute(k)));
+
+		return ResponseEntity.ok(ids);
+	}
+
+	@DeleteMapping("/ids")
+	public ResponseEntity<?> clearIds(HttpSession session) {
+		session.removeAttribute(AUTH_CODE_ID);
+		session.removeAttribute(DEVICE_ID);
+		session.removeAttribute(SCANNABLE_ID);
+
+		return ResponseEntity
+			.noContent().build();
+	}
 
 
 }

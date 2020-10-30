@@ -49,6 +49,15 @@ class Client extends React.Component {
 		});
 	}
 	
+	clearInstanceIds = (e) => {
+		http({
+			method: 'DELETE',
+			path: '/api/client/ids'
+		}).done(response => {
+			this.loadPending();
+		});
+	}
+	
 	loadPending = () => {
 		
 		http({
@@ -84,6 +93,7 @@ class Client extends React.Component {
 				<Button color="success" onClick={this.newTransaction}>New Auth Code Transaction</Button>
 				<Button color="warning" onClick={this.newDevice}>New Device Transaction</Button>
 				<Button color="dark" onClick={this.newScannable}>New Scannable Transaction</Button>
+				<Button color="danger" onClick={this.clearIds}>Clear Instance Ids</Button>
 				{pending}
 			</Container>
 		);

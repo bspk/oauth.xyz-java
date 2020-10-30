@@ -60,20 +60,22 @@ import com.nimbusds.jose.util.Base64URL;
 import com.nimbusds.jwt.JWTClaimsSet;
 import com.nimbusds.jwt.SignedJWT;
 
+import io.bspk.oauth.xyz.authserver.repository.ClientRepository;
 import io.bspk.oauth.xyz.authserver.repository.TransactionRepository;
 import io.bspk.oauth.xyz.crypto.Hash;
 import io.bspk.oauth.xyz.data.AccessToken;
 import io.bspk.oauth.xyz.data.Capability;
+import io.bspk.oauth.xyz.data.Client;
 import io.bspk.oauth.xyz.data.Display;
 import io.bspk.oauth.xyz.data.Interact;
-import io.bspk.oauth.xyz.data.Key;
 import io.bspk.oauth.xyz.data.Key.Proof;
 import io.bspk.oauth.xyz.data.Subject;
 import io.bspk.oauth.xyz.data.Transaction;
 import io.bspk.oauth.xyz.data.Transaction.Status;
-import io.bspk.oauth.xyz.data.api.DisplayRequest;
+import io.bspk.oauth.xyz.data.api.ClientRequest;
 import io.bspk.oauth.xyz.data.api.MultiTokenResourceRequest;
 import io.bspk.oauth.xyz.data.api.SingleTokenResourceRequest;
+import io.bspk.oauth.xyz.data.api.TransactionContinueRequest;
 import io.bspk.oauth.xyz.data.api.TransactionRequest;
 import io.bspk.oauth.xyz.data.api.TransactionResponse;
 import io.bspk.oauth.xyz.http.DigestWrappingFilter;
@@ -96,6 +98,9 @@ public class TransactionEndpoint {
 
 	@Autowired
 	private TransactionRepository transactionRepository;
+
+	@Autowired
+	private ClientRepository clientRepository;
 
 	@Value("${oauth.xyz.root}")
 	private String baseUrl;
@@ -143,19 +148,13 @@ public class TransactionEndpoint {
 			// create a new one
 			Transaction t = new Transaction();
 
-			DisplayRequest displayRequest = processDisplayRequest(incoming.getDisplay());
+			Client clientRequest = processClientRequest(incoming.getClient());
+
+			Display displayRequest = clientRequest.getDisplay();
 
 			if (displayRequest != null) {
-				t.setDisplay(Display.of(displayRequest));
+				t.setDisplay(displayRequest);
 			}
-
-			/*
-			t.setClient(null) // process client
-				.setInteract(null) // process interact
-				.setResource(null) // process resource
-				.setUser(null) // process user
-				;
-			*/
 
 			// if there's an interaction request, copy it to the end result
 			if (incoming.getInteract() != null) {
@@ -163,8 +162,8 @@ public class TransactionEndpoint {
 			}
 
 			// check key presentation
-			if (incoming.getKey() != null) {
-				t.setKey(Key.of(incoming.getKey()));
+			if (clientRequest.getKey() != null) {
+				t.setKey(clientRequest.getKey());
 			}
 
 			t.setSubjectRequest(incoming.getSubject());
@@ -173,32 +172,14 @@ public class TransactionEndpoint {
 
 			t.setCapabilitiesRequest(incoming.getCapabilities());
 
-			/*
-			if (t.getClient() != null && t.getHandles().getClient() == null) {
-				t.getHandles().setClient(Handle.create()); // create a new handle to represent this client, equivalent to client id/secret
-			}
-
-			if (t.getInteract() != null && t.getHandles().getInteract() == null) {
-				t.getHandles().setInteract(Handle.create()); // create a handle for the interaction methods, previously embedded in client id/secret
-			}
-
-			if (t.getUser() != null && t.getHandles().getUser() == null) {
-				t.getHandles().setUser(Handle.create()); // create a handle for the user, equivalent to PCT
-			}
-
-			if (t.getResource() != null && t.getHandles().getResource() == null) {
-				t.getHandles().setResource(Handle.create()); // create a handle for the resource, equivalent to scopes, resource sets, etc
-			}
-			*/
-
-			return processTransaction(t, incoming, signature, digest, jwsd, dpop, oauthPop, req);
+			return processTransaction(t, clientRequest, signature, digest, jwsd, dpop, oauthPop, req);
 		}
 
 
 	}
 
 	@PostMapping(value = "/continue", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
-	public ResponseEntity<TransactionResponse> continueTransaction(@RequestBody(required = false) TransactionRequest incoming,
+	public ResponseEntity<TransactionResponse> continueTransaction(@RequestBody(required = false) TransactionContinueRequest incoming,
 		@RequestHeader(name = HttpHeaders.AUTHORIZATION, required = false) String auth,
 		@RequestHeader(name = "Signature", required = false) String signature,
 		@RequestHeader(name = "Digest", required = false) String digest,
@@ -217,7 +198,22 @@ public class TransactionEndpoint {
 			if (t == null) {
 				return ResponseEntity.notFound().build();
 			} else {
-				return processTransaction(t, incoming, signature, digest, jwsd, dpop, oauthPop, req);
+
+				// make sure the interaction ref matches if we're expecting one
+
+				if (t.getInteract() != null && t.getInteract().getInteractRef() != null) {
+
+					if (Strings.isNullOrEmpty(incoming.getInteractRef())) {
+						return ResponseEntity.badRequest().build(); // missing interaction ref (one is required)
+					}
+
+					if (!incoming.getInteractRef().equals(t.getInteract().getInteractRef())) {
+						return ResponseEntity.badRequest().build(); // bad interaction ref
+					}
+
+				}
+
+				return processTransaction(t, null, signature, digest, jwsd, dpop, oauthPop, req);
 			}
 
 		} else {
@@ -226,7 +222,7 @@ public class TransactionEndpoint {
 
 	}
 
-	private ResponseEntity<TransactionResponse> processTransaction(Transaction t, TransactionRequest incoming,
+	private ResponseEntity<TransactionResponse> processTransaction(Transaction t, Client c,
 		String signature,
 		String digest,
 		String jwsd,
@@ -272,20 +268,6 @@ public class TransactionEndpoint {
 				default:
 					throw new RuntimeException("Unsupported Key Proof Type");
 			}
-		}
-
-		// make sure the interaction ref matches if we're expecting one
-
-		if (t.getInteract() != null && t.getInteract().getInteractRef() != null) {
-
-			if (Strings.isNullOrEmpty(incoming.getInteractRef())) {
-				return ResponseEntity.badRequest().build(); // missing interaction ref (one is required)
-			}
-
-			if (!incoming.getInteractRef().equals(t.getInteract().getInteractRef())) {
-				return ResponseEntity.badRequest().build(); // bad interaction ref
-			}
-
 		}
 
 		// rotate the transaction's own handle every time it's used (this creates one on the first time through)
@@ -392,7 +374,7 @@ public class TransactionEndpoint {
 		}
 
 		transactionRepository.save(t);
-		return ResponseEntity.ok(TransactionResponse.of(t, baseUrl + "/api/as/transaction/continue"));
+		return ResponseEntity.ok(TransactionResponse.of(t, c, baseUrl + "/api/as/transaction/continue"));
 	}
 
 	private void createNewAccessTokens(Transaction t) {
@@ -721,21 +703,25 @@ public class TransactionEndpoint {
 
 	}
 
-	/**
-	 * @param display
-	 * @return
-	 */
-	private DisplayRequest processDisplayRequest(DisplayRequest display) {
+	private Client processClientRequest(ClientRequest client) {
+		if (client == null) {
+			return null;
+		} else if (!Strings.isNullOrEmpty(client.getInstanceId())) {
 
-		if (display == null) {
-			return null;
-		} else if (!Strings.isNullOrEmpty(display.getHandle())) {
-			// client passed by reference, try to look it up
-			// TODO
-			return null;
+			return clientRepository.findById(client.getInstanceId()).orElse(null);
+
 		} else {
-			// otherwise it's an incoming client request
-			return display;
+			if (client.getKey() != null && client.getKey().getProof() != null) {
+
+				// TODO: look up the key by value to see if we've seen it before
+
+				Client c = Client.of(client);
+
+				return clientRepository.save(c);
+
+			} else {
+				return null;
+			}
 		}
 	}
 

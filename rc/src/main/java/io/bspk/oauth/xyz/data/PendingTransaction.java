@@ -12,6 +12,7 @@ import com.fasterxml.jackson.databind.PropertyNamingStrategy;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
 
 import io.bspk.oauth.xyz.crypto.Hash.Method;
+import io.bspk.oauth.xyz.data.api.TransactionContinueRequest;
 import io.bspk.oauth.xyz.data.api.TransactionRequest;
 import io.bspk.oauth.xyz.data.api.TransactionResponse;
 import lombok.Data;
@@ -32,6 +33,7 @@ public class PendingTransaction {
 	public class Entry {
 		private @Id String id = new ObjectId().toHexString();
 		private TransactionRequest request;
+		private TransactionContinueRequest cont;
 		private TransactionResponse response;
 	}
 
@@ -52,9 +54,25 @@ public class PendingTransaction {
 	private String interactionUrl;
 	private Map<String, String> multipleAccessTokens;
 
+	public PendingTransaction add (TransactionResponse response) {
+		entries.add(new Entry().setResponse(response));
+
+		return processResponse(response);
+	}
+
+	public PendingTransaction add (TransactionContinueRequest request, TransactionResponse response) {
+		entries.add(new Entry().setCont(request).setResponse(response));
+
+		return processResponse(response);
+	}
+
 	public PendingTransaction add (TransactionRequest request, TransactionResponse response) {
 		entries.add(new Entry().setRequest(request).setResponse(response));
 
+		return processResponse(response);
+	}
+
+	private PendingTransaction processResponse(TransactionResponse response) {
 		if (response.getCont() != null) {
 			// if there's a continuation section, update the values given
 			if (response.getCont().getAccessToken() != null) {

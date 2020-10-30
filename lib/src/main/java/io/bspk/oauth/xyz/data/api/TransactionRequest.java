@@ -23,13 +23,11 @@ import lombok.experimental.Accessors;
 public class TransactionRequest {
 
 	private InteractRequest interact;
-	private DisplayRequest display;
+	private ClientRequest client;
 	private UserRequest user;
 	@JsonSerialize(using = ResourceRequestSerializer.class)
 	@JsonDeserialize(using = ResourceRequestDeserializer.class)
 	private ResourceRequest resources;
-	private KeyRequest key;
-	private String interactRef;
 	private Set<Capability> capabilities;
 	private SubjectRequest subject;
 

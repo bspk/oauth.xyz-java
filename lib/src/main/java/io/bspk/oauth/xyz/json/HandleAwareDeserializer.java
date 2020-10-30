@@ -41,6 +41,7 @@ public class HandleAwareDeserializer<T extends HandleReplaceable> extends Delega
 			if (p2.getCurrentToken() == null) {
 				p2.nextToken();
 			}
+			p2.setCodec(p.getCodec());
 			return (T) super.deserialize(p2, ctxt);
 		} else {
 			throw new JsonParseException(p, "Couldn't convert from JSON node type");

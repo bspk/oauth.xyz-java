@@ -6,10 +6,12 @@ import java.util.Map;
 
 import com.fasterxml.jackson.databind.PropertyNamingStrategy;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.google.common.collect.Maps;
 
 import io.bspk.oauth.xyz.data.AccessToken;
 import io.bspk.oauth.xyz.data.BoundKey;
+import io.bspk.oauth.xyz.json.BoundKeySerializer;
 import lombok.Data;
 import lombok.experimental.Accessors;
 
@@ -23,6 +25,7 @@ import lombok.experimental.Accessors;
 public class AccessTokenResponse {
 
 	private String value;
+	@JsonSerialize(using=BoundKeySerializer.class)
 	private BoundKey key;
 	private String manage;
 	private SingleTokenResourceRequest resources;
