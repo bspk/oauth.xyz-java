@@ -68,6 +68,7 @@ import io.bspk.oauth.xyz.data.Capability;
 import io.bspk.oauth.xyz.data.Client;
 import io.bspk.oauth.xyz.data.Display;
 import io.bspk.oauth.xyz.data.Interact;
+import io.bspk.oauth.xyz.data.Key;
 import io.bspk.oauth.xyz.data.Key.Proof;
 import io.bspk.oauth.xyz.data.Subject;
 import io.bspk.oauth.xyz.data.Transaction;
@@ -148,12 +149,12 @@ public class TransactionEndpoint {
 			// create a new one
 			Transaction t = new Transaction();
 
-			Client clientRequest = processClientRequest(incoming.getClient());
+			Client client = processClientRequest(incoming.getClient());
 
-			Display displayRequest = clientRequest.getDisplay();
+			Display display = client.getDisplay();
 
-			if (displayRequest != null) {
-				t.setDisplay(displayRequest);
+			if (display != null) {
+				t.setDisplay(display);
 			}
 
 			// if there's an interaction request, copy it to the end result
@@ -162,8 +163,8 @@ public class TransactionEndpoint {
 			}
 
 			// check key presentation
-			if (clientRequest.getKey() != null) {
-				t.setKey(clientRequest.getKey());
+			if (client.getKey() != null) {
+				t.setKey(client.getKey());
 			}
 
 			t.setSubjectRequest(incoming.getSubject());
@@ -172,10 +173,20 @@ public class TransactionEndpoint {
 
 			t.setCapabilitiesRequest(incoming.getCapabilities());
 
-			return processTransaction(t, clientRequest, signature, digest, jwsd, dpop, oauthPop, req);
+			return processTransaction(t, getInstanceIdIfNew(incoming, client), signature, digest, jwsd, dpop, oauthPop, req);
 		}
 
 
+	}
+
+	// if the client's request did not contain an instance ID but the client has one now, return it because it's just been registered
+	private String getInstanceIdIfNew(TransactionRequest incoming, Client client) {
+		if (Strings.isNullOrEmpty(incoming.getClient().getInstanceId())
+			&& !Strings.isNullOrEmpty(client.getInstanceId())) {
+			return client.getInstanceId();
+		} else {
+			return null;
+		}
 	}
 
 	@PostMapping(value = "/continue", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
@@ -222,7 +233,7 @@ public class TransactionEndpoint {
 
 	}
 
-	private ResponseEntity<TransactionResponse> processTransaction(Transaction t, Client c,
+	private ResponseEntity<TransactionResponse> processTransaction(Transaction t, String instanceId,
 		String signature,
 		String digest,
 		String jwsd,
@@ -374,7 +385,7 @@ public class TransactionEndpoint {
 		}
 
 		transactionRepository.save(t);
-		return ResponseEntity.ok(TransactionResponse.of(t, c, baseUrl + "/api/as/transaction/continue"));
+		return ResponseEntity.ok(TransactionResponse.of(t, instanceId, baseUrl + "/api/as/transaction/continue"));
 	}
 
 	private void createNewAccessTokens(Transaction t) {
@@ -713,11 +724,16 @@ public class TransactionEndpoint {
 		} else {
 			if (client.getKey() != null && client.getKey().getProof() != null) {
 
-				// TODO: look up the key by value to see if we've seen it before
+				Key k = Key.of(client.getKey());
 
-				Client c = Client.of(client);
+				Client c = clientRepository.findFirstByKey(k);
 
-				return clientRepository.save(c);
+				if (c == null) {
+					c = Client.of(client);
+					return clientRepository.save(c);
+				} else {
+					return c;
+				}
 
 			} else {
 				return null;

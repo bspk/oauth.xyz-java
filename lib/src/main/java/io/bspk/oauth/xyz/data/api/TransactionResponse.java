@@ -11,7 +11,6 @@ import com.fasterxml.jackson.databind.PropertyNamingStrategy;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
 
 import io.bspk.oauth.xyz.data.Capability;
-import io.bspk.oauth.xyz.data.Client;
 import io.bspk.oauth.xyz.data.Interact;
 import io.bspk.oauth.xyz.data.Subject;
 import io.bspk.oauth.xyz.data.Transaction;
@@ -55,10 +54,9 @@ public class TransactionResponse {
 	}
 
 
-	public static TransactionResponse of(Transaction t, Client c, String continueUri) {
+	public static TransactionResponse of(Transaction t, String instanceId, String continueUri) {
 
 		Optional<Interact> interact = Optional.ofNullable(t.getInteract());
-		Optional<Client> client = Optional.ofNullable(c);
 
 		return new TransactionResponse()
 			.setAccessToken(AccessTokenResponse.of(t.getAccessToken()))
@@ -81,9 +79,7 @@ public class TransactionResponse {
 			.setCont(new ContinueResponse()
 				.setAccessToken(AccessTokenResponse.ofClientBoundToken(t.getContinueAccessToken()))
 				.setUri(continueUri))
-			.setInstanceId(client
-				.map(Client::getInstanceId)
-				.orElse(null))
+			.setInstanceId(instanceId)
 			.setSubject(t.getSubject())
 			.setCapabilities(t.getCapabilities());
 

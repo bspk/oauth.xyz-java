@@ -12,6 +12,7 @@ import org.apache.commons.lang3.RandomStringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
@@ -81,7 +82,12 @@ public class ClientAPI {
 	private SigningRestTemplateService requestSigners;
 
 	@Autowired
+	@Qualifier("clientKey")
 	private JWK clientKey;
+
+	@Autowired
+	@Qualifier("clientKey2")
+	private JWK clientKey2;
 
 	@PostMapping(path = "/authcode", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
 	public ResponseEntity<?> startAuthorizationCodeFlow(HttpSession session) {

@@ -93,7 +93,7 @@ class Client extends React.Component {
 				<Button color="success" onClick={this.newTransaction}>New Auth Code Transaction</Button>
 				<Button color="warning" onClick={this.newDevice}>New Device Transaction</Button>
 				<Button color="dark" onClick={this.newScannable}>New Scannable Transaction</Button>
-				<Button color="danger" onClick={this.clearIds}>Clear Instance Ids</Button>
+				<Button color="danger" onClick={this.clearInstanceIds}>Clear Instance Ids</Button>
 				{pending}
 			</Container>
 		);

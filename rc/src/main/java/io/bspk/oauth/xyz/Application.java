@@ -89,6 +89,26 @@ public class Application {
 	}
 
 	@Bean
+	public JWK clientKey2() {
+		try {
+			return JWK.parse(
+				"{\n"
+				+ "    \"kty\": \"EC\",\n"
+				+ "    \"d\": \"e0ClWmBfEJVMUSCp6ewnMprJtfvDiZ8HGi3u40upAvQ\",\n"
+				+ "    \"use\": \"sig\",\n"
+				+ "    \"crv\": \"secp256k1\",\n"
+				+ "    \"kid\": \"sig-2020-10-30T20:47:51Z\",\n"
+				+ "    \"x\": \"JtH74-28f8tBlYd3SCm7RUVAkOWMj702li03oAo_GnY\",\n"
+				+ "    \"y\": \"Y-R9g1bZz754iZn9etHDuCOoKz_1C4HCh2LF0lK85qk\",\n"
+				+ "    \"alg\": \"ES256K\"\n"
+				+ "}"
+				);
+		} catch (ParseException e) {
+			return null;
+		}
+	}
+
+	@Bean
 	public MongoCustomConversions mongoCustomConversions() {
 	    List<Converter<?, ?>> list = List.of(
 	    	new JWKDeserializer(),
