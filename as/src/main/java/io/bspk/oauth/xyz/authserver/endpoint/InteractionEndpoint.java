@@ -18,17 +18,20 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import io.bspk.oauth.xyz.authserver.data.api.ApprovalResponse;
 import io.bspk.oauth.xyz.authserver.repository.TransactionRepository;
 import io.bspk.oauth.xyz.crypto.Hash;
-import io.bspk.oauth.xyz.crypto.Hash.Method;
+import io.bspk.oauth.xyz.crypto.Hash.HashMethod;
+import io.bspk.oauth.xyz.data.Callback.CallbackMethod;
 import io.bspk.oauth.xyz.data.PendingApproval;
 import io.bspk.oauth.xyz.data.Transaction;
 import io.bspk.oauth.xyz.data.Transaction.Status;
 import io.bspk.oauth.xyz.data.User;
 import io.bspk.oauth.xyz.data.api.ApprovalRequest;
+import io.bspk.oauth.xyz.data.api.PushbackRequest;
 import io.bspk.oauth.xyz.data.api.UserInteractionFormSubmission;
 
 /**
@@ -45,6 +48,9 @@ public class InteractionEndpoint {
 
 	@Value("${oauth.xyz.root}")
 	private String baseUrl;
+
+	@Autowired
+	private RestTemplate restTemplate; // for pushbacks
 
 	@GetMapping("{id}")
 	public ResponseEntity<?> interact(@PathVariable ("id") String id, HttpSession session) {
@@ -93,6 +99,7 @@ public class InteractionEndpoint {
 
 			}
 
+
 			ApprovalResponse res = new ApprovalResponse();
 
 			if (transaction.getInteract().getCallback() != null) {
@@ -100,30 +107,45 @@ public class InteractionEndpoint {
 				String interactRef = RandomStringUtils.randomAlphanumeric(30);
 				transaction.getInteract().setInteractRef(interactRef);
 
+				transactionRepository.save(transaction); // save the interaction reference
+
 				String clientNonce = transaction.getInteract().getCallback().getNonce();
 				String serverNonce = transaction.getInteract().getServerNonce();
-				Method method = transaction.getInteract().getCallback().getHashMethod();
+				HashMethod hashMethod = transaction.getInteract().getCallback().getHashMethod();
 
 				String hash = Hash.CalculateInteractHash(clientNonce,
 						serverNonce,
 						interactRef,
-						method);
+						hashMethod);
 
+				if (transaction.getInteract().getCallback().getMethod().equals(CallbackMethod.REDIRECT)) {
+					// do a redirection
 
-				String callback = transaction.getInteract().getCallback().getUri();
-				URI callbackUri = UriComponentsBuilder.fromUriString(callback)
-					.queryParam("hash", hash)
-					.queryParam("interact_ref", interactRef)
-					.build().toUri();
+					String callback = transaction.getInteract().getCallback().getUri();
+					URI callbackUri = UriComponentsBuilder.fromUriString(callback)
+						.queryParam("hash", hash)
+						.queryParam("interact_ref", interactRef)
+						.build().toUri();
 
-				res.setUri(callbackUri);
+					res.setUri(callbackUri);
+				} else {
+					// do a push to the client
+
+					PushbackRequest pushback = new PushbackRequest()
+						.setHash(hash)
+						.setInteractRef(interactRef);
+
+					ResponseEntity<Void> response = restTemplate.postForEntity(transaction.getInteract().getCallback().getUri(), pushback, Void.class);
+
+					// callback handled in background
+					res.setApproved(true);
+				}
 			} else {
 				// no callback, just set it to approved
+				transactionRepository.save(transaction);
+
 				res.setApproved(true);
 			}
-
-			transactionRepository.save(transaction);
-
 			return ResponseEntity.ok(res);
 
 		} else {

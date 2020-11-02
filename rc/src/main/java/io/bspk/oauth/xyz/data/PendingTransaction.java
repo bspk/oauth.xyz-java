@@ -11,7 +11,7 @@ import org.springframework.data.annotation.Id;
 import com.fasterxml.jackson.databind.PropertyNamingStrategy;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
 
-import io.bspk.oauth.xyz.crypto.Hash.Method;
+import io.bspk.oauth.xyz.crypto.Hash.HashMethod;
 import io.bspk.oauth.xyz.data.api.TransactionContinueRequest;
 import io.bspk.oauth.xyz.data.api.TransactionRequest;
 import io.bspk.oauth.xyz.data.api.TransactionResponse;
@@ -43,7 +43,7 @@ public class PendingTransaction {
 	private String callbackId;
 	private String clientNonce;
 	private String serverNonce;
-	private Method hashMethod;
+	private HashMethod hashMethod;
 	private Key key;
 	private String keyHandle;
 	private String continueUri;

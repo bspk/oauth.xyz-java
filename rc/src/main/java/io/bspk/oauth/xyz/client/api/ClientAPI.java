@@ -23,6 +23,7 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.client.RestTemplate;
@@ -33,6 +34,7 @@ import com.nimbusds.jose.jwk.JWK;
 
 import io.bspk.oauth.xyz.client.repository.PendingTransactionRepository;
 import io.bspk.oauth.xyz.crypto.Hash;
+import io.bspk.oauth.xyz.data.Callback;
 import io.bspk.oauth.xyz.data.Key;
 import io.bspk.oauth.xyz.data.Key.Proof;
 import io.bspk.oauth.xyz.data.PendingTransaction;
@@ -42,6 +44,7 @@ import io.bspk.oauth.xyz.data.api.DisplayRequest;
 import io.bspk.oauth.xyz.data.api.InteractRequest;
 import io.bspk.oauth.xyz.data.api.KeyRequest;
 import io.bspk.oauth.xyz.data.api.MultiTokenResourceRequest;
+import io.bspk.oauth.xyz.data.api.PushbackRequest;
 import io.bspk.oauth.xyz.data.api.RequestedResource;
 import io.bspk.oauth.xyz.data.api.SingleTokenResourceRequest;
 import io.bspk.oauth.xyz.data.api.TransactionContinueRequest;
@@ -66,6 +69,9 @@ public class ClientAPI {
 
 	@Value("${oauth.xyz.root}api/client/callback")
 	private String callbackBaseUrl;
+
+	@Value("${oauth.xyz.root}api/client/pushback")
+	private String pushbackBaseUrl;
 
 	@Value("${oauth.xyz.asEndpoint}")
 	private String asEndpoint;// = "http://localhost:3000/transaction";
@@ -125,7 +131,7 @@ public class ClientAPI {
 
 		TransactionRequest request = new TransactionRequest()
 			.setInteract(new InteractRequest()
-				.setCallback(new InteractRequest.Callback()
+				.setCallback(Callback.redirect()
 					.setUri(callbackBaseUrl + "/" + callbackId)
 					.setNonce(nonce))
 				.setRedirect(true))
@@ -230,8 +236,16 @@ public class ClientAPI {
 			.setJwk(clientKey)
 			.setProof(Proof.JWSD);
 
+		String callbackId = RandomStringUtils.randomAlphanumeric(30);
+
+		String nonce = RandomStringUtils.randomAlphanumeric(20);
+
+
 		TransactionRequest request = new TransactionRequest()
 			.setInteract(new InteractRequest()
+				.setCallback(Callback.pushback()
+					.setUri(pushbackBaseUrl + "/" + callbackId)
+					.setNonce(nonce))
 				.setUserCode(true)
 				.setRedirect(true))
 			.setResources(new MultiTokenResourceRequest()
@@ -281,6 +295,9 @@ public class ClientAPI {
 		TransactionResponse response = responseEntity.getBody();
 
 		PendingTransaction pending = new PendingTransaction()
+			.setCallbackId(callbackId)
+			.setClientNonce(nonce)
+			.setHashMethod(request.getInteract().getCallback().getHashMethod())
 			.setOwner(session.getId())
 			.setKey(key)
 			.add(request, response);
@@ -319,13 +336,6 @@ public class ClientAPI {
 				return ResponseEntity.badRequest().build(); // TODO: redirect this someplace useful?
 			}
 
-			List<Entry> entries = pending.getEntries();
-
-			Entry lastEntry = entries.get(entries.size() - 1); // get the most recent entry
-
-			TransactionResponse lastResponse = lastEntry.getResponse();
-
-
 			TransactionContinueRequest request = new TransactionContinueRequest()
 				.setInteractRef(interact)
 				;
@@ -347,6 +357,48 @@ public class ClientAPI {
 		} else {
 			return ResponseEntity.notFound().build();
 		}
+
+	}
+
+	@PostMapping("/pushback/{id}")
+	public ResponseEntity<?> pushbackEndpoint(@PathVariable("id") String callbackId, @RequestBody PushbackRequest pushback, HttpSession session) {
+
+		List<PendingTransaction> transactions = pendingTransactionRepository.findByCallbackId(callbackId);
+
+		if (transactions != null && transactions.size() == 1) {
+
+			PendingTransaction pending = transactions.get(0);
+
+			log.info("In pushback: " + session.getId() + ", "  + pending.getOwner());
+
+			// check the incoming hash
+
+			String expectedHash = Hash.CalculateInteractHash(pending.getClientNonce(), pending.getServerNonce(), pushback.getInteractRef(), pending.getHashMethod());
+
+			if (!expectedHash.equals(pushback.getHash())) {
+				return ResponseEntity.badRequest().build(); // TODO: redirect this someplace useful?
+			}
+
+			TransactionContinueRequest request = new TransactionContinueRequest()
+				.setInteractRef(pushback.getInteractRef())
+				;
+
+			RestTemplate restTemplate = requestSigners.getSignerFor(pending.getKey(), pending.getContinueToken());
+
+			ResponseEntity<TransactionResponse> responseEntity = restTemplate.postForEntity(pending.getContinueUri(), request, TransactionResponse.class);
+
+			TransactionResponse response = responseEntity.getBody();
+
+			pending.add(request, response);
+
+			pendingTransactionRepository.save(pending);
+
+			return ResponseEntity.noContent().build();
+
+		} else {
+			return ResponseEntity.notFound().build();
+		}
+
 
 	}
 

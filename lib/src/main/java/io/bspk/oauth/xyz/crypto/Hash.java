@@ -33,7 +33,7 @@ public abstract class Hash {
 	private static final Logger log = LoggerFactory.getLogger(Hash.class);
 
 	@AllArgsConstructor
-	public enum Method {
+	public enum HashMethod {
 		SHA3("sha3", Hash::SHA3_512_encode),
 		SHA2("sha2", Hash::SHA2_512_encode)
 		;
@@ -42,7 +42,7 @@ public abstract class Hash {
 		@Getter private Function<String, String> function;
 
 		@JsonCreator
-		public static Method fromJson(String key) {
+		public static HashMethod fromJson(String key) {
 			return key == null ? null :
 				valueOf(key.toUpperCase());
 		}
@@ -74,8 +74,8 @@ public abstract class Hash {
 
 	}
 
-	public static String CalculateInteractHash(String clientNonce, String serverNonce, String interact, Method method) {
-		return method.getFunction().apply(
+	public static String CalculateInteractHash(String clientNonce, String serverNonce, String interact, HashMethod hashMethod) {
+		return hashMethod.getFunction().apply(
 			Joiner.on('\n')
 			.join(clientNonce,
 				serverNonce,

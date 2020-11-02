@@ -8,9 +8,16 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
 import org.springframework.core.convert.converter.Converter;
 import org.springframework.data.mongodb.core.convert.MongoCustomConversions;
+import org.springframework.http.client.BufferingClientHttpRequestFactory;
+import org.springframework.http.client.ClientHttpRequestFactory;
+import org.springframework.http.client.ClientHttpRequestInterceptor;
+import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
+import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
+import org.springframework.web.client.RestTemplate;
 import org.springframework.web.servlet.config.annotation.ViewControllerRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
+import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.databind.BeanDescription;
 import com.fasterxml.jackson.databind.DeserializationConfig;
 import com.fasterxml.jackson.databind.JsonDeserializer;
@@ -114,6 +121,25 @@ public class Application {
 		};
 
 		return configurer;
+	}
+
+	@Bean
+	public RestTemplate restTemplate(List<ClientHttpRequestInterceptor> interceptors) {
+		ClientHttpRequestFactory factory = new BufferingClientHttpRequestFactory(new HttpComponentsClientHttpRequestFactory());
+
+		RestTemplate restTemplate = new RestTemplate(factory);
+		restTemplate.setInterceptors(interceptors);
+
+		// set up Jackson
+		MappingJackson2HttpMessageConverter messageConverter = restTemplate.getMessageConverters().stream()
+			.filter(MappingJackson2HttpMessageConverter.class::isInstance)
+			.map(MappingJackson2HttpMessageConverter.class::cast)
+			.findFirst().orElseThrow(() -> new RuntimeException("MappingJackson2HttpMessageConverter not found"));
+
+		messageConverter.getObjectMapper().registerModule(jacksonModule());
+		messageConverter.getObjectMapper().setSerializationInclusion(Include.NON_NULL);
+
+		return restTemplate;
 	}
 
 	// for logging incoming requests in full, for debugging

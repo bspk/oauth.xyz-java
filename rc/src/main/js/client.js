@@ -4,6 +4,7 @@ import React from 'react';
 import ReactDOM from 'react-dom';
 import http from './http';
 import { Button, Badge, Row, Col, Container, Card, CardImg, CardText, CardBody, CardTitle, CardSubtitle, CardHeader, Input } from 'reactstrap';
+import { FaClone } from 'react-icons/fa';
 import { BrowserRouter, Switch, Route } from 'react-router-dom';
 import QRCode from 'qrcode.react';
 
@@ -12,7 +13,8 @@ class Client extends React.Component {
 		super(props);
 		
 		this.state = {
-			transactions: []
+			transactions: [],
+			instances: {}
 		};
 	}
 	
@@ -54,12 +56,25 @@ class Client extends React.Component {
 			method: 'DELETE',
 			path: '/api/client/ids'
 		}).done(response => {
-			this.loadPending();
+			this.setState({
+				instances: {}
+			});
+		});
+	}
+	
+	getInstanceIds = () => {
+		http({
+			method: 'GET',
+			path: '/api/client/ids'
+		}).done(response => {
+			this.setState({
+				instances: response.entity
+			});
 		});
 	}
 	
 	loadPending = () => {
-		
+		console.log('Getting pending transactions...');
 		http({
 			method: 'GET',
 			path: '/api/client/pending'
@@ -68,6 +83,7 @@ class Client extends React.Component {
 				transactions: response.entity
 			});
 		});
+		this.getInstanceIds();
 	}
 	
 	cancel = (transactionId) => () => {
@@ -79,21 +95,32 @@ class Client extends React.Component {
 		});
 	}
 
+	poll = (transactionId) => () => {
+		http({
+			method: 'POST',
+			path: '/api/client/poll/' + encodeURIComponent(transactionId)
+		}).done(response => {
+			this.loadPending();
+		});
+	}
+	
+
 
 	render() {
 		
 		const pending = this.state.transactions.map(
 				transaction => (
-					<PendingTransaction key={transaction.id} transaction={transaction} cancel={this.cancel} />
+					<PendingTransaction key={transaction.id} transaction={transaction} cancel={this.cancel} poll={this.poll} />
 				)
 			).reverse(); // newest first
 	
 		return (
 			<Container>
-				<Button color="success" onClick={this.newTransaction}>New Auth Code Transaction</Button>
-				<Button color="warning" onClick={this.newDevice}>New Device Transaction</Button>
-				<Button color="dark" onClick={this.newScannable}>New Scannable Transaction</Button>
-				<Button color="danger" onClick={this.clearInstanceIds}>Clear Instance Ids</Button>
+				<Button color="success" onClick={this.newTransaction}>New Auth Code Transaction <InstanceBadge instance={this.state.instances['authCodeId']} /></Button>
+				<Button color="warning" onClick={this.newDevice}>New Device Transaction <InstanceBadge instance={this.state.instances['deviceId']} /></Button>
+				<Button color="dark" onClick={this.newScannable}>New Scannable Transaction <InstanceBadge instance={this.state.instances['scannableId']} /></Button>
+				<Button color="danger" size="sm" onClick={this.clearInstanceIds}>Clear Instance Ids</Button>
+				<Button color="primary" size="sm" onClick={this.loadPending}>Refresh</Button>
 				{pending}
 			</Container>
 		);
@@ -101,37 +128,28 @@ class Client extends React.Component {
 	
 }
 
+class InstanceBadge extends React.Component{
+	render() {
+		if (this.props.instance) {
+			return (<Badge title={this.props.instance}><FaClone/></Badge>);
+		} else {
+			return null;
+		}
+	}
+}
+
 class PendingTransaction extends React.Component{
-	constructor(props) {
-		super(props);
-		
-		this.state = {
-			transaction: props.transaction
-		};
-	}
-	
-	poll = () => {
-		http({
-			method: 'POST',
-			path: '/api/client/poll/' + encodeURIComponent(this.state.transaction.id)
-		}).done(response => {
-			this.setState({
-				transaction: response.entity
-			});
-		});
-	}
-	
 	render() {
 		const controls = [];
 		
 		return (
 			<Card outline color="primary">
 				<CardHeader>
-					<Button color="info" onClick={this.poll}>Poll</Button>
-					<Button color="danger" onClick={this.props.cancel(this.state.transaction.id)}>Cancel</Button>
+					<Button color="info" onClick={this.props.poll(this.props.transaction.id)}>Poll</Button>
+					<Button color="danger" onClick={this.props.cancel(this.props.transaction.id)}>Cancel</Button>
 				</CardHeader>
 				<CardBody>
-					<PendingTransactionEntry transaction={this.state.transaction} />
+					<PendingTransactionEntry transaction={this.props.transaction} />
 				</CardBody>
 			</Card>
 		);
@@ -217,7 +235,7 @@ class PendingTransactionEntry extends React.Component {
 			);
 		}
 		
-		if (this.props.transaction.interaction_url && this.props.transaction.serverNonce) {
+		if (this.props.transaction.interaction_url && this.props.transaction.user_code) {
 			elements.push(
 				...[
 					<dt className="col-sm-3">Scannable Interaction URL</dt>,

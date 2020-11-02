@@ -19,4 +19,5 @@ public interface PendingTransactionRepository extends CrudRepository<PendingTran
 
 	List<PendingTransaction> findByCallbackIdAndOwner(String callbackId, String owner);
 
+	List<PendingTransaction> findByCallbackId(String callbackId);
 }

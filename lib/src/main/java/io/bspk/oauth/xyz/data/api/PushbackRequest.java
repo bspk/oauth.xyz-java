@@ -3,7 +3,6 @@ package io.bspk.oauth.xyz.data.api;
 import com.fasterxml.jackson.databind.PropertyNamingStrategy;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
 
-import io.bspk.oauth.xyz.data.Callback;
 import lombok.Data;
 import lombok.experimental.Accessors;
 
@@ -14,12 +13,9 @@ import lombok.experimental.Accessors;
 @Data
 @Accessors(chain = true)
 @JsonNaming(PropertyNamingStrategy.SnakeCaseStrategy.class)
-public class InteractRequest {
+public class PushbackRequest {
 
-	private Callback callback;
-	private Boolean redirect;
-	private Boolean userCode;
-	private Boolean didComm;
-	private Boolean didCommQuery;
+	private String hash;
+	private String interactRef;
 
 }

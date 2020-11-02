@@ -6,7 +6,6 @@ import com.fasterxml.jackson.databind.PropertyNamingStrategy;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
 
 import io.bspk.oauth.xyz.data.api.InteractRequest;
-import io.bspk.oauth.xyz.data.api.InteractRequest.Callback;
 import lombok.Data;
 import lombok.experimental.Accessors;
 
