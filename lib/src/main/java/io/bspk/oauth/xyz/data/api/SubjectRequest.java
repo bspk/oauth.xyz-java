@@ -6,7 +6,6 @@ import com.fasterxml.jackson.databind.PropertyNamingStrategy;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
 
 import lombok.Data;
-import lombok.EqualsAndHashCode;
 import lombok.experimental.Accessors;
 
 /**
@@ -14,10 +13,9 @@ import lombok.experimental.Accessors;
  *
  */
 @Data
-@EqualsAndHashCode(callSuper = true)
 @Accessors(chain = true)
 @JsonNaming(PropertyNamingStrategy.SnakeCaseStrategy.class)
-public class SubjectRequest extends HandleReplaceable<SubjectRequest> {
+public class SubjectRequest {
 
 	private List<String> subIds;
 	private List<String> assertions;

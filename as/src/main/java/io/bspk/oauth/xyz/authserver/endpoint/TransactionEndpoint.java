@@ -117,12 +117,13 @@ public class TransactionEndpoint {
 			.path("/api/as/transaction")
 			.build().toUriString();
 
-		disco.put("tx_endpoint", txEndpoint);
+		disco.put("grant_endpoint", txEndpoint);
 
 		disco.put("capabilities", capabilities);
 
 		disco.put("interact_methods", Set.of(
 			"redirect",
+			"app",
 			"callback",
 			"user_code"
 		));
@@ -351,7 +352,8 @@ public class TransactionEndpoint {
 						t.setStatus(Status.WAITING);
 					}
 
-					if (t.getInteract().getCallback() != null && t.getInteract().getCallback().getUri() != null) {
+					// there's a callback nonce, we create a server nonce to go with it
+					if (t.getInteract().getClientNonce() != null) {
 
 						String serverNonce = RandomStringUtils.randomAlphanumeric(20);
 
@@ -365,7 +367,7 @@ public class TransactionEndpoint {
 						t.getInteract().setUserCode(userCode);
 
 						String deviceInteractionEndpoint = UriComponentsBuilder.fromHttpUrl(baseUrl)
-							.path("/api/as/interact/device") // this is the same every time
+							.path("/device") // this is the same every time
 							.build().toUriString();
 
 

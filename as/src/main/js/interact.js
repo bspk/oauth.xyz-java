@@ -12,6 +12,7 @@ class Interact extends React.Component {
 		super(props);
 
 		this.state = {
+				requireCode: props.requireCode,
 				redirectTo: null,
 				pending: null,
 				rtn: false
@@ -33,8 +34,10 @@ class Interact extends React.Component {
 			contentType: 'application/json',
 			data: JSON.stringify(data),
 			success: function(data, status) {
-				// it was submitted sucessfully, load the approval page
-				_self.loadPending();
+				_self.setState({requireCode:false}, () => {
+					// it was submitted sucessfully, load the approval page
+					_self.loadPending();
+				});
 			},
 			error: function(jqxhr, status, error) {
 				// there was an error
@@ -123,7 +126,7 @@ class Interact extends React.Component {
 			return (
 					<div>Please return to your device.</div>
 			);
-		} else if (this.state.pending && this.state.pending.require_code) {
+		} else if (this.state.requireCode) {
 			return (
 					<UserCodeForm submit={this.submit} />
 			);
@@ -145,7 +148,7 @@ class UserCodeForm extends React.Component {
 
 				<Card body>
 				<Input type="text" id="userCode" placeholder="XXXX - XXXX" />
-					<Button colo="success" onClick={this.props.submit}>Submit</Button>
+					<Button color="success" onClick={this.props.submit}>Submit</Button>
 					</Card>
 
 		);

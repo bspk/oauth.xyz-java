@@ -15,7 +15,6 @@ import lombok.experimental.Accessors;
 @JsonNaming(PropertyNamingStrategy.SnakeCaseStrategy.class)
 public class PendingApproval {
 
-	private boolean requireCode;
 	private Transaction transaction;
 
 }

@@ -12,6 +12,7 @@ import com.fasterxml.jackson.databind.PropertyNamingStrategy;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
 
 import io.bspk.oauth.xyz.crypto.Hash.HashMethod;
+import io.bspk.oauth.xyz.data.api.InteractResponse;
 import io.bspk.oauth.xyz.data.api.TransactionContinueRequest;
 import io.bspk.oauth.xyz.data.api.TransactionRequest;
 import io.bspk.oauth.xyz.data.api.TransactionResponse;
@@ -103,17 +104,20 @@ public class PendingTransaction {
 			setMultipleAccessTokens(tokens);
 		}
 
-		if (response.getUserCode() != null) {
-			setUserCode(response.getUserCode());
-			setUserCodeUrl(response.getUserCodeUrl());
-		}
+		if (response.getInteract() != null) {
+			InteractResponse interact = response.getInteract();
+			if (interact.getUserCode() != null) {
+				setUserCode(interact.getUserCode().getCode());
+				setUserCodeUrl(interact.getUserCode().getUrl());
+			}
 
-		if (response.getInteractionUrl() != null) {
-			setInteractionUrl(response.getInteractionUrl());
-		}
+			if (interact.getRedirect() != null) {
+				setInteractionUrl(interact.getRedirect());
+			}
 
-		if (response.getCallbackServerNonce() != null) {
-			setServerNonce(response.getCallbackServerNonce());
+			if (interact.getCallback() != null) {
+				setServerNonce(interact.getCallback());
+			}
 		}
 
 		return this;

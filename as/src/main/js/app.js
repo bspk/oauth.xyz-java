@@ -11,6 +11,11 @@ import Interact from './interact';
 ReactDOM.render((
 	<BrowserRouter>
 		<Switch>
+			<Route path='/device'>
+ 				{
+ 					() => <Interact requireCode={true} />
+ 				}
+ 			</Route>
 			<Route path='/interact' component={Interact} />
 			<Route path='/as' component={AuthServer} />
 		</Switch>

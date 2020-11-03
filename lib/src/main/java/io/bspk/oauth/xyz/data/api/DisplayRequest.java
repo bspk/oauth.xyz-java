@@ -4,7 +4,6 @@ import com.fasterxml.jackson.databind.PropertyNamingStrategy;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
 
 import lombok.Data;
-import lombok.EqualsAndHashCode;
 import lombok.experimental.Accessors;
 
 /**
@@ -12,10 +11,9 @@ import lombok.experimental.Accessors;
  *
  */
 @Data
-@EqualsAndHashCode(callSuper = true)
 @Accessors(chain = true)
 @JsonNaming(PropertyNamingStrategy.SnakeCaseStrategy.class)
-public class DisplayRequest extends HandleReplaceable<DisplayRequest> {
+public class DisplayRequest {
 
 	private String name;
 	private String uri;

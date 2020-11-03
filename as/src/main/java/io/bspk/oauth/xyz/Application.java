@@ -115,6 +115,7 @@ public class Application {
 
 				// map all of the front-end pages to React
 
+				registry.addViewController("/device").setViewName("/");
 				registry.addViewController("/interact").setViewName("/");
 				registry.addViewController("/as").setViewName("/");
 			}

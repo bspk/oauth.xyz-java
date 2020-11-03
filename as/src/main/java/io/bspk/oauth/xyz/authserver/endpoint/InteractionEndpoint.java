@@ -59,6 +59,12 @@ public class InteractionEndpoint {
 
 		if (transaction != null) {
 
+			// burn this interaction
+			transaction.getInteract().setInteractId(null);
+			transaction.getInteract().setInteractionUrl(null);
+
+			transactionRepository.save(transaction);
+
 			PendingApproval pending = new PendingApproval()
 				.setTransaction(transaction);
 
@@ -80,10 +86,6 @@ public class InteractionEndpoint {
 		if (pending != null && pending.getTransaction() != null) {
 			Transaction transaction = pending.getTransaction();
 
-			// burn this interaction
-			transaction.getInteract().setInteractId(null);
-			transaction.getInteract().setInteractionUrl(null);
-
 			if (approve.isApproved()) {
 				transaction.setStatus(Status.AUTHORIZED);
 
@@ -102,26 +104,26 @@ public class InteractionEndpoint {
 
 			ApprovalResponse res = new ApprovalResponse();
 
-			if (transaction.getInteract().getCallback() != null) {
+			if (transaction.getInteract().getCallbackMethod() != null) {
 				// set up an interaction handle
 				String interactRef = RandomStringUtils.randomAlphanumeric(30);
 				transaction.getInteract().setInteractRef(interactRef);
 
-				transactionRepository.save(transaction); // save the interaction reference
+				transactionRepository.save(transaction); // save the interaction reference and the state; note we have to do this before processing the callback
 
-				String clientNonce = transaction.getInteract().getCallback().getNonce();
+				String clientNonce = transaction.getInteract().getClientNonce();
 				String serverNonce = transaction.getInteract().getServerNonce();
-				HashMethod hashMethod = transaction.getInteract().getCallback().getHashMethod();
+				HashMethod hashMethod = transaction.getInteract().getCallbackHashMethod();
 
 				String hash = Hash.CalculateInteractHash(clientNonce,
 						serverNonce,
 						interactRef,
 						hashMethod);
 
-				if (transaction.getInteract().getCallback().getMethod().equals(CallbackMethod.REDIRECT)) {
+				if (transaction.getInteract().getCallbackMethod().equals(CallbackMethod.REDIRECT)) {
 					// do a redirection
 
-					String callback = transaction.getInteract().getCallback().getUri();
+					String callback = transaction.getInteract().getCallbackUri();
 					URI callbackUri = UriComponentsBuilder.fromUriString(callback)
 						.queryParam("hash", hash)
 						.queryParam("interact_ref", interactRef)
@@ -135,7 +137,7 @@ public class InteractionEndpoint {
 						.setHash(hash)
 						.setInteractRef(interactRef);
 
-					ResponseEntity<Void> response = restTemplate.postForEntity(transaction.getInteract().getCallback().getUri(), pushback, Void.class);
+					ResponseEntity<Void> response = restTemplate.postForEntity(transaction.getInteract().getCallbackUri(), pushback, Void.class);
 
 					// callback handled in background
 					res.setApproved(true);
@@ -154,38 +156,17 @@ public class InteractionEndpoint {
 
 	}
 
-	@GetMapping("/device")
-	public ResponseEntity<?> device(HttpSession session) {
-
-		// save the pending approval to the session
-		PendingApproval pending = new PendingApproval()
-			.setRequireCode(true);
-
-		session.setAttribute("_pending_approval", pending);
-
-		// send the user to the interaction page
-
-		return redirectToInteractionPage();
-
-	}
-
 	@PostMapping(value = "/device", consumes = MediaType.APPLICATION_JSON_VALUE)
 	public ResponseEntity<?> processUserCode(HttpSession session, @RequestBody UserInteractionFormSubmission submit) {
-
-		PendingApproval pending = (PendingApproval) session.getAttribute("_pending_approval");
-
-		if (pending == null) {
-			return ResponseEntity.notFound().build();
-		}
 
 		String userCode = submit.getUserCode();
 
 		// normalize the input code
-		userCode = userCode.replace('l', '1');
-		userCode = userCode.toUpperCase();
-		userCode = userCode.replace('0', 'O');
-		userCode = userCode.replace('I', '1');
-		userCode = userCode.replaceAll("[^123456789ABCDEFGHJKLMNOPQRSTUVWXYZ]", "");
+		userCode = userCode.replace('l', '1'); // lowercase ell is a one
+		userCode = userCode.toUpperCase(); // shift everything to uppercase
+		userCode = userCode.replace('0', 'O'); // oh is zero
+		userCode = userCode.replace('I', '1'); // aye is one
+		userCode = userCode.replaceAll("[^123456789ABCDEFGHJKLMNOPQRSTUVWXYZ]", ""); // throw out all invalid characters
 
 		Transaction transaction = transactionRepository.findFirstByInteractUserCode(userCode);
 
@@ -199,17 +180,12 @@ public class InteractionEndpoint {
 			transaction.getInteract().setUserCode(null); // burn the user code
 			transaction.getInteract().setInteractionUrl(null);
 
-			/*
-			transaction.setStatus(Status.AUTHORIZED);
-
 			transactionRepository.save(transaction);
-			 */
-			// TODO: if we need to set up the approval page
-			pending.setRequireCode(false);
-			pending.setTransaction(transaction);
+
+			PendingApproval pending = new PendingApproval()
+				.setTransaction(transaction);
 
 			session.setAttribute("_pending_approval", pending);
-			//session.removeAttribute("_pending_approval");
 
 			return ResponseEntity.noContent().build();
 

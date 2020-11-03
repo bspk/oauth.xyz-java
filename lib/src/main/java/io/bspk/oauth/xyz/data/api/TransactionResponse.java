@@ -1,7 +1,6 @@
 package io.bspk.oauth.xyz.data.api;
 
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 
 import org.springframework.beans.factory.annotation.Value;
@@ -11,7 +10,6 @@ import com.fasterxml.jackson.databind.PropertyNamingStrategy;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
 
 import io.bspk.oauth.xyz.data.Capability;
-import io.bspk.oauth.xyz.data.Interact;
 import io.bspk.oauth.xyz.data.Subject;
 import io.bspk.oauth.xyz.data.Transaction;
 import lombok.Data;
@@ -32,14 +30,9 @@ public class TransactionResponse {
 	private String instanceId;
 	private AccessTokenResponse accessToken;
 	private Map<String, AccessTokenResponse> multipleAccessTokens;
-	private String interactionUrl;
-	private String shortInteractionUrl;
-	private String pushbackServerNonce;
-	private String callbackServerNonce;
-	private String userCodeUrl;
-	private String userCode;
 	private Set<Capability> capabilities;
 	private Subject subject;
+	private InteractResponse interact;
 
 
 	@Value("${oauth.xyz.root}")
@@ -56,26 +49,10 @@ public class TransactionResponse {
 
 	public static TransactionResponse of(Transaction t, String instanceId, String continueUri) {
 
-		Optional<Interact> interact = Optional.ofNullable(t.getInteract());
-
 		return new TransactionResponse()
 			.setAccessToken(AccessTokenResponse.of(t.getAccessToken()))
 			.setMultipleAccessTokens(AccessTokenResponse.of(t.getMultipleAccessTokens()))
-			.setInteractionUrl(interact
-				.map(Interact::getInteractionUrl)
-				.orElse(null))
-			.setUserCodeUrl(interact
-				.map(Interact::getUserCodeUrl)
-				.orElse(null))
-			.setUserCode(interact
-				.map(Interact::getUserCode)
-				.orElse(null))
-			.setCallbackServerNonce(interact
-				.map(Interact::getServerNonce)
-				.orElse(null))
-			.setPushbackServerNonce(interact
-				.map(Interact::getServerNonce)
-				.orElse(null))
+			.setInteract(InteractResponse.of(t.getInteract()))
 			.setCont(new ContinueResponse()
 				.setAccessToken(AccessTokenResponse.ofClientBoundToken(t.getContinueAccessToken()))
 				.setUri(continueUri))
