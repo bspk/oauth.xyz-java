@@ -50,10 +50,12 @@ public class PendingTransaction {
 	private String continueUri;
 	private String continueToken;
 	private String accessToken;
+	private Key accessTokenKey;
 	private String userCode;
 	private String userCodeUrl;
 	private String interactionUrl;
 	private Map<String, String> multipleAccessTokens;
+	private Map<String, Key> multipleAccessTokenKeys;
 
 	public PendingTransaction add (TransactionResponse response) {
 		entries.add(new Entry().setResponse(response));
@@ -95,6 +97,12 @@ public class PendingTransaction {
 
 		if (response.getAccessToken() != null) {
 			setAccessToken(response.getAccessToken().getValue());
+			if (response.getAccessToken().getKey().isClientKey()) {
+				setAccessTokenKey(getKey());
+			} else if (response.getAccessToken().getKey().getKey() != null) {
+				setAccessTokenKey(response.getAccessToken().getKey().getKey());
+			}
+
 		} else if (response.getMultipleAccessTokens() != null) {
 			Map<String, String> tokens =
 				response.getMultipleAccessTokens().entrySet()
@@ -102,6 +110,21 @@ public class PendingTransaction {
 					.collect(Collectors.toMap(Map.Entry::getKey,
 						e -> e.getValue().getValue()));
 			setMultipleAccessTokens(tokens);
+
+			Map<String, Key> keys =
+				response.getMultipleAccessTokens().entrySet()
+					.stream()
+					.collect(Collectors.toMap(
+						Map.Entry::getKey,
+						(e) -> {
+							BoundKey k = e.getValue().getKey();
+							if (k.isClientKey()) {
+								return getKey();
+							} else {
+								return k.getKey();
+							}
+						}));
+			setMultipleAccessTokenKeys(keys);
 		}
 
 		if (response.getInteract() != null) {

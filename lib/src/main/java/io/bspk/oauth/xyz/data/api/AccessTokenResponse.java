@@ -35,24 +35,7 @@ public class AccessTokenResponse {
 		if (t != null) {
 			return new AccessTokenResponse()
 				.setValue(t.getValue())
-				.setKey(new BoundKey().setKey(t.getKey()))
-				.setManage(t.getManage())
-				.setResources(t.getResourceRequest())
-				.setExpiresIn(t.getExpiration() != null ?
-					Duration.between(Instant.now(), t.getExpiration()).toSeconds()
-					: null);
-		} else {
-			return null;
-		}
-	}
-
-	public static AccessTokenResponse ofClientBoundToken(AccessToken t) {
-		if (t != null) {
-			return new AccessTokenResponse()
-				.setValue(t.getValue())
-				.setKey(new BoundKey()
-					.setKey(t.getKey())
-					.setClientKey(true))
+				.setKey(t.getKey())
 				.setManage(t.getManage())
 				.setResources(t.getResourceRequest())
 				.setExpiresIn(t.getExpiration() != null ?

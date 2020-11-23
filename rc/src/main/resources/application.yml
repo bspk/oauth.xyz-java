@@ -9,6 +9,7 @@ spring.data.rest.base-path: /api
 oauth.xyz:
   root: http://host.docker.internal:9839/
   asEndpoint: http://host.docker.internal:9834/api/as/transaction
+  rsEndpoint: http://host.docker.internal:9836/api/rs
 
 # spring.devtools.restart.exclude: 
 

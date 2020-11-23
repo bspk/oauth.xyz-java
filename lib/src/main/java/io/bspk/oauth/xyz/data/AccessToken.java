@@ -22,7 +22,7 @@ import lombok.experimental.Accessors;
 public class AccessToken {
 
 	private String value;
-	private Key key;
+	private BoundKey key;
 	private String manage;
 	private SingleTokenResourceRequest resourceRequest;
 	private Instant expiration;
@@ -41,7 +41,8 @@ public class AccessToken {
 		return create().setExpiration(Instant.now().plus(lifetime));
 	}
 
-	public static AccessToken create(Key key) {
-		return create().setKey(key);
+	public static AccessToken createClientBound(Key key) {
+		return create().setKey(new BoundKey().setKey(key).setClientKey(true));
 	}
+
 }

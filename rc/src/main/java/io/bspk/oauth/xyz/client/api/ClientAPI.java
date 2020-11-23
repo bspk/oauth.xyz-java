@@ -78,6 +78,9 @@ public class ClientAPI {
 	//private String asEndpoint = "http://localhost:8080/openid-connect-server-webapp/transaction";
 	//private String asEndpoint = "http://localhost:8080/as/transaction";
 
+	@Value("${oauth.xyz.rsEndpoint}")
+	private String rsEndpoint;
+
 	@Value("${oauth.xyz.root}")
 	private String clientPage;
 
@@ -477,5 +480,30 @@ public class ClientAPI {
 			.noContent().build();
 	}
 
+	@PostMapping("/use/{id}")
+	public ResponseEntity<?> useToken(@PathVariable("id") String id, HttpSession session) {
+		Optional<PendingTransaction> maybe = pendingTransactionRepository.findFirstByIdAndOwner(id, session.getId());
+
+		if (maybe.isPresent()) {
+			PendingTransaction pending = maybe.get();
+
+			if (Strings.isNullOrEmpty(pending.getAccessToken())) {
+				return ResponseEntity.badRequest().build();
+			}
+
+			String token = pending.getAccessToken();
+			Key key = pending.getAccessTokenKey();
+
+			RestTemplate restTemplate = requestSigners.getSignerFor(key, token);
+
+			ResponseEntity<?> entity = restTemplate.getForEntity(rsEndpoint, Map.class);
+
+			return ResponseEntity.ok(entity);
+
+		} else {
+			return ResponseEntity.notFound().build();
+		}
+
+	}
 
 }

@@ -104,13 +104,21 @@ class Client extends React.Component {
 		});
 	}
 	
+	use = (transactionId) => () => {
+		http({
+			method: 'POST',
+			path: '/api/client/use/' + encodeURIComponent(transactionId)
+		}).done(response => {
+			this.loadPending();
+		});
+	}
 
 
 	render() {
 		
 		const pending = this.state.transactions.map(
 				transaction => (
-					<PendingTransaction key={transaction.id} transaction={transaction} cancel={this.cancel} poll={this.poll} />
+					<PendingTransaction key={transaction.id} transaction={transaction} cancel={this.cancel} poll={this.poll} use={this.use} />
 				)
 			).reverse(); // newest first
 	
@@ -147,6 +155,7 @@ class PendingTransaction extends React.Component{
 				<CardHeader>
 					<Button color="info" onClick={this.props.poll(this.props.transaction.id)}>Poll</Button>
 					<Button color="danger" onClick={this.props.cancel(this.props.transaction.id)}>Cancel</Button>
+					<Button color="success" onClick={this.props.use(this.props.transaction.id)}>Use</Button>
 				</CardHeader>
 				<CardBody>
 					<PendingTransactionEntry transaction={this.props.transaction} />

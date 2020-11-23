@@ -54,7 +54,7 @@ public class TransactionResponse {
 			.setMultipleAccessTokens(AccessTokenResponse.of(t.getMultipleAccessTokens()))
 			.setInteract(InteractResponse.of(t.getInteract()))
 			.setCont(new ContinueResponse()
-				.setAccessToken(AccessTokenResponse.ofClientBoundToken(t.getContinueAccessToken()))
+				.setAccessToken(AccessTokenResponse.of(t.getContinueAccessToken()))
 				.setUri(continueUri))
 			.setInstanceId(instanceId)
 			.setSubject(t.getSubject())
