@@ -1,0 +1,20 @@
+server:
+  port: 9836
+spring:
+  data.mongodb.uri:
+    mongodb://host.docker.internal:27017/oauth_xyz_as ## This is the same data store the AS uses, so that the RS can look up token information directly
+
+spring.data.rest.base-path: /api
+
+oauth.xyz:
+  root: http://host.docker.internal:9836/
+  asEndpoint: http://host.docker.internal:9834/api/as/transaction
+  introspect: http://host.docker.internal:9834/api/as/introspect
+
+# spring.devtools.restart.exclude: 
+
+spring.jackson.default-property-inclusion: NON_NULL
+
+spring.mvc.dispatch-options-request: true
+
+server.servlet.session.cookie.path: /api/rs

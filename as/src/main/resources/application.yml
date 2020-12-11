@@ -1,0 +1,19 @@
+server:
+  port: 9834
+spring:
+  data.mongodb.uri:
+    mongodb://host.docker.internal:27017/oauth_xyz_as
+
+spring.data.rest.base-path: /api
+
+oauth.xyz.root: http://host.docker.internal:9834/
+
+# spring.devtools.restart.exclude: 
+
+spring.jackson.default-property-inclusion: NON_NULL
+
+spring.mvc.dispatch-options-request: true
+
+server.servlet.session.cookie.path: /api/as/interact
+
+# logging.level.org.springframework.web.filter.CommonsRequestLoggingFilter: DEBUG
