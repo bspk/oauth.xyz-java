@@ -10,7 +10,6 @@ import com.google.common.base.Strings;
 
 import lombok.Data;
 import lombok.experimental.Accessors;
-import lombok.experimental.Delegate;
 
 /**
  * @author jricher
@@ -19,9 +18,8 @@ import lombok.experimental.Delegate;
 @Data
 @Accessors(chain = true)
 @JsonNaming(PropertyNamingStrategy.SnakeCaseStrategy.class)
-public class MultiTokenResourceRequest implements ResourceRequest, List<SingleTokenResourceRequest> {
+public class MultiTokenResourceRequest implements ResourceRequest {
 
-	@Delegate
 	private List<SingleTokenResourceRequest> requests = new ArrayList<>();
 
 	@Override
@@ -39,7 +37,7 @@ public class MultiTokenResourceRequest implements ResourceRequest, List<SingleTo
 			if (Strings.isNullOrEmpty(v.getLabel())) {
 				throw new IllegalArgumentException("Access request does not contain required 'label' field");
 			}
-			m.add(v);
+			m.getRequests().add(v);
 		});
 		return m;
 	}
@@ -47,7 +45,7 @@ public class MultiTokenResourceRequest implements ResourceRequest, List<SingleTo
 	public static MultiTokenResourceRequest of(Map<String, List<RequestedResource>> value) {
 		MultiTokenResourceRequest m = new MultiTokenResourceRequest();
 		value.forEach((k, v) -> {
-			m.add(new SingleTokenResourceRequest()
+			m.getRequests().add(new SingleTokenResourceRequest()
 				.setAccess(v)
 				.setLabel(k));
 		});
