@@ -27,7 +27,7 @@ public class TransactionRequest {
 	private UserRequest user;
 	@JsonSerialize(using = ResourceRequestSerializer.class)
 	@JsonDeserialize(using = ResourceRequestDeserializer.class)
-	private ResourceRequest resources;
+	private ResourceRequest accessToken;
 	private Set<Capability> capabilities;
 	private SubjectRequest subject;
 

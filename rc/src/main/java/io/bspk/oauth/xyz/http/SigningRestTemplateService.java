@@ -78,6 +78,7 @@ public class SigningRestTemplateService {
 
 		if (key == null) {
 			return createRestTemplate(List.of(
+				new AccessTokenInjectingInterceptor(key, accessTokenValue),
 				new RequestResponseLoggingInterceptor()
 			));
 		}
@@ -85,9 +86,7 @@ public class SigningRestTemplateService {
 		Proof proof = key.getProof();
 
 		if (proof == null) {
-			return createRestTemplate(List.of(
-				new RequestResponseLoggingInterceptor()
-			));
+			throw new IllegalArgumentException("Key proof must not be null.");
 		}
 
 		switch (proof) {

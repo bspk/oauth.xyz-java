@@ -2,6 +2,7 @@ package io.bspk.oauth.xyz.authserver.endpoint;
 
 import java.time.Duration;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -137,7 +138,7 @@ public class TransactionEndpoint {
 
 			t.setSubjectRequest(incoming.getSubject());
 
-			t.setResourceRequest(incoming.getResources());
+			t.setResourceRequest(incoming.getAccessToken());
 
 			t.setCapabilitiesRequest(incoming.getCapabilities());
 
@@ -362,16 +363,31 @@ public class TransactionEndpoint {
 			// no resources requested, no access token
 		} else if (t.getResourceRequest().isMultiple()) {
 			// if the request was for multiple resources, create multiple access tokens
-			Map<String, SingleTokenResourceRequest> resources = ((MultiTokenResourceRequest)t.getResourceRequest()).getRequests();
+			List<SingleTokenResourceRequest> resources = ((MultiTokenResourceRequest)t.getResourceRequest()).getRequests();
 			Map<String, AccessToken> tokens = new HashMap<>();
-			for (String key : resources.keySet()) {
-				tokens.put(key, AccessToken.create(Duration.ofHours(1)));
+			for (SingleTokenResourceRequest req : resources) {
+				if (Strings.isNullOrEmpty(req.getLabel())) {
+					throw new IllegalArgumentException("Required 'label' not found");
+				}
+				if (req.isBearer()) {
+					tokens.put(req.getLabel(),
+						AccessToken.create(Duration.ofHours(1)));
+				} else {
+					tokens.put(req.getLabel(),
+						AccessToken.createClientBound(t.getKey()));
+				}
 			}
 			t.setMultipleAccessTokens(tokens);
 		} else {
 			// otherwise set a single access token bound to the client's key
-			t.setAccessToken(
-				AccessToken.createClientBound(t.getKey()));
+			SingleTokenResourceRequest req = (SingleTokenResourceRequest) t.getResourceRequest();
+			if (req.isBearer()) {
+				t.setAccessToken(
+					AccessToken.create(Duration.ofHours(1)));
+			} else {
+				t.setAccessToken(
+					AccessToken.createClientBound(t.getKey()));
+			}
 		}
 	}
 

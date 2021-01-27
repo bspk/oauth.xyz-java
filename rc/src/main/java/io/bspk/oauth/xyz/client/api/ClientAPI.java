@@ -45,7 +45,6 @@ import io.bspk.oauth.xyz.data.api.InteractRequest;
 import io.bspk.oauth.xyz.data.api.KeyRequest;
 import io.bspk.oauth.xyz.data.api.MultiTokenResourceRequest;
 import io.bspk.oauth.xyz.data.api.PushbackRequest;
-import io.bspk.oauth.xyz.data.api.RequestedResource;
 import io.bspk.oauth.xyz.data.api.SingleTokenResourceRequest;
 import io.bspk.oauth.xyz.data.api.TransactionContinueRequest;
 import io.bspk.oauth.xyz.data.api.TransactionRequest;
@@ -138,7 +137,7 @@ public class ClientAPI {
 					.setUri(callbackBaseUrl + "/" + callbackId)
 					.setNonce(nonce))
 				.setRedirect(true))
-			.setResources(SingleTokenResourceRequest.ofReferences(
+			.setAccessToken(SingleTokenResourceRequest.ofReferences(
 					"openid",
 					"profile",
 					"email",
@@ -195,8 +194,7 @@ public class ClientAPI {
 		TransactionRequest request = new TransactionRequest()
 			.setInteract(new InteractRequest()
 				.setUserCode(true))
-			.setResources(new SingleTokenResourceRequest()
-				.setResources(List.of(new RequestedResource().setHandle("foo"))))
+			.setAccessToken(SingleTokenResourceRequest.ofReferences("foo"))
 			.setUser(new UserRequest());
 
 		// load a known instance ID from this session
@@ -251,14 +249,11 @@ public class ClientAPI {
 					.setNonce(nonce))
 				.setUserCode(true)
 				.setRedirect(true))
-			.setResources(new MultiTokenResourceRequest()
-				.setRequests(Map.of(
-					"blanktoken", new SingleTokenResourceRequest()
-						.setResources(List.of(new RequestedResource()
-							.setActions(List.of("read", "write", "dolphin")))),
-					"magic", new SingleTokenResourceRequest()
-						.setResources(List.of(new RequestedResource()
-							.setActions(List.of("foo", "bar", "baz")))))))
+			.setAccessToken(MultiTokenResourceRequest.of(
+				SingleTokenResourceRequest.ofReferences("read", "write", "dolphin")
+					.setLabel("blanktoken"),
+				SingleTokenResourceRequest.ofReferences("foo", "bar", "baz")
+					.setLabel("magic")))
 			.setUser(new UserRequest());
 
 		// load a known instance ID from this session
