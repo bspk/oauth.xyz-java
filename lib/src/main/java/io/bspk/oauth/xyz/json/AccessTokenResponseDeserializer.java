@@ -11,31 +11,32 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.deser.std.StdDeserializer;
 
+import io.bspk.oauth.xyz.data.api.AccessTokenResponse;
 import io.bspk.oauth.xyz.data.api.ResourceRequest;
-import io.bspk.oauth.xyz.data.api.SingleTokenResourceRequest;
+import io.bspk.oauth.xyz.data.api.SingleAccessTokenResponse;
 
 /**
  * @author jricher
  *
  */
-public class ResourceRequestDeserializer extends StdDeserializer<ResourceRequest> {
+public class AccessTokenResponseDeserializer extends StdDeserializer<AccessTokenResponse> {
 
-	public ResourceRequestDeserializer() {
+	public AccessTokenResponseDeserializer() {
 		super (ResourceRequest.class);
 	}
 
 	@Override
-	public ResourceRequest deserialize(JsonParser p, DeserializationContext ctxt) throws IOException, JsonProcessingException {
+	public AccessTokenResponse deserialize(JsonParser p, DeserializationContext ctxt) throws IOException, JsonProcessingException {
 		JsonToken token = p.currentToken();
 
 		if (token == JsonToken.START_ARRAY) {
 			// it's an array, parse it as a multi token request
-			List<SingleTokenResourceRequest> value = p.readValueAs(new TypeReference<List<SingleTokenResourceRequest>>() {});
+			List<SingleAccessTokenResponse> value = p.readValueAs(new TypeReference<List<SingleAccessTokenResponse>>() {});
 
-			return ResourceRequest.of(value);
+			return AccessTokenResponse.of(value);
 
 		} else if (token == JsonToken.START_OBJECT) {
-			SingleTokenResourceRequest value = p.readValueAs(new TypeReference<SingleTokenResourceRequest>() {});
+			SingleAccessTokenResponse value = p.readValueAs(new TypeReference<SingleAccessTokenResponse>() {});
 
 			return value;
 		} else {

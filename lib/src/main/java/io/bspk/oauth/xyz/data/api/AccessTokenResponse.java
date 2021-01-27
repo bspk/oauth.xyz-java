@@ -2,42 +2,46 @@ package io.bspk.oauth.xyz.data.api;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.List;
 import java.util.Map;
 
-import com.fasterxml.jackson.databind.PropertyNamingStrategy;
-import com.fasterxml.jackson.databind.annotation.JsonNaming;
-import com.fasterxml.jackson.databind.annotation.JsonSerialize;
-import com.google.common.collect.Maps;
-
 import io.bspk.oauth.xyz.data.AccessToken;
-import io.bspk.oauth.xyz.data.BoundKey;
-import io.bspk.oauth.xyz.json.BoundKeySerializer;
-import lombok.Data;
-import lombok.experimental.Accessors;
 
 /**
  * @author jricher
  *
  */
-@Data
-@Accessors(chain = true)
-@JsonNaming(PropertyNamingStrategy.SnakeCaseStrategy.class)
-public class AccessTokenResponse {
+public interface AccessTokenResponse {
 
-	private String value;
-	@JsonSerialize(using=BoundKeySerializer.class)
-	private BoundKey key;
-	private String manage;
-	private SingleTokenResourceRequest resources;
-	private Long expiresIn;
+	public boolean isMultiple();
 
-	public static AccessTokenResponse of(AccessToken t) {
+	public static AccessTokenResponse oneOf(AccessToken t, Map<String, AccessToken> tokens) {
+		if (t == null) {
+			if (tokens == null) {
+				return null;
+			} else {
+				// multi token
+				return of(tokens);
+			}
+		} else {
+			if (tokens == null) {
+				// single token
+				return of(t);
+			} else {
+				// error, can't have both single and multi
+				throw new IllegalArgumentException("Found both single and multi access tokens issued to same transaction");
+			}
+		}
+	}
+
+	public static SingleAccessTokenResponse of(AccessToken t) {
 		if (t != null) {
-			return new AccessTokenResponse()
+			return new SingleAccessTokenResponse()
 				.setValue(t.getValue())
 				.setKey(t.getKey())
 				.setManage(t.getManage())
 				.setResources(t.getResourceRequest())
+				.setLabel(t.getLabel())
 				.setExpiresIn(t.getExpiration() != null ?
 					Duration.between(Instant.now(), t.getExpiration()).toSeconds()
 					: null);
@@ -46,10 +50,25 @@ public class AccessTokenResponse {
 		}
 	}
 
-	public static Map<String, AccessTokenResponse> of(Map<String, AccessToken> tokens) {
+	public static MultiAccessTokenResponse of(List<SingleAccessTokenResponse> responses) {
+		if (responses == null) {
+			return null;
+		} else {
+			return new MultiAccessTokenResponse()
+				.setResponses(responses);
+		}
+	}
+
+	public static MultiAccessTokenResponse of(Map<String, AccessToken> tokens) {
 		if (tokens != null) {
-			return Maps.transformValues(tokens,
-					v -> AccessTokenResponse.of(v));
+			MultiAccessTokenResponse m = new MultiAccessTokenResponse();
+
+			tokens.entrySet().forEach(e -> {
+				m.getResponses().add(AccessTokenResponse.of(e.getValue())
+					.setLabel(e.getKey())); // override label if necessary
+			});
+
+			return m;
 		} else {
 			return null;
 		}

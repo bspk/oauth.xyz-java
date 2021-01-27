@@ -16,13 +16,14 @@ import lombok.experimental.Accessors;
 @Data
 @Accessors(chain = true)
 @JsonNaming(PropertyNamingStrategy.SnakeCaseStrategy.class)
-public class MultiTokenResourceRequest implements ResourceRequest {
+public class MultiAccessTokenResponse implements AccessTokenResponse {
 
-	private List<SingleTokenResourceRequest> requests = new ArrayList<>();
+	private List<SingleAccessTokenResponse> responses = new ArrayList<>();
 
 	@Override
 	public boolean isMultiple() {
 		return true;
+
 	}
 
 }

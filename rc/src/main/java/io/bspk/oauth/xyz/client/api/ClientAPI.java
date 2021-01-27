@@ -43,9 +43,8 @@ import io.bspk.oauth.xyz.data.api.ClientRequest;
 import io.bspk.oauth.xyz.data.api.DisplayRequest;
 import io.bspk.oauth.xyz.data.api.InteractRequest;
 import io.bspk.oauth.xyz.data.api.KeyRequest;
-import io.bspk.oauth.xyz.data.api.MultiTokenResourceRequest;
 import io.bspk.oauth.xyz.data.api.PushbackRequest;
-import io.bspk.oauth.xyz.data.api.SingleTokenResourceRequest;
+import io.bspk.oauth.xyz.data.api.ResourceRequest;
 import io.bspk.oauth.xyz.data.api.TransactionContinueRequest;
 import io.bspk.oauth.xyz.data.api.TransactionRequest;
 import io.bspk.oauth.xyz.data.api.TransactionResponse;
@@ -137,7 +136,7 @@ public class ClientAPI {
 					.setUri(callbackBaseUrl + "/" + callbackId)
 					.setNonce(nonce))
 				.setRedirect(true))
-			.setAccessToken(SingleTokenResourceRequest.ofReferences(
+			.setAccessToken(ResourceRequest.ofReferences(
 					"openid",
 					"profile",
 					"email",
@@ -194,7 +193,7 @@ public class ClientAPI {
 		TransactionRequest request = new TransactionRequest()
 			.setInteract(new InteractRequest()
 				.setUserCode(true))
-			.setAccessToken(SingleTokenResourceRequest.ofReferences("foo"))
+			.setAccessToken(ResourceRequest.ofReferences("foo"))
 			.setUser(new UserRequest());
 
 		// load a known instance ID from this session
@@ -249,10 +248,10 @@ public class ClientAPI {
 					.setNonce(nonce))
 				.setUserCode(true)
 				.setRedirect(true))
-			.setAccessToken(MultiTokenResourceRequest.of(
-				SingleTokenResourceRequest.ofReferences("read", "write", "dolphin")
+			.setAccessToken(ResourceRequest.of(
+				ResourceRequest.ofReferences("read", "write", "dolphin")
 					.setLabel("blanktoken"),
-				SingleTokenResourceRequest.ofReferences("foo", "bar", "baz")
+				ResourceRequest.ofReferences("foo", "bar", "baz")
 					.setLabel("magic")))
 			.setUser(new UserRequest());
 

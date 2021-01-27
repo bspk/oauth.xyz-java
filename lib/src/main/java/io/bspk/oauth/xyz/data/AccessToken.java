@@ -26,6 +26,7 @@ public class AccessToken {
 	private String manage;
 	private SingleTokenResourceRequest resourceRequest;
 	private Instant expiration;
+	private String label;
 
 	/**
 	 * Create a handle with a random value and no expiration

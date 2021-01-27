@@ -13,6 +13,8 @@ import com.fasterxml.jackson.databind.annotation.JsonNaming;
 
 import io.bspk.oauth.xyz.crypto.Hash.HashMethod;
 import io.bspk.oauth.xyz.data.api.InteractResponse;
+import io.bspk.oauth.xyz.data.api.MultiAccessTokenResponse;
+import io.bspk.oauth.xyz.data.api.SingleAccessTokenResponse;
 import io.bspk.oauth.xyz.data.api.TransactionContinueRequest;
 import io.bspk.oauth.xyz.data.api.TransactionRequest;
 import io.bspk.oauth.xyz.data.api.TransactionResponse;
@@ -96,35 +98,35 @@ public class PendingTransaction {
 		}
 
 		if (response.getAccessToken() != null) {
-			setAccessToken(response.getAccessToken().getValue());
-			if (response.getAccessToken().getKey().isClientKey()) {
-				setAccessTokenKey(getKey());
-			} else if (response.getAccessToken().getKey().getKey() != null) {
-				setAccessTokenKey(response.getAccessToken().getKey().getKey());
-			}
+			if (response.getAccessToken().isMultiple()) {
+				MultiAccessTokenResponse tokenResponses = (MultiAccessTokenResponse) response.getAccessToken();
 
-		} else if (response.getMultipleAccessTokens() != null) {
-			Map<String, String> tokens =
-				response.getMultipleAccessTokens().entrySet()
-					.stream()
-					.collect(Collectors.toMap(Map.Entry::getKey,
-						e -> e.getValue().getValue()));
-			setMultipleAccessTokens(tokens);
-
-			Map<String, Key> keys =
-				response.getMultipleAccessTokens().entrySet()
-					.stream()
+				setMultipleAccessTokens(tokenResponses.getResponses().stream()
 					.collect(Collectors.toMap(
-						Map.Entry::getKey,
-						(e) -> {
-							BoundKey k = e.getValue().getKey();
+						t -> t.getLabel(),
+						t -> t.getValue())));
+
+				setMultipleAccessTokenKeys(tokenResponses.getResponses().stream()
+					.collect(Collectors.toMap(
+						t -> t.getLabel(),
+						t -> {
+							BoundKey k = t.getKey();
 							if (k.isClientKey()) {
 								return getKey();
 							} else {
 								return k.getKey();
 							}
-						}));
-			setMultipleAccessTokenKeys(keys);
+						}
+						)));
+			} else {
+				SingleAccessTokenResponse tokenResponse = (SingleAccessTokenResponse) response.getAccessToken();
+				setAccessToken(tokenResponse.getValue());
+				if (tokenResponse.getKey().isClientKey()) {
+					setAccessTokenKey(getKey());
+				} else if (tokenResponse.getKey().getKey() != null) {
+					setAccessTokenKey(tokenResponse.getKey().getKey());
+				}
+			}
 		}
 
 		if (response.getInteract() != null) {

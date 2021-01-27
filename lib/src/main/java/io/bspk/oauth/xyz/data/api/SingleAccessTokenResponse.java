@@ -1,13 +1,11 @@
 package io.bspk.oauth.xyz.data.api;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Set;
-
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.databind.PropertyNamingStrategy;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 
+import io.bspk.oauth.xyz.data.BoundKey;
+import io.bspk.oauth.xyz.json.BoundKeySerializer;
 import lombok.Data;
 import lombok.experimental.Accessors;
 
@@ -18,21 +16,19 @@ import lombok.experimental.Accessors;
 @Data
 @Accessors(chain = true)
 @JsonNaming(PropertyNamingStrategy.SnakeCaseStrategy.class)
-public class SingleTokenResourceRequest implements ResourceRequest {
+public class SingleAccessTokenResponse implements AccessTokenResponse {
 
-	private List<RequestedResource> access = new ArrayList<>();
+	private String value;
+	@JsonSerialize(using=BoundKeySerializer.class)
+	private BoundKey key;
+	private String manage;
+	private SingleTokenResourceRequest resources;
+	private Long expiresIn;
 	private String label;
-	private Set<TokenFlag> flags;
 
 	@Override
-	@JsonIgnore
 	public boolean isMultiple() {
 		return false;
-	}
-
-	@JsonIgnore
-	public boolean isBearer() {
-		return flags != null && flags.contains(TokenFlag.BEARER);
 	}
 
 }
