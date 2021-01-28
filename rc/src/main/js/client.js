@@ -172,8 +172,8 @@ class PendingTransactionEntry extends React.Component {
 		if (this.props.transaction.access_token) {
 			elements.push(
 				...[
-					<dt className="col-sm-3">Token</dt>,
-					<dd className="col-sm-9"><AccessToken token={this.props.transaction.access_token} /></dd>
+					<dt key="token-label" className="col-sm-3">Token</dt>,
+					<dd key="token-value" className="col-sm-9"><AccessToken token={this.props.transaction.access_token} /></dd>
 				]
 			);
 		}
@@ -190,8 +190,8 @@ class PendingTransactionEntry extends React.Component {
 			//debugger;
 			elements.push(
 				...[
-					<dt className="col-sm-3">Multiple Tokens</dt>,
-					<dd className="col-sm-9">{tokens}</dd>
+					<dt key="multi-token-label" className="col-sm-3">Multiple Tokens</dt>,
+					<dd key="multi-token-value" className="col-sm-9">{tokens}</dd>
 				]
 			);
 		}
@@ -209,8 +209,8 @@ class PendingTransactionEntry extends React.Component {
 			//debugger;
 			elements.push(
 				...[
-					<dt className="col-sm-3">Claims</dt>,
-					<dd className="col-sm-9">{claims}</dd>
+					<dt key="claims-label" className="col-sm-3">Claims</dt>,
+					<dd key="claims-value" className="col-sm-9">{claims}</dd>
 				]
 			);
 		}
@@ -219,8 +219,8 @@ class PendingTransactionEntry extends React.Component {
 		if (this.props.transaction.continue_token) {
 			elements.push(
 				...[
-					<dt className="col-sm-3">Continuation Token</dt>,
-					<dd className="col-sm-9">{this.props.transaction.continue_token}</dd>
+					<dt key="continue-label" className="col-sm-3">Continuation Token</dt>,
+					<dd key="continue-value" className="col-sm-9">{this.props.transaction.continue_token}</dd>
 				]
 			);
 		}
@@ -228,18 +228,18 @@ class PendingTransactionEntry extends React.Component {
 		if (this.props.transaction.user_code) {
 			elements.push(
 				...[
-					<dt className="col-sm-3">User Code URL</dt>,
-					<dd className="col-sm-9"><a href={this.props.transaction.user_code_url}>{this.props.transaction.user_code_url}</a></dd>,
-					<dt className="col-sm-3">User Code</dt>,
-					<dd className="col-sm-9"><UserCode userCode={this.props.transaction.user_code} /></dd>
+					<dt key="code-url-label" className="col-sm-3">User Code URL</dt>,
+					<dd key="code-url-value" className="col-sm-9"><a href={this.props.transaction.user_code_url}>{this.props.transaction.user_code_url}</a></dd>,
+					<dt key="code-label" className="col-sm-3">User Code</dt>,
+					<dd key="code-value" className="col-sm-9"><UserCode userCode={this.props.transaction.user_code} /></dd>
 				]
 			);
 		}
 		if (this.props.transaction.interaction_url) {
 			elements.push(
 				...[
-					<dt className="col-sm-3">Interaction URL</dt>,
-					<dd className="col-sm-9"><a href={this.props.transaction.interaction_url}>{this.props.transaction.interaction_url}</a></dd>
+					<dt key="interaction-label" className="col-sm-3">Interaction URL</dt>,
+					<dd key="interaction-value" className="col-sm-9"><a href={this.props.transaction.interaction_url}>{this.props.transaction.interaction_url}</a></dd>
 				]
 			);
 		}
@@ -247,8 +247,8 @@ class PendingTransactionEntry extends React.Component {
 		if (this.props.transaction.interaction_url && this.props.transaction.user_code) {
 			elements.push(
 				...[
-					<dt className="col-sm-3">Scannable Interaction URL</dt>,
-					<dd className="col-sm-9"><QRCode value={this.props.transaction.interaction_url} /></dd>
+					<dt key="qr-label" className="col-sm-3">Scannable Interaction URL</dt>,
+					<dd key="qr-value" className="col-sm-9"><QRCode value={this.props.transaction.interaction_url} /></dd>
 				]
 			);
 		}
