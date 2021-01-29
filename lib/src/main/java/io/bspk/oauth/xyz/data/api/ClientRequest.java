@@ -17,7 +17,6 @@ import lombok.experimental.Tolerate;
 @JsonNaming(PropertyNamingStrategy.SnakeCaseStrategy.class)
 public class ClientRequest {
 
-	private String instanceId;
 	@JsonSerialize(using =  HandleAwareFieldSerializer.class)
 	@JsonDeserialize(using = HandleAwareFieldDeserializer.class)
 	private HandleAwareField<KeyRequest> key;

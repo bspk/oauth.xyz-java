@@ -149,8 +149,7 @@ public class ClientAPI {
 		// load a known instance ID from this session
 		String instanceId = (String) session.getAttribute(AUTH_CODE_ID);
 		if (!Strings.isNullOrEmpty(instanceId)) {
-			request.setClient(new ClientRequest()
-				.setInstanceId(instanceId));
+			request.setClient(instanceId);
 		} else {
 			request.setClient(new ClientRequest()
 				.setDisplay(new DisplayRequest()
@@ -199,8 +198,7 @@ public class ClientAPI {
 		// load a known instance ID from this session
 		String instanceId = (String) session.getAttribute(DEVICE_ID);
 		if (!Strings.isNullOrEmpty(instanceId)) {
-			request.setClient(new ClientRequest()
-				.setInstanceId(instanceId));
+			request.setClient(instanceId);
 		} else {
 			request.setClient(new ClientRequest()
 				.setDisplay(new DisplayRequest()
@@ -258,8 +256,7 @@ public class ClientAPI {
 		// load a known instance ID from this session
 		String instanceId = (String) session.getAttribute(SCANNABLE_ID);
 		if (!Strings.isNullOrEmpty(instanceId)) {
-			request.setClient(new ClientRequest()
-				.setInstanceId(instanceId));
+			request.setClient(instanceId);
 		} else {
 			request.setClient(new ClientRequest()
 				.setDisplay(new DisplayRequest()

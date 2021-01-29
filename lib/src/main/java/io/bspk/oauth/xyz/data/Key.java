@@ -69,6 +69,10 @@ public class Key {
 
 	public static Key of(HandleAwareField<KeyRequest> request) {
 
+		if (request == null) {
+			return null;
+		}
+
 		if (request.isHandled()) {
 			// TODO: dereference keys using a service
 			return null;
