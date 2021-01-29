@@ -1,6 +1,7 @@
 package io.bspk.oauth.xyz.authserver.endpoint;
 
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -44,8 +45,8 @@ import io.bspk.oauth.xyz.data.Subject;
 import io.bspk.oauth.xyz.data.Transaction;
 import io.bspk.oauth.xyz.data.Transaction.Status;
 import io.bspk.oauth.xyz.data.api.ClientRequest;
-import io.bspk.oauth.xyz.data.api.MultiTokenResourceRequest;
-import io.bspk.oauth.xyz.data.api.SingleTokenResourceRequest;
+import io.bspk.oauth.xyz.data.api.HandleAwareField;
+import io.bspk.oauth.xyz.data.api.ResourceRequest;
 import io.bspk.oauth.xyz.data.api.TransactionContinueRequest;
 import io.bspk.oauth.xyz.data.api.TransactionRequest;
 import io.bspk.oauth.xyz.data.api.TransactionResponse;
@@ -150,7 +151,7 @@ public class TransactionEndpoint {
 
 	// if the client's request did not contain an instance ID but the client has one now, return it because it's just been registered
 	private String getInstanceIdIfNew(TransactionRequest incoming, Client client) {
-		if (Strings.isNullOrEmpty(incoming.getClient().getInstanceId())
+		if (!incoming.getClient().isHandled()
 			&& !Strings.isNullOrEmpty(client.getInstanceId())) {
 			return client.getInstanceId();
 		} else {
@@ -363,50 +364,59 @@ public class TransactionEndpoint {
 			// no resources requested, no access token
 		} else if (t.getResourceRequest().isMultiple()) {
 			// if the request was for multiple resources, create multiple access tokens
-			List<SingleTokenResourceRequest> resources = ((MultiTokenResourceRequest)t.getResourceRequest()).getRequests();
-			Map<String, AccessToken> tokens = new HashMap<>();
-			for (SingleTokenResourceRequest req : resources) {
+			List<ResourceRequest> resources = t.getResourceRequest().asMultiple();
+			List<AccessToken> tokens = new ArrayList<>();
+			for (ResourceRequest req : resources) {
 				if (Strings.isNullOrEmpty(req.getLabel())) {
 					throw new IllegalArgumentException("Required 'label' not found");
 				}
 				if (req.isBearer()) {
-					tokens.put(req.getLabel(),
-						AccessToken.create(Duration.ofHours(1)));
+					tokens.add(
+						AccessToken.create(Duration.ofHours(1))
+							.setLabel(req.getLabel())
+							.setAccessRequest(req.getAccess()));
 				} else {
-					tokens.put(req.getLabel(),
-						AccessToken.createClientBound(t.getKey()));
+					tokens.add(
+						AccessToken.createClientBound(t.getKey())
+							.setLabel(req.getLabel())
+							.setAccessRequest(req.getAccess()));
 				}
 			}
 			t.setMultipleAccessTokens(tokens);
 		} else {
 			// otherwise set a single access token bound to the client's key
-			SingleTokenResourceRequest req = (SingleTokenResourceRequest) t.getResourceRequest();
+			ResourceRequest req = t.getResourceRequest().asSingle();
 			if (req.isBearer()) {
 				t.setAccessToken(
-					AccessToken.create(Duration.ofHours(1)));
+					AccessToken.create(Duration.ofHours(1))
+						.setAccessRequest(req.getAccess()));
 			} else {
 				t.setAccessToken(
-					AccessToken.createClientBound(t.getKey()));
+					AccessToken.createClientBound(t.getKey())
+						.setAccessRequest(req.getAccess()));
 			}
 		}
 	}
 
-	private Client processClientRequest(ClientRequest client) {
+	private Client processClientRequest(HandleAwareField<ClientRequest> client) {
 		if (client == null) {
+			// no client provided
 			return null;
-		} else if (!Strings.isNullOrEmpty(client.getInstanceId())) {
-
-			return clientRepository.findById(client.getInstanceId()).orElse(null);
+		} else if (client.isHandled()) {
+			// look up by instance ID
+			return clientRepository.findById(client.asHandle()).orElse(null);
 
 		} else {
-			if (client.getKey() != null && client.getKey().getProof() != null) {
+			// look up by key
 
-				Key k = Key.of(client.getKey());
-
+			Key k = Key.of(client.asValue().getKey());
+			if (k != null && k.getProof() != null) {
+				// look up by key if possible
 				Client c = clientRepository.findFirstByKey(k);
 
 				if (c == null) {
-					c = Client.of(client);
+					// we didn't find a client, register a new one
+					c = Client.of(client.asValue());
 					return clientRepository.save(c);
 				} else {
 					return c;

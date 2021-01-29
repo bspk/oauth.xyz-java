@@ -18,6 +18,6 @@ public class ContinueResponse {
 	private Integer wait;
 	private String uri;
 	private Integer expiresIn;
-	private SingleAccessTokenResponse accessToken;
+	private AccessTokenResponse accessToken;
 
 }

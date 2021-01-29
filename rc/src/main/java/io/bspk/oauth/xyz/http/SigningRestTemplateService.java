@@ -19,7 +19,6 @@ import java.util.stream.Collectors;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpRequest;
 import org.springframework.http.MediaType;
@@ -38,7 +37,6 @@ import org.springframework.web.util.UriComponentsBuilder;
 import org.springframework.web.util.UriUtils;
 
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
-import com.fasterxml.jackson.databind.Module;
 import com.google.common.base.Joiner;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
@@ -67,9 +65,6 @@ import io.bspk.oauth.xyz.data.Key.Proof;
 public class SigningRestTemplateService {
 
 	private final Logger log = LoggerFactory.getLogger(this.getClass());
-
-	@Autowired
-	private Module jacksonModule;
 
 	private ClientHttpRequestFactory factory = new BufferingClientHttpRequestFactory(new HttpComponentsClientHttpRequestFactory());
 
@@ -132,7 +127,6 @@ public class SigningRestTemplateService {
 			.map(MappingJackson2HttpMessageConverter.class::cast)
 			.findFirst().orElseThrow(() -> new RuntimeException("MappingJackson2HttpMessageConverter not found"));
 
-		messageConverter.getObjectMapper().registerModule(jacksonModule);
 		messageConverter.getObjectMapper().setSerializationInclusion(Include.NON_NULL);
 
 		return restTemplate;
@@ -152,19 +146,19 @@ public class SigningRestTemplateService {
 
 		private void logRequest(HttpRequest request, byte[] body) throws IOException {
 			log.info("<<<========================request begin================================================");
-			log.info("URI         : {}", request.getURI());
-			log.info("Method      : {}", request.getMethod());
-			log.info("Headers     : {}", request.getHeaders());
-			log.info("Request body: {}", new String(body, "UTF-8"));
+			log.info("<<< URI         : {}", request.getURI());
+			log.info("<<< Method      : {}", request.getMethod());
+			log.info("<<< Headers     : {}", request.getHeaders());
+			log.info("<<< Request body: {}", new String(body, "UTF-8"));
 			log.info("<<<=======================request end================================================");
 		}
 
 		private void logResponse(ClientHttpResponse response) throws IOException {
 			log.info(">>>=========================response begin==========================================");
-			log.info("Status code  : {}", response.getStatusCode());
-			log.info("Status text  : {}", response.getStatusText());
-			log.info("Headers      : {}", response.getHeaders());
-			log.info("Response body: {}", StreamUtils.copyToString(response.getBody(), Charset.defaultCharset()));
+			log.info(">>> Status code  : {}", response.getStatusCode());
+			log.info(">>> Status text  : {}", response.getStatusText());
+			log.info(">>> Headers      : {}", response.getHeaders());
+			log.info(">>> Response body: {}", StreamUtils.copyToString(response.getBody(), Charset.defaultCharset()));
 			log.info(">>>====================response end=================================================");
 		}
 	}

@@ -115,7 +115,7 @@ public class ClientAPI {
 					.setUri(callbackBaseUrl + "/" + callbackId)
 					.setNonce(nonce))
 				.setRedirect(true))
-			.setResources(new SingleTokenResourceRequest()
+			.setResources(new ResourceRequest()
 				.setResources(List.of(new RequestedResource().setHandle("foo"))))
 			.setClaims(new SubjectRequest()
 				.setEmail(true)
@@ -248,11 +248,11 @@ public class ClientAPI {
 					.setNonce(nonce))
 				.setUserCode(true)
 				.setRedirect(true))
-			.setAccessToken(ResourceRequest.of(
+			.setAccessToken(
 				ResourceRequest.ofReferences("read", "write", "dolphin")
 					.setLabel("blanktoken"),
 				ResourceRequest.ofReferences("foo", "bar", "baz")
-					.setLabel("magic")))
+					.setLabel("magic"))
 			.setUser(new UserRequest());
 
 		// load a known instance ID from this session
@@ -273,7 +273,7 @@ public class ClientAPI {
 			.setInteract(new InteractRequest()
 				.setRedirect(true)
 				.setUserCode(true))
-			.setResources(new SingleTokenResourceRequest()
+			.setResources(new ResourceRequest()
 				.setResources(List.of(
 					new RequestedResource().setHandle("openid"),
 					new RequestedResource().setHandle("profile"),

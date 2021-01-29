@@ -1,6 +1,6 @@
 package io.bspk.oauth.xyz.data;
 
-import java.util.Map;
+import java.util.List;
 import java.util.Set;
 
 import org.springframework.data.annotation.Id;
@@ -10,6 +10,7 @@ import com.fasterxml.jackson.annotation.JsonValue;
 import com.fasterxml.jackson.databind.PropertyNamingStrategy;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
 
+import io.bspk.oauth.xyz.data.api.MultipleAwareField;
 import io.bspk.oauth.xyz.data.api.ResourceRequest;
 import io.bspk.oauth.xyz.data.api.SubjectRequest;
 import lombok.Data;
@@ -53,12 +54,12 @@ public class Transaction {
 	private String interactHandle;
 	private AccessToken continueAccessToken;
 	private AccessToken accessToken;
-	private Map<String, AccessToken> multipleAccessTokens;
+	private List<AccessToken> multipleAccessTokens;
 	private @NonNull Status status = Status.NEW;
 	private Key key;
 	private Subject subject;
 	private SubjectRequest subjectRequest;
-	private ResourceRequest resourceRequest;
+	private MultipleAwareField<ResourceRequest> resourceRequest;
 	private Set<Capability> capabilitiesRequest;
 	private Set<Capability> capabilities;
 

@@ -1,22 +1,27 @@
 package io.bspk.oauth.xyz.data.api;
 
+import java.util.List;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Value;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.PropertyNamingStrategy;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 
+import io.bspk.oauth.xyz.data.AccessToken;
 import io.bspk.oauth.xyz.data.Capability;
 import io.bspk.oauth.xyz.data.Subject;
 import io.bspk.oauth.xyz.data.Transaction;
-import io.bspk.oauth.xyz.json.AccessTokenResponseDeserializer;
-import io.bspk.oauth.xyz.json.AccessTokenResponseSerializer;
+import io.bspk.oauth.xyz.json.MultipleAwareFieldDeserializer;
+import io.bspk.oauth.xyz.json.MultipleAwareFieldSerializer;
 import lombok.Data;
 import lombok.experimental.Accessors;
+import lombok.experimental.Tolerate;
 
 /**
  * @author jricher
@@ -31,9 +36,9 @@ public class TransactionResponse {
 	private ContinueResponse cont;
 	private String userHandle;
 	private String instanceId;
-	@JsonSerialize(using = AccessTokenResponseSerializer.class)
-	@JsonDeserialize(using = AccessTokenResponseDeserializer.class)
-	private AccessTokenResponse accessToken;
+	@JsonSerialize(using =  MultipleAwareFieldSerializer.class)
+	@JsonDeserialize(using = MultipleAwareFieldDeserializer.class)
+	private MultipleAwareField<AccessTokenResponse> accessToken;
 	private Set<Capability> capabilities;
 	private Subject subject;
 	private InteractResponse interact;
@@ -42,10 +47,18 @@ public class TransactionResponse {
 	@Value("${oauth.xyz.root}")
 	private String baseUrl;
 
-	/**
-	 * @param t
-	 * @return
-	 */
+	@Tolerate
+	@JsonIgnore
+	public TransactionResponse setAccessToken(AccessTokenResponse accessToken) {
+		return setAccessToken(MultipleAwareField.of(accessToken));
+	}
+
+	@Tolerate
+	@JsonIgnore
+	public TransactionResponse setAccessToken(AccessTokenResponse... accessToken) {
+		return setAccessToken(MultipleAwareField.of(accessToken));
+	}
+
 	public static TransactionResponse of(Transaction t, String continueUri) {
 		return of(t, null, continueUri);
 	}
@@ -54,7 +67,7 @@ public class TransactionResponse {
 	public static TransactionResponse of(Transaction t, String instanceId, String continueUri) {
 
 		return new TransactionResponse()
-			.setAccessToken(AccessTokenResponse.oneOf(t.getAccessToken(), t.getMultipleAccessTokens()))
+			.setAccessToken(oneOf(t.getAccessToken(), t.getMultipleAccessTokens()))
 			.setInteract(InteractResponse.of(t.getInteract()))
 			.setCont(new ContinueResponse()
 				.setAccessToken(AccessTokenResponse.of(t.getContinueAccessToken()))
@@ -64,5 +77,28 @@ public class TransactionResponse {
 			.setCapabilities(t.getCapabilities());
 
 	}
+
+	private static MultipleAwareField<AccessTokenResponse> oneOf(AccessToken singleton, List<AccessToken> items) {
+		if (singleton == null) {
+			if (items == null) {
+				return null;
+			} else {
+				// multi token
+				return MultipleAwareField.of(
+					items.stream()
+						.map(AccessTokenResponse::of)
+						.collect(Collectors.toList()));
+			}
+		} else {
+			if (items == null) {
+				// single token
+				return MultipleAwareField.of(AccessTokenResponse.of(singleton));
+			} else {
+				// error, can't have both single and multi
+				throw new IllegalArgumentException("Found both single and multi values for field");
+			}
+		}
+	}
+
 
 }

@@ -1,19 +1,32 @@
 package io.bspk.oauth.xyz.data.api;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonValue;
-import com.google.common.base.Strings;
+import com.fasterxml.jackson.databind.PropertyNamingStrategy;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.fasterxml.jackson.databind.annotation.JsonNaming;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+
+import io.bspk.oauth.xyz.json.HandleAwareFieldDeserializer;
+import io.bspk.oauth.xyz.json.HandleAwareFieldSerializer;
+import lombok.Data;
+import lombok.experimental.Accessors;
 
 /**
  * @author jricher
  *
  */
-public interface ResourceRequest {
+@Data
+@Accessors(chain = true)
+@JsonNaming(PropertyNamingStrategy.SnakeCaseStrategy.class)
+public class ResourceRequest {
 	public enum TokenFlag {
 		BEARER,
 		SPLIT;
@@ -31,38 +44,21 @@ public interface ResourceRequest {
 
 	}
 
-	boolean isMultiple();
+	@JsonSerialize(contentUsing =  HandleAwareFieldSerializer.class)
+	@JsonDeserialize(contentUsing = HandleAwareFieldDeserializer.class)
+	private List<HandleAwareField<RequestedResource>> access = new ArrayList<>();
+	private String label;
+	private Set<TokenFlag> flags;
 
-	public static SingleTokenResourceRequest ofReferences(String... references) {
-		return new SingleTokenResourceRequest()
+	@JsonIgnore
+	public boolean isBearer() {
+		return flags != null && flags.contains(TokenFlag.BEARER);
+	}
+
+	public static ResourceRequest ofReferences(String... references) {
+		return new ResourceRequest()
 			.setAccess(Arrays.stream(references)
-				.map(r -> new RequestedResource().setHandle(r))
+				.map(r -> HandleAwareField.<RequestedResource>of(r))
 				.collect(Collectors.toList()));
 	}
-
-	public static MultiTokenResourceRequest of (List<SingleTokenResourceRequest> value) {
-		MultiTokenResourceRequest m = new MultiTokenResourceRequest();
-		value.forEach(v -> {
-			if (Strings.isNullOrEmpty(v.getLabel())) {
-				throw new IllegalArgumentException("Access request does not contain required 'label' field");
-			}
-			m.getRequests().add(v);
-		});
-		return m;
-	}
-
-	public static MultiTokenResourceRequest of(Map<String, List<RequestedResource>> value) {
-		MultiTokenResourceRequest m = new MultiTokenResourceRequest();
-		value.forEach((k, v) -> {
-			m.getRequests().add(new SingleTokenResourceRequest()
-				.setAccess(v)
-				.setLabel(k));
-		});
-		return m;
-	}
-
-	public static MultiTokenResourceRequest of (SingleTokenResourceRequest... value) {
-		return of(List.of(value));
-	}
-
 }

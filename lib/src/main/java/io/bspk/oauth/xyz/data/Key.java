@@ -17,6 +17,7 @@ import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.nimbusds.jose.JOSEException;
 import com.nimbusds.jose.jwk.JWK;
 
+import io.bspk.oauth.xyz.data.api.HandleAwareField;
 import io.bspk.oauth.xyz.data.api.KeyRequest;
 import io.bspk.oauth.xyz.json.JWKDeserializer;
 import io.bspk.oauth.xyz.json.JWKSerializer;
@@ -66,12 +67,18 @@ public class Key {
 	private URI did;
 
 
-	public static Key of(KeyRequest request) {
+	public static Key of(HandleAwareField<KeyRequest> request) {
+
+		if (request.isHandled()) {
+			// TODO: dereference keys using a service
+			return null;
+		}
+
 		return new Key()
-			.setProof(request.getProof())
-			.setCert(request.getCert())
-			.setDid(request.getDid())
-			.setJwk(request.getJwk());
+			.setProof(request.asValue().getProof())
+			.setCert(request.asValue().getCert())
+			.setDid(request.asValue().getDid())
+			.setJwk(request.asValue().getJwk());
 	}
 
 	public String getHash() {

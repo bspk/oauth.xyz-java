@@ -12,9 +12,8 @@ import com.fasterxml.jackson.databind.PropertyNamingStrategy;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
 
 import io.bspk.oauth.xyz.crypto.Hash.HashMethod;
+import io.bspk.oauth.xyz.data.api.AccessTokenResponse;
 import io.bspk.oauth.xyz.data.api.InteractResponse;
-import io.bspk.oauth.xyz.data.api.MultiAccessTokenResponse;
-import io.bspk.oauth.xyz.data.api.SingleAccessTokenResponse;
 import io.bspk.oauth.xyz.data.api.TransactionContinueRequest;
 import io.bspk.oauth.xyz.data.api.TransactionRequest;
 import io.bspk.oauth.xyz.data.api.TransactionResponse;
@@ -83,9 +82,9 @@ public class PendingTransaction {
 			if (response.getCont().getAccessToken() != null) {
 				setContinueToken(response.getCont().getAccessToken().getValue());
 
-				// set the key if an explicit one is given
-				if (!response.getCont().getAccessToken().getKey().isClientKey()) {
-					setKey(response.getCont().getAccessToken().getKey().getKey());
+				// set the key if an explicit one is given, otherwise keep what we have
+				if (response.getCont().getAccessToken().getKey() != null) {
+					setKey(response.getCont().getAccessToken().getKey());
 				}
 			}
 
@@ -99,32 +98,38 @@ public class PendingTransaction {
 
 		if (response.getAccessToken() != null) {
 			if (response.getAccessToken().isMultiple()) {
-				MultiAccessTokenResponse tokenResponses = (MultiAccessTokenResponse) response.getAccessToken();
+				List<AccessTokenResponse> tokenResponses = response.getAccessToken().asMultiple();
 
-				setMultipleAccessTokens(tokenResponses.getResponses().stream()
+				setMultipleAccessTokens(tokenResponses.stream()
 					.collect(Collectors.toMap(
 						t -> t.getLabel(),
 						t -> t.getValue())));
 
-				setMultipleAccessTokenKeys(tokenResponses.getResponses().stream()
+				setMultipleAccessTokenKeys(tokenResponses.stream()
 					.collect(Collectors.toMap(
 						t -> t.getLabel(),
 						t -> {
-							BoundKey k = t.getKey();
-							if (k.isClientKey()) {
-								return getKey();
+							if (t.isBound()) {
+								if (t.getKey() == null) {
+									// the token is bound but there's no other key, use the client's key
+									return getKey();
+								} else {
+									return t.getKey();
+								}
 							} else {
-								return k.getKey();
+								return null;
 							}
 						}
 						)));
 			} else {
-				SingleAccessTokenResponse tokenResponse = (SingleAccessTokenResponse) response.getAccessToken();
+				AccessTokenResponse tokenResponse = response.getAccessToken().asSingle();
 				setAccessToken(tokenResponse.getValue());
-				if (tokenResponse.getKey().isClientKey()) {
-					setAccessTokenKey(getKey());
-				} else if (tokenResponse.getKey().getKey() != null) {
-					setAccessTokenKey(tokenResponse.getKey().getKey());
+				if (tokenResponse.isBound()) {
+					if (tokenResponse.getKey() != null) {
+						setAccessTokenKey(getKey());
+					} else {
+						setAccessTokenKey(tokenResponse.getKey());
+					}
 				}
 			}
 		}

@@ -5,7 +5,6 @@ import com.fasterxml.jackson.databind.annotation.JsonNaming;
 
 import io.bspk.oauth.xyz.data.AssertionType;
 import lombok.Data;
-import lombok.EqualsAndHashCode;
 import lombok.experimental.Accessors;
 
 /**
@@ -13,10 +12,9 @@ import lombok.experimental.Accessors;
  *
  */
 @Data
-@EqualsAndHashCode(callSuper = true)
 @Accessors(chain = true)
 @JsonNaming(PropertyNamingStrategy.SnakeCaseStrategy.class)
-public class UserRequest extends HandleReplaceable<UserRequest> {
+public class UserRequest {
 
 	private String assertion;
 	private AssertionType type;
