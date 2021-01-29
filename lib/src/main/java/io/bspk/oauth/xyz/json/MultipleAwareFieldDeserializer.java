@@ -30,7 +30,7 @@ public class MultipleAwareFieldDeserializer<T> extends StdDeserializer<MultipleA
 
 	@Getter
 	@Setter
-    private JavaType valueType;
+	private JavaType valueType;
 
 	@Getter
 	@Setter

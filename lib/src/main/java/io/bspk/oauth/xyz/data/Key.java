@@ -14,7 +14,6 @@ import com.fasterxml.jackson.databind.PropertyNamingStrategy;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
-import com.nimbusds.jose.JOSEException;
 import com.nimbusds.jose.jwk.JWK;
 
 import io.bspk.oauth.xyz.data.api.HandleAwareField;
@@ -78,30 +77,17 @@ public class Key {
 			return null;
 		}
 
-		return new Key()
-			.setProof(request.asValue().getProof())
-			.setCert(request.asValue().getCert())
-			.setDid(request.asValue().getDid())
-			.setJwk(request.asValue().getJwk());
-	}
+		KeyRequest kr = request.asValue();
 
-	public String getHash() {
-		if (getJwk() != null) {
-			try {
-				return getJwk().computeThumbprint().toString();
-			} catch (JOSEException e) {
-				log.error("Couldn't compute thumbprint.", e);
-				return null;
-			}
-		} else if (getCert() != null) {
-			// TODO: calculate cert thumbprint
-			return null;
-		} else {
-			// couldn't find key to thumbprint
+		if (kr == null) {
 			return null;
 		}
+
+		return new Key()
+			.setProof(kr.getProof())
+			.setCert(kr.getCert())
+			.setDid(kr.getDid())
+			.setJwk(kr.getJwk());
 	}
-
-
 }
 
