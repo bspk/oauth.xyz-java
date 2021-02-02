@@ -4,12 +4,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 import com.fasterxml.jackson.databind.PropertyNamingStrategy;
-import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
-import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 
-import io.bspk.oauth.xyz.json.MultipleAwareFieldDeserializer;
-import io.bspk.oauth.xyz.json.MultipleAwareFieldSerializer;
 import lombok.AccessLevel;
 import lombok.Data;
 import lombok.Getter;
@@ -23,8 +19,6 @@ import lombok.experimental.Accessors;
 @Data
 @Accessors(chain = true)
 @JsonNaming(PropertyNamingStrategy.SnakeCaseStrategy.class)
-@JsonSerialize(using =  MultipleAwareFieldSerializer.class)
-@JsonDeserialize(using = MultipleAwareFieldDeserializer.class)
 public class MultipleAwareField<T> {
 
 	@Setter(AccessLevel.PRIVATE)
@@ -32,7 +26,7 @@ public class MultipleAwareField<T> {
 
 	@Getter(AccessLevel.PRIVATE)
 	@Setter(AccessLevel.PRIVATE)
-	private List<T> data = new ArrayList<>();
+	private ArrayList<T> data = new ArrayList<>();
 
 	public T asSingle() {
 		if (isMultiple()) {
@@ -44,7 +38,8 @@ public class MultipleAwareField<T> {
 
 	public List<T> asMultiple() {
 		if (isMultiple()) {
-			return data;
+			// don't give direct access to manipulate the list
+			return (List<T>) data.clone();
 		} else {
 			throw new IllegalArgumentException();
 		}

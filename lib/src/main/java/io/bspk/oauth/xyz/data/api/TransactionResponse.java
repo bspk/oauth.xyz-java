@@ -1,8 +1,6 @@
 package io.bspk.oauth.xyz.data.api;
 
-import java.util.List;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Value;
 
@@ -13,7 +11,6 @@ import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 
-import io.bspk.oauth.xyz.data.AccessToken;
 import io.bspk.oauth.xyz.data.Capability;
 import io.bspk.oauth.xyz.data.Subject;
 import io.bspk.oauth.xyz.data.Transaction;
@@ -67,7 +64,7 @@ public class TransactionResponse {
 	public static TransactionResponse of(Transaction t, String instanceId, String continueUri) {
 
 		return new TransactionResponse()
-			.setAccessToken(oneOf(t.getAccessToken(), t.getMultipleAccessTokens()))
+			.setAccessToken(AccessTokenResponse.of(t.getAccessToken()))
 			.setInteract(InteractResponse.of(t.getInteract()))
 			.setCont(new ContinueResponse()
 				.setAccessToken(AccessTokenResponse.of(t.getContinueAccessToken()))
@@ -77,28 +74,5 @@ public class TransactionResponse {
 			.setCapabilities(t.getCapabilities());
 
 	}
-
-	private static MultipleAwareField<AccessTokenResponse> oneOf(AccessToken singleton, List<AccessToken> items) {
-		if (singleton == null) {
-			if (items == null) {
-				return null;
-			} else {
-				// multi token
-				return MultipleAwareField.of(
-					items.stream()
-						.map(AccessTokenResponse::of)
-						.collect(Collectors.toList()));
-			}
-		} else {
-			if (items == null) {
-				// single token
-				return MultipleAwareField.of(AccessTokenResponse.of(singleton));
-			} else {
-				// error, can't have both single and multi
-				throw new IllegalArgumentException("Found both single and multi values for field");
-			}
-		}
-	}
-
 
 }

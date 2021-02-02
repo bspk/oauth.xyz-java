@@ -126,9 +126,9 @@ public class PendingTransaction {
 				setAccessToken(tokenResponse.getValue());
 				if (tokenResponse.isBound()) {
 					if (tokenResponse.getKey() != null) {
-						setAccessTokenKey(getKey());
-					} else {
 						setAccessTokenKey(tokenResponse.getKey());
+					} else {
+						setAccessTokenKey(getKey());
 					}
 				}
 			}

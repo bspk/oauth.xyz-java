@@ -3,8 +3,6 @@ package io.bspk.oauth.xyz.json;
 import java.io.IOException;
 import java.util.List;
 
-import org.springframework.boot.jackson.JsonComponent;
-
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -25,7 +23,6 @@ import lombok.Setter;
  * @author jricher
  *
  */
-@JsonComponent
 public class MultipleAwareFieldDeserializer<T> extends StdDeserializer<MultipleAwareField<T>>  implements ContextualDeserializer {
 
 	@Getter

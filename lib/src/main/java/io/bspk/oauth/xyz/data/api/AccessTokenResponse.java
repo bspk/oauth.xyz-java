@@ -3,6 +3,7 @@ package io.bspk.oauth.xyz.data.api;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import com.fasterxml.jackson.databind.PropertyNamingStrategy;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
@@ -48,6 +49,20 @@ public class AccessTokenResponse {
 					: null);
 		} else {
 			return null;
+		}
+	}
+
+	public static MultipleAwareField<AccessTokenResponse> of (MultipleAwareField<AccessToken> t) {
+		if (t == null) {
+			return null;
+		} else if (t.isMultiple()) {
+			return MultipleAwareField.of(
+				t.asMultiple().stream()
+					.map(AccessTokenResponse::of)
+					.collect(Collectors.toList()));
+		} else {
+			return MultipleAwareField.of(
+				AccessTokenResponse.of(t.asSingle()));
 		}
 	}
 }

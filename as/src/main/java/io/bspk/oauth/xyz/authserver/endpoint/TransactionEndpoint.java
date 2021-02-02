@@ -382,7 +382,7 @@ public class TransactionEndpoint {
 							.setAccessRequest(req.getAccess()));
 				}
 			}
-			t.setMultipleAccessTokens(tokens);
+			t.setAccessToken(tokens);
 		} else {
 			// otherwise set a single access token bound to the client's key
 			ResourceRequest req = t.getResourceRequest().asSingle();
