@@ -1,4 +1,4 @@
-package io.bspk.oauth.xyz.data.api;
+package io.bspk.oauth.xyz.authserver.data.api;
 
 import com.fasterxml.jackson.databind.PropertyNamingStrategy;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
@@ -13,8 +13,8 @@ import lombok.experimental.Accessors;
 @Data
 @Accessors(chain = true)
 @JsonNaming(PropertyNamingStrategy.SnakeCaseStrategy.class)
-public class ApprovalRequest {
+public class UserInteractionFormSubmission {
 
-	private boolean approved;
+	private String userCode;
 
 }

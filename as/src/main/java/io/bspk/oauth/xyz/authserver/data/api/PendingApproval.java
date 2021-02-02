@@ -1,8 +1,9 @@
-package io.bspk.oauth.xyz.data;
+package io.bspk.oauth.xyz.authserver.data.api;
 
 import com.fasterxml.jackson.databind.PropertyNamingStrategy;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
 
+import io.bspk.oauth.xyz.data.Transaction;
 import lombok.Data;
 import lombok.experimental.Accessors;
 
