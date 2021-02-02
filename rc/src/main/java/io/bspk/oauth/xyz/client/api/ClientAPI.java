@@ -471,23 +471,46 @@ public class ClientAPI {
 			.noContent().build();
 	}
 
-	@PostMapping("/use/{id}")
-	public ResponseEntity<?> useToken(@PathVariable("id") String id, HttpSession session) {
+	@PostMapping(value = {"/use/{id}", "/use/{id}/{token}"})
+	public ResponseEntity<?> useToken(@PathVariable("id") String id,
+		@PathVariable(name="token", required = false) String tokenId,
+		HttpSession session) {
+
 		Optional<PendingTransaction> maybe = pendingTransactionRepository.findFirstByIdAndOwner(id, session.getId());
 
 		if (maybe.isPresent()) {
 			PendingTransaction pending = maybe.get();
 
-			if (Strings.isNullOrEmpty(pending.getAccessToken())) {
+			if (Strings.isNullOrEmpty(pending.getAccessToken())
+				&& pending.getMultipleAccessTokens().isEmpty()) {
 				return ResponseEntity.badRequest().build();
 			}
 
-			String token = pending.getAccessToken();
-			Key key = pending.getAccessTokenKey();
+			String token = null;
+			Key key = null;
+			if (!Strings.isNullOrEmpty(tokenId)) {
+				token = pending.getMultipleAccessTokens().get(tokenId);
+				key = pending.getMultipleAccessTokenKeys().get(tokenId);
+
+			} else {
+				token = pending.getAccessToken();
+				key = pending.getAccessTokenKey();
+			}
+
+			if (token == null) {
+				return ResponseEntity.badRequest().build();
+			}
 
 			RestTemplate restTemplate = requestSigners.getSignerFor(key, token);
 
-			ResponseEntity<?> entity = restTemplate.getForEntity(rsEndpoint, Map.class);
+			ResponseEntity<?> entity = restTemplate.getForEntity(rsEndpoint, String.class);
+
+			if (!Strings.isNullOrEmpty(tokenId)) {
+				pending.getMultipleRsResponse().put(tokenId, entity.getBody().toString());
+			} else {
+				pending.setRsResponse(entity.getBody().toString());
+			}
+			pendingTransactionRepository.save(pending);
 
 			return ResponseEntity.ok(entity);
 

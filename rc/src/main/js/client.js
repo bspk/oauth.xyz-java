@@ -104,13 +104,22 @@ class Client extends React.Component {
 		});
 	}
 	
-	use = (transactionId) => () => {
-		http({
-			method: 'POST',
-			path: '/api/client/use/' + encodeURIComponent(transactionId)
-		}).done(response => {
-			this.loadPending();
-		});
+	use = (transactionId, tokenId) => () => {
+		if (tokenId) {
+			http({
+				method: 'POST',
+				path: '/api/client/use/' + encodeURIComponent(transactionId) + '/' + encodeURIComponent(tokenId)
+			}).done(response => {
+				this.loadPending();
+			});
+		} else {
+			http({
+				method: 'POST',
+				path: '/api/client/use/' + encodeURIComponent(transactionId)
+			}).done(response => {
+				this.loadPending();
+			});
+		}
 	}
 
 
@@ -155,7 +164,7 @@ class PendingTransaction extends React.Component{
 				<CardHeader>
 					<Button color="info" onClick={this.props.poll(this.props.transaction.id)}>Poll</Button>
 					<Button color="danger" onClick={this.props.cancel(this.props.transaction.id)}>Cancel</Button>
-					<Button color="success" onClick={this.props.use(this.props.transaction.id)}>Use</Button>
+					<UseButtons transaction={this.props.transaction} use={this.props.use} />
 				</CardHeader>
 				<CardBody>
 					<PendingTransactionEntry transaction={this.props.transaction} />
@@ -163,6 +172,30 @@ class PendingTransaction extends React.Component{
 			</Card>
 		);
 	}
+}
+
+const UseButtons = ({...props}) => {
+
+		if (props.transaction.access_token) {
+			return (
+				<Button color="success" onClick={props.use(props.transaction.id)}>Use</Button>
+			);
+		}
+		
+		if (props.transaction.multiple_access_tokens) {
+			const tokens = Object.keys(props.transaction.multiple_access_tokens)
+			.filter(k => props.transaction.multiple_access_tokens[k])
+			.map(k => (
+				<Button key={k} color="success" onClick={props.use(props.transaction.id, k)}>Use {k}</Button>
+			));
+			
+			return(
+				<>
+					{tokens}
+				</>
+			);
+		}
+
 }
 
 class PendingTransactionEntry extends React.Component {
@@ -173,7 +206,7 @@ class PendingTransactionEntry extends React.Component {
 			elements.push(
 				...[
 					<dt key="token-label" className="col-sm-3">Token</dt>,
-					<dd key="token-value" className="col-sm-9"><AccessToken token={this.props.transaction.access_token} /></dd>
+					<dd key="token-value" className="col-sm-9"><AccessToken token={this.props.transaction.access_token} rs={this.props.transaction.rs_response} /></dd>
 				]
 			);
 		}
@@ -182,10 +215,10 @@ class PendingTransactionEntry extends React.Component {
 			const tokens = Object.keys(this.props.transaction.multiple_access_tokens)
 			.filter(k => this.props.transaction.multiple_access_tokens[k])
 			.map(k => (
-				<>
-					<b>{k}</b>: <AccessToken token={this.props.transaction.multiple_access_tokens[k]} />
+				<span key={k}>
+					<b>{k}</b>: <AccessToken token={this.props.transaction.multiple_access_tokens[k]} rs={this.props.transaction.multiple_rs_response[k]} />
 					<br/>
-				</>
+				</span>
 			));
 			//debugger;
 			elements.push(
@@ -267,9 +300,18 @@ class AccessToken extends React.Component {
 	render() {
 		
 		if (this.props.token) {
-			return (
-				<Badge color="info" pill>{this.props.token}</Badge>
-			);
+			if (this.props.rs) {
+				return (
+					<>
+						<Badge color="info" pill>{this.props.token}</Badge>
+						<code>{this.props.rs}</code>
+					</>
+				);
+			} else {
+				return (
+					<Badge color="info" pill>{this.props.token}</Badge>
+				);
+			}
 		} else {
 			return null;
 		}

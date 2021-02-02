@@ -1,6 +1,8 @@
 package io.bspk.oauth.xyz.data;
 
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -52,11 +54,13 @@ public class PendingTransaction {
 	private String continueToken;
 	private String accessToken;
 	private Key accessTokenKey;
+	private String rsResponse;
 	private String userCode;
 	private String userCodeUrl;
 	private String interactionUrl;
-	private Map<String, String> multipleAccessTokens;
-	private Map<String, Key> multipleAccessTokenKeys;
+	private Map<String, String> multipleAccessTokens = Collections.emptyMap();
+	private Map<String, Key> multipleAccessTokenKeys = Collections.emptyMap();
+	private Map<String, String> multipleRsResponse = new HashMap<>();
 
 	public PendingTransaction add (TransactionResponse response) {
 		entries.add(new Entry().setResponse(response));

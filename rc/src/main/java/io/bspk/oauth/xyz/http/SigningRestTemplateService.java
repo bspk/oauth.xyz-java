@@ -364,7 +364,13 @@ public class SigningRestTemplateService {
 				String requestTarget = request.getMethodValue().toLowerCase() + " " + request.getURI().getRawPath();
 				signatureBlock.put("(request-target)", requestTarget);
 
-				List<String> headersToSign = Lists.newArrayList("Host", "Date", "Digest", "Content-length");
+				List<String> headersToSign = Lists.newArrayList("Host", "Date", "Digest");
+
+				if (request.getMethod() == HttpMethod.PUT ||
+					request.getMethod() == HttpMethod.PATCH ||
+					request.getMethod() == HttpMethod.POST) {
+					headersToSign.add("Content-Length");
+				}
 
 				if (hasAccessToken()) {
 					headersToSign.add("Authorization");

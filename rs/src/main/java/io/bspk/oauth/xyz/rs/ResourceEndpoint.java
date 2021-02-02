@@ -121,7 +121,8 @@ public class ResourceEndpoint {
 
 		Map<String, Object> res = ImmutableMap.of(
 			"date", Instant.now(),
-			"access", t.getResourceRequest(),
+			"overall_access", t.getResourceRequest(),
+			"token_access", token.getAccessRequest(),
 			"proof", Optional.ofNullable(k)
 				.map(Key::getProof)
 				.map(Proof::name).orElse("bearer")
