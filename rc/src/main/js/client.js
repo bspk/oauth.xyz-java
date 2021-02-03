@@ -176,25 +176,25 @@ class PendingTransaction extends React.Component{
 
 const UseButtons = ({...props}) => {
 
-		if (props.transaction.access_token) {
-			return (
-				<Button color="success" onClick={props.use(props.transaction.id)}>Use</Button>
-			);
-		}
+	if (props.transaction.access_token) {
+		return (
+			<Button color="success" onClick={props.use(props.transaction.id)}>Use</Button>
+		);
+	} else if (props.transaction.multiple_access_tokens) {
+		const tokens = Object.keys(props.transaction.multiple_access_tokens)
+		.filter(k => props.transaction.multiple_access_tokens[k])
+		.map(k => (
+			<Button key={k} color="success" onClick={props.use(props.transaction.id, k)}>Use {k}</Button>
+		));
 		
-		if (props.transaction.multiple_access_tokens) {
-			const tokens = Object.keys(props.transaction.multiple_access_tokens)
-			.filter(k => props.transaction.multiple_access_tokens[k])
-			.map(k => (
-				<Button key={k} color="success" onClick={props.use(props.transaction.id, k)}>Use {k}</Button>
-			));
-			
-			return(
-				<>
-					{tokens}
-				</>
-			);
-		}
+		return(
+			<>
+				{tokens}
+			</>
+		);
+	} else {
+		return null;
+	}
 
 }
 
@@ -216,7 +216,7 @@ class PendingTransactionEntry extends React.Component {
 			.filter(k => this.props.transaction.multiple_access_tokens[k])
 			.map(k => (
 				<span key={k}>
-					<b>{k}</b>: <AccessToken token={this.props.transaction.multiple_access_tokens[k]} rs={this.props.transaction.multiple_rs_response[k]} />
+					<b>{k}</b>: <AccessToken token={this.props.transaction.multiple_access_tokens[k]} rs={this.props.transaction.multiple_rs_response ? this.props.transaction.multiple_rs_response[k] : null} />
 					<br/>
 				</span>
 			));
@@ -229,26 +229,6 @@ class PendingTransactionEntry extends React.Component {
 			);
 		}
 
-		/*
-		if (this.props.entry.response.claims) {
-			const claims = Object.keys(this.props.entry.response.claims)
-			.filter(k => this.props.entry.response.claims[k])
-			.map(k => (
-				<>
-					<b>{k}</b>: <em>{this.props.entry.response.claims[k]}</em>
-					<br/>
-				</>
-			));
-			//debugger;
-			elements.push(
-				...[
-					<dt key="claims-label" className="col-sm-3">Claims</dt>,
-					<dd key="claims-value" className="col-sm-9">{claims}</dd>
-				]
-			);
-		}
-		*/
-		
 		if (this.props.transaction.continue_token) {
 			elements.push(
 				...[

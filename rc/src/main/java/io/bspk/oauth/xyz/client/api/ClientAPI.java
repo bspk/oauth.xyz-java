@@ -506,7 +506,7 @@ public class ClientAPI {
 			ResponseEntity<?> entity = restTemplate.getForEntity(rsEndpoint, String.class);
 
 			if (!Strings.isNullOrEmpty(tokenId)) {
-				pending.getMultipleRsResponse().put(tokenId, entity.getBody().toString());
+				pending.setMultipleRsResponse(tokenId, entity.getBody().toString());
 			} else {
 				pending.setRsResponse(entity.getBody().toString());
 			}
