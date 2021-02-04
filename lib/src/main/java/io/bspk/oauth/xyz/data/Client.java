@@ -25,7 +25,6 @@ public class Client {
 
 	public static Client of(ClientRequest req) {
 		return new Client()
-			.setInstanceId(req.getInstanceId())
 			.setKey(Key.of(req.getKey()))
 			.setDisplay(Display.of(req.getDisplay()));
 	}

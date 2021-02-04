@@ -1,20 +1,27 @@
 package io.bspk.oauth.xyz.data;
 
-import java.util.Map;
+import java.util.List;
 import java.util.Set;
 
 import org.springframework.data.annotation.Id;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonValue;
 import com.fasterxml.jackson.databind.PropertyNamingStrategy;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 
+import io.bspk.oauth.xyz.data.api.MultipleAwareField;
 import io.bspk.oauth.xyz.data.api.ResourceRequest;
 import io.bspk.oauth.xyz.data.api.SubjectRequest;
+import io.bspk.oauth.xyz.json.MultipleAwareFieldDeserializer;
+import io.bspk.oauth.xyz.json.MultipleAwareFieldSerializer;
 import lombok.Data;
 import lombok.NonNull;
 import lombok.experimental.Accessors;
+import lombok.experimental.Tolerate;
 
 /**
  * @author jricher
@@ -52,14 +59,30 @@ public class Transaction {
 	private Interact interact;
 	private String interactHandle;
 	private AccessToken continueAccessToken;
-	private AccessToken accessToken;
-	private Map<String, AccessToken> multipleAccessTokens;
+	@JsonSerialize(using = MultipleAwareFieldSerializer.class)
+	@JsonDeserialize(using = MultipleAwareFieldDeserializer.class)
+	private MultipleAwareField<AccessToken> accessToken;
 	private @NonNull Status status = Status.NEW;
 	private Key key;
 	private Subject subject;
 	private SubjectRequest subjectRequest;
-	private ResourceRequest resourceRequest;
+	@JsonSerialize(using = MultipleAwareFieldSerializer.class)
+	@JsonDeserialize(using = MultipleAwareFieldDeserializer.class)
+	private MultipleAwareField<ResourceRequest> resourceRequest;
 	private Set<Capability> capabilitiesRequest;
 	private Set<Capability> capabilities;
+
+	@JsonIgnore
+	@Tolerate
+	public Transaction setAccessToken(AccessToken t) {
+		return setAccessToken(MultipleAwareField.of(t));
+	}
+
+	@JsonIgnore
+	@Tolerate
+	public Transaction setAccessToken(List<AccessToken> t) {
+		return setAccessToken(MultipleAwareField.of(t));
+	}
+
 
 }

@@ -23,10 +23,10 @@ import com.google.common.collect.ImmutableMap;
 
 import io.bspk.oauth.xyz.crypto.SignatureVerifier;
 import io.bspk.oauth.xyz.data.AccessToken;
-import io.bspk.oauth.xyz.data.BoundKey;
 import io.bspk.oauth.xyz.data.Key;
 import io.bspk.oauth.xyz.data.Key.Proof;
 import io.bspk.oauth.xyz.data.Transaction;
+import io.bspk.oauth.xyz.data.api.MultipleAwareField;
 
 /**
  * @author jricher
@@ -57,34 +57,45 @@ public class ResourceEndpoint {
 			return ResponseEntity.notFound().build();
 		}
 
-		Transaction t = tokenRepository.findFirstByAccessTokenValue(tokenValue);
+		Transaction t = tokenRepository.findFirstByAccessTokenDataValue(tokenValue);
 
 		if (t == null || t.getAccessToken() == null) {
 			return ResponseEntity.badRequest().build();
 		}
 
+		// get the specificToken
+		MultipleAwareField<AccessToken> tokens = t.getAccessToken();
+		AccessToken token = null;
+		if (tokens.isMultiple()) {
+			token = tokens.asMultiple().stream()
+				.filter(v -> v.getValue().equals(tokenValue))
+				.findFirst()
+				.orElse(null);
+		} else {
+			token = tokens.asSingle();
+		}
+
 		// find the validation method for the token
-		AccessToken token = t.getAccessToken();
-		BoundKey k = token.getKey();
-		if (k != null && k.getKey() != null) {
+		Key k = token.getKey();
+		if (k != null) {
 			// if there's a key then it's not a bearer token
-			if (k.getKey().getProof() == null) {
+			if (k.getProof() == null) {
 				// no proof method? shouldn't happen
 				return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
 			} else {
-				switch (k.getKey().getProof()) {
+				switch (k.getProof()) {
 					case HTTPSIG:
 						SignatureVerifier.ensureDigest(digest, req); // make sure the digest header is accurate
-						SignatureVerifier.checkCavageSignature(signature, req, t.getKey().getJwk());
+						SignatureVerifier.checkCavageSignature(signature, req, k.getJwk());
 						break;
 					case JWSD:
-						SignatureVerifier.checkDetachedJws(jwsd, req, t.getKey().getJwk());
+						SignatureVerifier.checkDetachedJws(jwsd, req, k.getJwk());
 						break;
 					case DPOP:
-						SignatureVerifier.checkDpop(dpop, req, t.getKey().getJwk());
+						SignatureVerifier.checkDpop(dpop, req, k.getJwk());
 						break;
 					case OAUTHPOP:
-						SignatureVerifier.checkOAuthPop(oauthPop, req, t.getKey().getJwk());
+						SignatureVerifier.checkOAuthPop(oauthPop, req, k.getJwk());
 						break;
 					case JWS:
 						if (req.getMethod().equals(HttpMethod.GET.toString())
@@ -94,9 +105,9 @@ public class ResourceEndpoint {
 							|| req.getMethod().equals(HttpMethod.TRACE.toString())) {
 
 							// a body-less method was used, check the header instead
-							SignatureVerifier.checkDetachedJws(jwsd, req, t.getKey().getJwk());
+							SignatureVerifier.checkDetachedJws(jwsd, req, k.getJwk());
 						} else {
-							SignatureVerifier.checkAttachedJws(req, t.getKey().getJwk());
+							SignatureVerifier.checkAttachedJws(req, k.getJwk());
 						}
 						break;
 					case MTLS:
@@ -110,9 +121,9 @@ public class ResourceEndpoint {
 
 		Map<String, Object> res = ImmutableMap.of(
 			"date", Instant.now(),
-			"access", t.getResourceRequest(),
+			"overall_access", t.getResourceRequest(),
+			"token_access", token.getAccessRequest(),
 			"proof", Optional.ofNullable(k)
-				.map(BoundKey::getKey)
 				.map(Key::getProof)
 				.map(Proof::name).orElse("bearer")
 		);

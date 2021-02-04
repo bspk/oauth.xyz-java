@@ -10,6 +10,6 @@ import io.bspk.oauth.xyz.data.Transaction;
  */
 public interface TokenRepository extends CrudRepository<Transaction, String> {
 
-	Transaction findFirstByAccessTokenValue(String value);
+	Transaction findFirstByAccessTokenDataValue(String value);
 
 }

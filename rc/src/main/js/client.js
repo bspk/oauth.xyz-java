@@ -104,13 +104,22 @@ class Client extends React.Component {
 		});
 	}
 	
-	use = (transactionId) => () => {
-		http({
-			method: 'POST',
-			path: '/api/client/use/' + encodeURIComponent(transactionId)
-		}).done(response => {
-			this.loadPending();
-		});
+	use = (transactionId, tokenId) => () => {
+		if (tokenId) {
+			http({
+				method: 'POST',
+				path: '/api/client/use/' + encodeURIComponent(transactionId) + '/' + encodeURIComponent(tokenId)
+			}).done(response => {
+				this.loadPending();
+			});
+		} else {
+			http({
+				method: 'POST',
+				path: '/api/client/use/' + encodeURIComponent(transactionId)
+			}).done(response => {
+				this.loadPending();
+			});
+		}
 	}
 
 
@@ -155,7 +164,7 @@ class PendingTransaction extends React.Component{
 				<CardHeader>
 					<Button color="info" onClick={this.props.poll(this.props.transaction.id)}>Poll</Button>
 					<Button color="danger" onClick={this.props.cancel(this.props.transaction.id)}>Cancel</Button>
-					<Button color="success" onClick={this.props.use(this.props.transaction.id)}>Use</Button>
+					<UseButtons transaction={this.props.transaction} use={this.props.use} />
 				</CardHeader>
 				<CardBody>
 					<PendingTransactionEntry transaction={this.props.transaction} />
@@ -165,6 +174,30 @@ class PendingTransaction extends React.Component{
 	}
 }
 
+const UseButtons = ({...props}) => {
+
+	if (props.transaction.access_token) {
+		return (
+			<Button color="success" onClick={props.use(props.transaction.id)}>Use</Button>
+		);
+	} else if (props.transaction.multiple_access_tokens) {
+		const tokens = Object.keys(props.transaction.multiple_access_tokens)
+		.filter(k => props.transaction.multiple_access_tokens[k])
+		.map(k => (
+			<Button key={k} color="success" onClick={props.use(props.transaction.id, k)}>Use {k}</Button>
+		));
+		
+		return(
+			<>
+				{tokens}
+			</>
+		);
+	} else {
+		return null;
+	}
+
+}
+
 class PendingTransactionEntry extends React.Component {
 	render() {
 		const elements = [];
@@ -172,8 +205,8 @@ class PendingTransactionEntry extends React.Component {
 		if (this.props.transaction.access_token) {
 			elements.push(
 				...[
-					<dt className="col-sm-3">Token</dt>,
-					<dd className="col-sm-9"><AccessToken token={this.props.transaction.access_token} /></dd>
+					<dt key="token-label" className="col-sm-3">Token</dt>,
+					<dd key="token-value" className="col-sm-9"><AccessToken token={this.props.transaction.access_token} rs={this.props.transaction.rs_response} /></dd>
 				]
 			);
 		}
@@ -182,45 +215,25 @@ class PendingTransactionEntry extends React.Component {
 			const tokens = Object.keys(this.props.transaction.multiple_access_tokens)
 			.filter(k => this.props.transaction.multiple_access_tokens[k])
 			.map(k => (
-				<>
-					<b>{k}</b>: <AccessToken token={this.props.transaction.multiple_access_tokens[k]} />
+				<span key={k}>
+					<b>{k}</b>: <AccessToken token={this.props.transaction.multiple_access_tokens[k]} rs={this.props.transaction.multiple_rs_response ? this.props.transaction.multiple_rs_response[k] : null} />
 					<br/>
-				</>
+				</span>
 			));
 			//debugger;
 			elements.push(
 				...[
-					<dt className="col-sm-3">Multiple Tokens</dt>,
-					<dd className="col-sm-9">{tokens}</dd>
+					<dt key="multi-token-label" className="col-sm-3">Multiple Tokens</dt>,
+					<dd key="multi-token-value" className="col-sm-9">{tokens}</dd>
 				]
 			);
 		}
 
-		/*
-		if (this.props.entry.response.claims) {
-			const claims = Object.keys(this.props.entry.response.claims)
-			.filter(k => this.props.entry.response.claims[k])
-			.map(k => (
-				<>
-					<b>{k}</b>: <em>{this.props.entry.response.claims[k]}</em>
-					<br/>
-				</>
-			));
-			//debugger;
-			elements.push(
-				...[
-					<dt className="col-sm-3">Claims</dt>,
-					<dd className="col-sm-9">{claims}</dd>
-				]
-			);
-		}
-		*/
-		
 		if (this.props.transaction.continue_token) {
 			elements.push(
 				...[
-					<dt className="col-sm-3">Continuation Token</dt>,
-					<dd className="col-sm-9">{this.props.transaction.continue_token}</dd>
+					<dt key="continue-label" className="col-sm-3">Continuation Token</dt>,
+					<dd key="continue-value" className="col-sm-9">{this.props.transaction.continue_token}</dd>
 				]
 			);
 		}
@@ -228,18 +241,18 @@ class PendingTransactionEntry extends React.Component {
 		if (this.props.transaction.user_code) {
 			elements.push(
 				...[
-					<dt className="col-sm-3">User Code URL</dt>,
-					<dd className="col-sm-9"><a href={this.props.transaction.user_code_url}>{this.props.transaction.user_code_url}</a></dd>,
-					<dt className="col-sm-3">User Code</dt>,
-					<dd className="col-sm-9"><UserCode userCode={this.props.transaction.user_code} /></dd>
+					<dt key="code-url-label" className="col-sm-3">User Code URL</dt>,
+					<dd key="code-url-value" className="col-sm-9"><a href={this.props.transaction.user_code_url}>{this.props.transaction.user_code_url}</a></dd>,
+					<dt key="code-label" className="col-sm-3">User Code</dt>,
+					<dd key="code-value" className="col-sm-9"><UserCode userCode={this.props.transaction.user_code} /></dd>
 				]
 			);
 		}
 		if (this.props.transaction.interaction_url) {
 			elements.push(
 				...[
-					<dt className="col-sm-3">Interaction URL</dt>,
-					<dd className="col-sm-9"><a href={this.props.transaction.interaction_url}>{this.props.transaction.interaction_url}</a></dd>
+					<dt key="interaction-label" className="col-sm-3">Interaction URL</dt>,
+					<dd key="interaction-value" className="col-sm-9"><a href={this.props.transaction.interaction_url}>{this.props.transaction.interaction_url}</a></dd>
 				]
 			);
 		}
@@ -247,8 +260,8 @@ class PendingTransactionEntry extends React.Component {
 		if (this.props.transaction.interaction_url && this.props.transaction.user_code) {
 			elements.push(
 				...[
-					<dt className="col-sm-3">Scannable Interaction URL</dt>,
-					<dd className="col-sm-9"><QRCode value={this.props.transaction.interaction_url} /></dd>
+					<dt key="qr-label" className="col-sm-3">Scannable Interaction URL</dt>,
+					<dd key="qr-value" className="col-sm-9"><QRCode value={this.props.transaction.interaction_url} /></dd>
 				]
 			);
 		}
@@ -267,9 +280,18 @@ class AccessToken extends React.Component {
 	render() {
 		
 		if (this.props.token) {
-			return (
-				<Badge color="info" pill>{this.props.token}</Badge>
-			);
+			if (this.props.rs) {
+				return (
+					<>
+						<Badge color="info" pill>{this.props.token}</Badge>
+						<code>{this.props.rs}</code>
+					</>
+				);
+			} else {
+				return (
+					<Badge color="info" pill>{this.props.token}</Badge>
+				);
+			}
 		} else {
 			return null;
 		}

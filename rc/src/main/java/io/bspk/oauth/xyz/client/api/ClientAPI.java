@@ -43,10 +43,8 @@ import io.bspk.oauth.xyz.data.api.ClientRequest;
 import io.bspk.oauth.xyz.data.api.DisplayRequest;
 import io.bspk.oauth.xyz.data.api.InteractRequest;
 import io.bspk.oauth.xyz.data.api.KeyRequest;
-import io.bspk.oauth.xyz.data.api.MultiTokenResourceRequest;
 import io.bspk.oauth.xyz.data.api.PushbackRequest;
-import io.bspk.oauth.xyz.data.api.RequestedResource;
-import io.bspk.oauth.xyz.data.api.SingleTokenResourceRequest;
+import io.bspk.oauth.xyz.data.api.ResourceRequest;
 import io.bspk.oauth.xyz.data.api.TransactionContinueRequest;
 import io.bspk.oauth.xyz.data.api.TransactionRequest;
 import io.bspk.oauth.xyz.data.api.TransactionResponse;
@@ -117,7 +115,7 @@ public class ClientAPI {
 					.setUri(callbackBaseUrl + "/" + callbackId)
 					.setNonce(nonce))
 				.setRedirect(true))
-			.setResources(new SingleTokenResourceRequest()
+			.setResources(new ResourceRequest()
 				.setResources(List.of(new RequestedResource().setHandle("foo"))))
 			.setClaims(new SubjectRequest()
 				.setEmail(true)
@@ -138,7 +136,7 @@ public class ClientAPI {
 					.setUri(callbackBaseUrl + "/" + callbackId)
 					.setNonce(nonce))
 				.setRedirect(true))
-			.setResources(SingleTokenResourceRequest.ofReferences(
+			.setAccessToken(ResourceRequest.ofReferences(
 					"openid",
 					"profile",
 					"email",
@@ -151,8 +149,7 @@ public class ClientAPI {
 		// load a known instance ID from this session
 		String instanceId = (String) session.getAttribute(AUTH_CODE_ID);
 		if (!Strings.isNullOrEmpty(instanceId)) {
-			request.setClient(new ClientRequest()
-				.setInstanceId(instanceId));
+			request.setClient(instanceId);
 		} else {
 			request.setClient(new ClientRequest()
 				.setDisplay(new DisplayRequest()
@@ -195,15 +192,13 @@ public class ClientAPI {
 		TransactionRequest request = new TransactionRequest()
 			.setInteract(new InteractRequest()
 				.setUserCode(true))
-			.setResources(new SingleTokenResourceRequest()
-				.setResources(List.of(new RequestedResource().setHandle("foo"))))
+			.setAccessToken(ResourceRequest.ofReferences("foo"))
 			.setUser(new UserRequest());
 
 		// load a known instance ID from this session
 		String instanceId = (String) session.getAttribute(DEVICE_ID);
 		if (!Strings.isNullOrEmpty(instanceId)) {
-			request.setClient(new ClientRequest()
-				.setInstanceId(instanceId));
+			request.setClient(instanceId);
 		} else {
 			request.setClient(new ClientRequest()
 				.setDisplay(new DisplayRequest()
@@ -251,21 +246,17 @@ public class ClientAPI {
 					.setNonce(nonce))
 				.setUserCode(true)
 				.setRedirect(true))
-			.setResources(new MultiTokenResourceRequest()
-				.setRequests(Map.of(
-					"blanktoken", new SingleTokenResourceRequest()
-						.setResources(List.of(new RequestedResource()
-							.setActions(List.of("read", "write", "dolphin")))),
-					"magic", new SingleTokenResourceRequest()
-						.setResources(List.of(new RequestedResource()
-							.setActions(List.of("foo", "bar", "baz")))))))
+			.setAccessToken(
+				ResourceRequest.ofReferences("read", "write", "dolphin")
+					.setLabel("blanktoken"),
+				ResourceRequest.ofReferences("foo", "bar", "baz")
+					.setLabel("magic"))
 			.setUser(new UserRequest());
 
 		// load a known instance ID from this session
 		String instanceId = (String) session.getAttribute(SCANNABLE_ID);
 		if (!Strings.isNullOrEmpty(instanceId)) {
-			request.setClient(new ClientRequest()
-				.setInstanceId(instanceId));
+			request.setClient(instanceId);
 		} else {
 			request.setClient(new ClientRequest()
 				.setDisplay(new DisplayRequest()
@@ -279,7 +270,7 @@ public class ClientAPI {
 			.setInteract(new InteractRequest()
 				.setRedirect(true)
 				.setUserCode(true))
-			.setResources(new SingleTokenResourceRequest()
+			.setResources(new ResourceRequest()
 				.setResources(List.of(
 					new RequestedResource().setHandle("openid"),
 					new RequestedResource().setHandle("profile"),
@@ -480,23 +471,46 @@ public class ClientAPI {
 			.noContent().build();
 	}
 
-	@PostMapping("/use/{id}")
-	public ResponseEntity<?> useToken(@PathVariable("id") String id, HttpSession session) {
+	@PostMapping(value = {"/use/{id}", "/use/{id}/{token}"})
+	public ResponseEntity<?> useToken(@PathVariable("id") String id,
+		@PathVariable(name="token", required = false) String tokenId,
+		HttpSession session) {
+
 		Optional<PendingTransaction> maybe = pendingTransactionRepository.findFirstByIdAndOwner(id, session.getId());
 
 		if (maybe.isPresent()) {
 			PendingTransaction pending = maybe.get();
 
-			if (Strings.isNullOrEmpty(pending.getAccessToken())) {
+			if (Strings.isNullOrEmpty(pending.getAccessToken())
+				&& pending.getMultipleAccessTokens().isEmpty()) {
 				return ResponseEntity.badRequest().build();
 			}
 
-			String token = pending.getAccessToken();
-			Key key = pending.getAccessTokenKey();
+			String token = null;
+			Key key = null;
+			if (!Strings.isNullOrEmpty(tokenId)) {
+				token = pending.getMultipleAccessTokens().get(tokenId);
+				key = pending.getMultipleAccessTokenKeys().get(tokenId);
+
+			} else {
+				token = pending.getAccessToken();
+				key = pending.getAccessTokenKey();
+			}
+
+			if (token == null) {
+				return ResponseEntity.badRequest().build();
+			}
 
 			RestTemplate restTemplate = requestSigners.getSignerFor(key, token);
 
-			ResponseEntity<?> entity = restTemplate.getForEntity(rsEndpoint, Map.class);
+			ResponseEntity<?> entity = restTemplate.getForEntity(rsEndpoint, String.class);
+
+			if (!Strings.isNullOrEmpty(tokenId)) {
+				pending.setMultipleRsResponse(tokenId, entity.getBody().toString());
+			} else {
+				pending.setRsResponse(entity.getBody().toString());
+			}
+			pendingTransactionRepository.save(pending);
 
 			return ResponseEntity.ok(entity);
 

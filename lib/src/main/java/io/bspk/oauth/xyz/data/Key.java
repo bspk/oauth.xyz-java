@@ -14,9 +14,9 @@ import com.fasterxml.jackson.databind.PropertyNamingStrategy;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
-import com.nimbusds.jose.JOSEException;
 import com.nimbusds.jose.jwk.JWK;
 
+import io.bspk.oauth.xyz.data.api.HandleAwareField;
 import io.bspk.oauth.xyz.data.api.KeyRequest;
 import io.bspk.oauth.xyz.json.JWKDeserializer;
 import io.bspk.oauth.xyz.json.JWKSerializer;
@@ -66,31 +66,28 @@ public class Key {
 	private URI did;
 
 
-	public static Key of(KeyRequest request) {
-		return new Key()
-			.setProof(request.getProof())
-			.setCert(request.getCert())
-			.setDid(request.getDid())
-			.setJwk(request.getJwk());
-	}
+	public static Key of(HandleAwareField<KeyRequest> request) {
 
-	public String getHash() {
-		if (getJwk() != null) {
-			try {
-				return getJwk().computeThumbprint().toString();
-			} catch (JOSEException e) {
-				log.error("Couldn't compute thumbprint.", e);
-				return null;
-			}
-		} else if (getCert() != null) {
-			// TODO: calculate cert thumbprint
-			return null;
-		} else {
-			// couldn't find key to thumbprint
+		if (request == null) {
 			return null;
 		}
+
+		if (request.isHandled()) {
+			// TODO: dereference keys using a service
+			return null;
+		}
+
+		KeyRequest kr = request.asValue();
+
+		if (kr == null) {
+			return null;
+		}
+
+		return new Key()
+			.setProof(kr.getProof())
+			.setCert(kr.getCert())
+			.setDid(kr.getDid())
+			.setJwk(kr.getJwk());
 	}
-
-
 }
 

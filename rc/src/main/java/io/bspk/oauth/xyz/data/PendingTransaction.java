@@ -1,6 +1,7 @@
 package io.bspk.oauth.xyz.data;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -12,6 +13,7 @@ import com.fasterxml.jackson.databind.PropertyNamingStrategy;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
 
 import io.bspk.oauth.xyz.crypto.Hash.HashMethod;
+import io.bspk.oauth.xyz.data.api.AccessTokenResponse;
 import io.bspk.oauth.xyz.data.api.InteractResponse;
 import io.bspk.oauth.xyz.data.api.TransactionContinueRequest;
 import io.bspk.oauth.xyz.data.api.TransactionRequest;
@@ -51,11 +53,13 @@ public class PendingTransaction {
 	private String continueToken;
 	private String accessToken;
 	private Key accessTokenKey;
+	private String rsResponse;
 	private String userCode;
 	private String userCodeUrl;
 	private String interactionUrl;
 	private Map<String, String> multipleAccessTokens;
 	private Map<String, Key> multipleAccessTokenKeys;
+	private Map<String, String> multipleRsResponse;
 
 	public PendingTransaction add (TransactionResponse response) {
 		entries.add(new Entry().setResponse(response));
@@ -81,9 +85,9 @@ public class PendingTransaction {
 			if (response.getCont().getAccessToken() != null) {
 				setContinueToken(response.getCont().getAccessToken().getValue());
 
-				// set the key if an explicit one is given
-				if (!response.getCont().getAccessToken().getKey().isClientKey()) {
-					setKey(response.getCont().getAccessToken().getKey().getKey());
+				// set the key if an explicit one is given, otherwise keep what we have
+				if (response.getCont().getAccessToken().getKey() != null) {
+					setKey(response.getCont().getAccessToken().getKey());
 				}
 			}
 
@@ -96,35 +100,41 @@ public class PendingTransaction {
 		}
 
 		if (response.getAccessToken() != null) {
-			setAccessToken(response.getAccessToken().getValue());
-			if (response.getAccessToken().getKey().isClientKey()) {
-				setAccessTokenKey(getKey());
-			} else if (response.getAccessToken().getKey().getKey() != null) {
-				setAccessTokenKey(response.getAccessToken().getKey().getKey());
-			}
+			if (response.getAccessToken().isMultiple()) {
+				List<AccessTokenResponse> tokenResponses = response.getAccessToken().asMultiple();
 
-		} else if (response.getMultipleAccessTokens() != null) {
-			Map<String, String> tokens =
-				response.getMultipleAccessTokens().entrySet()
-					.stream()
-					.collect(Collectors.toMap(Map.Entry::getKey,
-						e -> e.getValue().getValue()));
-			setMultipleAccessTokens(tokens);
-
-			Map<String, Key> keys =
-				response.getMultipleAccessTokens().entrySet()
-					.stream()
+				setMultipleAccessTokens(tokenResponses.stream()
 					.collect(Collectors.toMap(
-						Map.Entry::getKey,
-						(e) -> {
-							BoundKey k = e.getValue().getKey();
-							if (k.isClientKey()) {
-								return getKey();
+						t -> t.getLabel(),
+						t -> t.getValue())));
+
+				setMultipleAccessTokenKeys(tokenResponses.stream()
+					.collect(Collectors.toMap(
+						t -> t.getLabel(),
+						t -> {
+							if (t.isBound()) {
+								if (t.getKey() == null) {
+									// the token is bound but there's no other key, use the client's key
+									return getKey();
+								} else {
+									return t.getKey();
+								}
 							} else {
-								return k.getKey();
+								return null;
 							}
-						}));
-			setMultipleAccessTokenKeys(keys);
+						}
+						)));
+			} else {
+				AccessTokenResponse tokenResponse = response.getAccessToken().asSingle();
+				setAccessToken(tokenResponse.getValue());
+				if (tokenResponse.isBound()) {
+					if (tokenResponse.getKey() != null) {
+						setAccessTokenKey(tokenResponse.getKey());
+					} else {
+						setAccessTokenKey(getKey());
+					}
+				}
+			}
 		}
 
 		if (response.getInteract() != null) {
@@ -143,6 +153,16 @@ public class PendingTransaction {
 			}
 		}
 
+		return this;
+	}
+
+	public PendingTransaction setMultipleRsResponse(String tokenId, String response) {
+		Map<String, String> mrr = getMultipleRsResponse();
+		if (mrr == null) {
+			mrr = new HashMap<>();
+		}
+		mrr.put(tokenId, response);
+		setMultipleRsResponse(mrr);
 		return this;
 	}
 

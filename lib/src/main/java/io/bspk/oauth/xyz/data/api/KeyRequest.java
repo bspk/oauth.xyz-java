@@ -15,7 +15,6 @@ import io.bspk.oauth.xyz.data.Key.Proof;
 import io.bspk.oauth.xyz.json.JWKDeserializer;
 import io.bspk.oauth.xyz.json.JWKSerializer;
 import lombok.Data;
-import lombok.EqualsAndHashCode;
 import lombok.experimental.Accessors;
 
 /**
@@ -23,10 +22,9 @@ import lombok.experimental.Accessors;
  *
  */
 @Data
-@EqualsAndHashCode(callSuper = true)
 @Accessors(chain = true)
 @JsonNaming(PropertyNamingStrategy.SnakeCaseStrategy.class)
-public class KeyRequest extends HandleReplaceable<KeyRequest> {
+public class KeyRequest {
 
 	private Proof proof;
 	@JsonSerialize(using = JWKSerializer.class)

@@ -18,3 +18,5 @@ spring.jackson.default-property-inclusion: NON_NULL
 spring.mvc.dispatch-options-request: true
 
 server.servlet.session.cookie.path: /api/rs
+
+logging.level.org.springframework.data.mongodb.core.MongoTemplate: DEBUG

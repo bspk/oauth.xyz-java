@@ -2,13 +2,19 @@ package io.bspk.oauth.xyz.data;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.List;
 
 import org.apache.commons.lang3.RandomStringUtils;
 
 import com.fasterxml.jackson.databind.PropertyNamingStrategy;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 
-import io.bspk.oauth.xyz.data.api.SingleTokenResourceRequest;
+import io.bspk.oauth.xyz.data.api.HandleAwareField;
+import io.bspk.oauth.xyz.data.api.RequestedResource;
+import io.bspk.oauth.xyz.json.HandleAwareFieldDeserializer;
+import io.bspk.oauth.xyz.json.HandleAwareFieldSerializer;
 import lombok.Data;
 import lombok.experimental.Accessors;
 
@@ -22,10 +28,15 @@ import lombok.experimental.Accessors;
 public class AccessToken {
 
 	private String value;
-	private BoundKey key;
+	private Key key;
+	private boolean bound;
+	private boolean clientBound;
 	private String manage;
-	private SingleTokenResourceRequest resourceRequest;
+	@JsonSerialize(contentUsing =  HandleAwareFieldSerializer.class)
+	@JsonDeserialize(contentUsing = HandleAwareFieldDeserializer.class)
+	private List<HandleAwareField<RequestedResource>> accessRequest;
 	private Instant expiration;
+	private String label;
 
 	/**
 	 * Create a handle with a random value and no expiration
@@ -42,7 +53,9 @@ public class AccessToken {
 	}
 
 	public static AccessToken createClientBound(Key key) {
-		return create().setKey(new BoundKey().setKey(key).setClientKey(true));
+		return create().setKey(key)
+			.setBound(true)
+			.setClientBound(true);
 	}
 
 }

@@ -5,7 +5,7 @@
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>io.bspk</groupId>
 	<artifactId>oauth.xyz.lib</artifactId>
-	<version>0.0.14-SNAPSHOT</version>
+	<version>0.1.4-SNAPSHOT</version>
 	<name>oauth.xyz-java</name>
 	<description>Transactional Authorization Strawman</description>
 
@@ -23,6 +23,11 @@
 				<version>2.3.4.RELEASE</version>
 	            <type>pom</type>
 	            <scope>import</scope>
+			</dependency>
+			<dependency>
+				<groupId>com.nimbusds</groupId>
+				<artifactId>nimbus-jose-jwt</artifactId>
+				<version>9.4.1</version>
 			</dependency>
 		</dependencies>
 	</dependencyManagement>
@@ -72,7 +77,6 @@
 		<dependency>
 			<groupId>com.nimbusds</groupId>
 			<artifactId>nimbus-jose-jwt</artifactId>
-			<version>8.15</version>
 		</dependency>
 	</dependencies>
 
