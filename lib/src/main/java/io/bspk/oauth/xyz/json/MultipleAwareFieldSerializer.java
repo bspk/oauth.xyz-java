@@ -22,8 +22,11 @@ public class MultipleAwareFieldSerializer<T> extends JsonSerializer<MultipleAwar
 		if (value == null) {
 			gen.writeNull();
 		} else if (value.isMultiple()) {
+			// it's a multiple-value object, write out the array
+			// since "asMultiple" returns a List, this outputs an array, not a JSON object
 			gen.writeObject(value.asMultiple());
 		} else {
+			// it's a single value, write out the value itself (usually an object)
 			gen.writeObject(value.asSingle());
 		}
 

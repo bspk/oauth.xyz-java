@@ -22,8 +22,10 @@ public class HandleAwareFieldSerializer<T> extends JsonSerializer<HandleAwareFie
 		if (value == null) {
 			gen.writeNull();
 		} else if (value.isHandled()) {
+			// it's a handle, write a string
 			gen.writeString(value.asHandle());
 		} else {
+			// it's a value, write the object
 			gen.writeObject(value.asValue());
 		}
 

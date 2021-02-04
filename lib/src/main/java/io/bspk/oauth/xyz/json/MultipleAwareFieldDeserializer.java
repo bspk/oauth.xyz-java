@@ -42,12 +42,13 @@ public class MultipleAwareFieldDeserializer<T> extends StdDeserializer<MultipleA
 		JsonToken token = p.currentToken();
 
 		if (token == JsonToken.START_ARRAY) {
-			// it's an array, parse it as a multi token request
+			// it's an array, parse it as a multi-valued element
 			List<T> value = ctxt.readValue(p, getListValueType());
 
 			return MultipleAwareField.of(value);
 
 		} else if (token == JsonToken.START_OBJECT) {
+			// it's an object, parse it as a single value
 			T value = ctxt.readValue(p, getValueType());
 
 			return MultipleAwareField.of(value);
@@ -59,9 +60,9 @@ public class MultipleAwareFieldDeserializer<T> extends StdDeserializer<MultipleA
 	@Override
 	public JsonDeserializer<?> createContextual(DeserializationContext ctxt, BeanProperty property) throws JsonMappingException {
         JavaType wrapperType = property.getType();
-        JavaType valueType = wrapperType.containedType(0);
+        JavaType valueType = wrapperType.containedType(0); // this is the parameterized value's type
 
-        JavaType listValueType = ctxt.getTypeFactory().constructCollectionType(List.class, valueType);
+        JavaType listValueType = ctxt.getTypeFactory().constructCollectionType(List.class, valueType); // this is a type for a list of the parameterized value's type
 
         MultipleAwareFieldDeserializer deserializer = new MultipleAwareFieldDeserializer<>();
         deserializer.setValueType(valueType);

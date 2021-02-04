@@ -38,12 +38,13 @@ public class HandleAwareFieldDeserializer<T> extends StdDeserializer<HandleAware
 		JsonToken token = p.currentToken();
 
 		if (token == JsonToken.VALUE_STRING) {
-			// it's an array, parse it as a multi token request
+			// it's a string, parse it as a handle reference
 			String value = p.readValueAs(new TypeReference<String>() {});
 
 			return HandleAwareField.of(value);
 
 		} else if (token == JsonToken.START_OBJECT) {
+			// it's an object, parse it as a value reference
 			T value = ctxt.readValue(p, getValueType());
 
 			return HandleAwareField.of(value);
@@ -55,7 +56,7 @@ public class HandleAwareFieldDeserializer<T> extends StdDeserializer<HandleAware
 	@Override
 	public JsonDeserializer<?> createContextual(DeserializationContext ctxt, BeanProperty property) throws JsonMappingException {
         JavaType wrapperType = property.getType();
-        JavaType valueType = wrapperType.containedType(0);
+        JavaType valueType = wrapperType.containedType(0); // this is the parameterized value's type
         HandleAwareFieldDeserializer deserializer = new HandleAwareFieldDeserializer<>();
         deserializer.setValueType(valueType);
         return deserializer;
