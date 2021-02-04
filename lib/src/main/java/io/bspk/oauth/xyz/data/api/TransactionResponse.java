@@ -64,7 +64,7 @@ public class TransactionResponse {
 	public static TransactionResponse of(Transaction t, String instanceId, String continueUri) {
 
 		return new TransactionResponse()
-			.setAccessToken(AccessTokenResponse.of(t.getAccessToken()))
+			.setAccessToken(MultipleAwareField.of(t.getAccessToken(), AccessTokenResponse::of))
 			.setInteract(InteractResponse.of(t.getInteract()))
 			.setCont(new ContinueResponse()
 				.setAccessToken(AccessTokenResponse.of(t.getContinueAccessToken()))

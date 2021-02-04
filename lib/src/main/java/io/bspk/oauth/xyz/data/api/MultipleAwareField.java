@@ -2,6 +2,8 @@ package io.bspk.oauth.xyz.data.api;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import com.fasterxml.jackson.databind.PropertyNamingStrategy;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
@@ -32,7 +34,7 @@ public class MultipleAwareField<T> {
 
 	@Getter(AccessLevel.PRIVATE)
 	@Setter(AccessLevel.PRIVATE)
-	private ArrayList<T> data = new ArrayList<>();
+	private List<T> data = new ArrayList<>();
 
 	public T asSingle() {
 		if (isMultiple()) {
@@ -45,7 +47,7 @@ public class MultipleAwareField<T> {
 	public List<T> asMultiple() {
 		if (isMultiple()) {
 			// don't give direct access to manipulate the list
-			return (List<T>) data.clone();
+			return new ArrayList<>(data);
 		} else {
 			throw new IllegalArgumentException();
 		}
@@ -58,6 +60,18 @@ public class MultipleAwareField<T> {
 		f.getData().add(singleton);
 
 		return f;
+	}
+
+	public static <S, I> MultipleAwareField<S> of (MultipleAwareField<I> input, Function<I, S> fn) {
+		if (input == null || fn == null) {
+			return null;
+		} else {
+			return new MultipleAwareField<S>()
+				.setData(input.getData().stream()
+					.map(fn)
+					.collect(Collectors.toList()))
+				.setMultiple(input.isMultiple());
+		}
 	}
 
 	public static <S> MultipleAwareField<S> of(List<S> items) {
