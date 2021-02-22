@@ -84,7 +84,8 @@ public class InteractionEndpoint {
 		session.removeAttribute("_pending_approval");
 
 		if (pending != null && pending.getTransaction() != null) {
-			Transaction transaction = pending.getTransaction();
+			// note we need to grab a fresh copy because we'll udpate it
+			Transaction transaction = transactionRepository.findById(pending.getTransaction().getId()).orElseThrow();
 
 			if (approve.isApproved()) {
 				transaction.setStatus(Status.AUTHORIZED);
