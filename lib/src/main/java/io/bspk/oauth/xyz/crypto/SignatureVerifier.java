@@ -52,6 +52,10 @@ public class SignatureVerifier {
 	private static final Logger log = LoggerFactory.getLogger(SignatureVerifier.class);
 
 	public static void checkAttachedJws(HttpServletRequest request, JWK clientKey) {
+		checkAttachedJws(request, clientKey, null);
+	}
+
+	public static void checkAttachedJws(HttpServletRequest request, JWK clientKey, String accessToken) {
 		JOSEObject jose = (JOSEObject) request.getAttribute(JoseUnwrappingFilter.BODY_JOSE);
 
 		if (jose == null) {
@@ -61,6 +65,8 @@ public class SignatureVerifier {
 		try {
 			if (jose instanceof JWSObject) {
 				JWSObject jws = (JWSObject)jose;
+
+				verifyJWS(jws, request, clientKey, accessToken);
 
 				JWSVerifier verifier = new DefaultJWSVerifierFactory().createJWSVerifier(jws.getHeader(), extractKeyForVerify(clientKey));
 
@@ -129,7 +135,8 @@ public class SignatureVerifier {
 
 	}
 
-	public static void checkDetachedJws(String jwsd, HttpServletRequest request, JWK clientKey) {
+	public static void checkDetachedJws(String jwsd, HttpServletRequest request, JWK jwk, String accessToken) {
+
 		if (Strings.isNullOrEmpty(jwsd)) {
 			throw new RuntimeException("Missing JWS value");
 		}
@@ -143,30 +150,7 @@ public class SignatureVerifier {
 
 			JWSObject jwsObject = new JWSObject(parts[0], payload, parts[2]);
 
-			JWSVerifier verifier = new DefaultJWSVerifierFactory().createJWSVerifier(jwsObject.getHeader(), extractKeyForVerify(clientKey));
-
-			if (!jwsObject.verify(verifier)) {
-				throw new RuntimeException("Unable to verify JWS");
-			}
-
-			// check the URI and method
-			JWSHeader header = jwsObject.getHeader();
-
-			if (header.getCustomParam("htm") == null || !((String)header.getCustomParam("htm")).equals(request.getMethod())) {
-				throw new RuntimeException("Couldn't verify method");
-			}
-
-			if (header.getCustomParam("htu") == null) {
-				throw new RuntimeException("Couldn't get uri");
-			} else {
-				StringBuffer url = request.getRequestURL();
-				if (request.getQueryString() != null) {
-					url.append('?').append(request.getQueryString());
-				}
-				if (!header.getCustomParam("htu").equals(url.toString())) {
-					throw new RuntimeException("Couldn't verify uri");
-				}
-			}
+			verifyJWS(jwsObject, request, jwk, accessToken);
 
 		} catch (ParseException | JOSEException e) {
 			throw new RuntimeException("Bad JWS", e);
@@ -176,7 +160,47 @@ public class SignatureVerifier {
 
 	}
 
-	public static void checkDpop(String dpop, HttpServletRequest request, JWK clientKey) {
+	private static void verifyJWS(JWSObject jwsObject, HttpServletRequest request, JWK jwk, String accessToken) throws JOSEException {
+		JWSVerifier verifier = new DefaultJWSVerifierFactory().createJWSVerifier(jwsObject.getHeader(), extractKeyForVerify(jwk));
+
+		if (!jwsObject.verify(verifier)) {
+			throw new RuntimeException("Unable to verify JWS");
+		}
+
+		// check the URI and method
+		JWSHeader header = jwsObject.getHeader();
+
+		if (header.getCustomParam("htm") == null || !((String)header.getCustomParam("htm")).equals(request.getMethod())) {
+			throw new RuntimeException("Couldn't verify method");
+		}
+
+		if (header.getCustomParam("htu") == null) {
+			throw new RuntimeException("Couldn't get uri");
+		} else {
+			StringBuffer url = request.getRequestURL();
+			if (request.getQueryString() != null) {
+				url.append('?').append(request.getQueryString());
+			}
+			if (!header.getCustomParam("htu").equals(url.toString())) {
+				throw new RuntimeException("Couldn't verify uri");
+			}
+		}
+
+		if (!Strings.isNullOrEmpty(accessToken)) {
+			if (header.getCustomParam("at_hash") == null) {
+				throw new RuntimeException("Couldn't get access token hash");
+			} else {
+				Base64URL expected = Hash.getAtHash(header.getAlgorithm(), accessToken.getBytes());
+				Base64URL actual = Base64URL.from(header.getCustomParam("at_hash").toString());
+
+				if (!expected.equals(actual)) {
+					throw new RuntimeException("Access token hash does not match");
+				}
+			}
+		}
+	}
+
+	public static void checkDpop(String dpop, HttpServletRequest request, JWK clientKey, String accessToken) {
 		try {
 
 			SignedJWT jwt = SignedJWT.parse(dpop);
@@ -211,6 +235,23 @@ public class SignatureVerifier {
 				}
 			}
 
+			if (claims.getClaim("digest") != null) {
+				ensureDigest(claims.getClaim("digest").toString(), request);
+			}
+
+			if (!Strings.isNullOrEmpty(accessToken)) {
+				if (claims.getClaim("at_hash") == null) {
+					throw new RuntimeException("Couldn't get access token hash");
+				} else {
+					Base64URL expected = Hash.getAtHash(jwt.getHeader().getAlgorithm(), accessToken.getBytes());
+					Base64URL actual = Base64URL.from(claims.getStringClaim("at_hash"));
+
+					if (!expected.equals(actual)) {
+						throw new RuntimeException("Access token hash does not match");
+					}
+				}
+			}
+
 		} catch (ParseException | JOSEException e) {
 			throw new RuntimeException("Bad DPOP Signature", e);
 		}
@@ -239,12 +280,7 @@ public class SignatureVerifier {
 		}
 	}
 
-	/**
-	 * @param oauthPop
-	 * @param req
-	 * @param jwk
-	 */
-	public static void checkOAuthPop(String oauthPop, HttpServletRequest req, JWK jwk) {
+	public static void checkOAuthPop(String oauthPop, HttpServletRequest req, JWK jwk, String accessToken) {
 		try {
 			SignedJWT jwt = SignedJWT.parse(oauthPop);
 
@@ -280,6 +316,15 @@ public class SignatureVerifier {
 				}
 			}
 
+			if (!Strings.isNullOrEmpty(accessToken)) {
+				if (claims.getClaim("at") == null) {
+					throw new RuntimeException("No access token");
+				} else {
+					if (!claims.getClaim(accessToken).equals(accessToken)) {
+						throw new RuntimeException("Access token didn't match. (And that's really weird considering how we got here.");
+					}
+				}
+			}
 		} catch (ParseException e) {
 			throw new RuntimeException("Couldn't parse pop header", e);
 		}
@@ -373,6 +418,4 @@ public class SignatureVerifier {
 			return auth.substring("GNAP ".length());
 		}
 	}
-
-
 }

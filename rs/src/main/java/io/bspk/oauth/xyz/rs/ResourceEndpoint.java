@@ -89,13 +89,13 @@ public class ResourceEndpoint {
 						SignatureVerifier.checkCavageSignature(signature, req, k.getJwk());
 						break;
 					case JWSD:
-						SignatureVerifier.checkDetachedJws(jwsd, req, k.getJwk());
+						SignatureVerifier.checkDetachedJws(jwsd, req, k.getJwk(), token.getValue());
 						break;
 					case DPOP:
-						SignatureVerifier.checkDpop(dpop, req, k.getJwk());
+						SignatureVerifier.checkDpop(dpop, req, k.getJwk(), token.getValue());
 						break;
 					case OAUTHPOP:
-						SignatureVerifier.checkOAuthPop(oauthPop, req, k.getJwk());
+						SignatureVerifier.checkOAuthPop(oauthPop, req, k.getJwk(), token.getValue());
 						break;
 					case JWS:
 						if (req.getMethod().equals(HttpMethod.GET.toString())
@@ -105,9 +105,9 @@ public class ResourceEndpoint {
 							|| req.getMethod().equals(HttpMethod.TRACE.toString())) {
 
 							// a body-less method was used, check the header instead
-							SignatureVerifier.checkDetachedJws(jwsd, req, k.getJwk());
+							SignatureVerifier.checkDetachedJws(jwsd, req, k.getJwk(), token.getValue());
 						} else {
-							SignatureVerifier.checkAttachedJws(req, k.getJwk());
+							SignatureVerifier.checkAttachedJws(req, k.getJwk(), token.getValue());
 						}
 						break;
 					case MTLS:

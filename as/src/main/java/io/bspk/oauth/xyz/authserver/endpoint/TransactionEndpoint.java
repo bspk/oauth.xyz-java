@@ -143,7 +143,7 @@ public class TransactionEndpoint {
 
 			t.setCapabilitiesRequest(incoming.getCapabilities());
 
-			return processTransaction(t, getInstanceIdIfNew(incoming, client), signature, digest, jwsd, dpop, oauthPop, req);
+			return processTransaction(t, getInstanceIdIfNew(incoming, client), signature, digest, jwsd, dpop, oauthPop, req, null);
 		}
 
 
@@ -194,7 +194,7 @@ public class TransactionEndpoint {
 
 				}
 
-				return processTransaction(t, null, signature, digest, jwsd, dpop, oauthPop, req);
+				return processTransaction(t, null, signature, digest, jwsd, dpop, oauthPop, req, accessToken);
 			}
 
 		} else {
@@ -209,7 +209,8 @@ public class TransactionEndpoint {
 		String jwsd,
 		String dpop,
 		String oauthPop,
-		HttpServletRequest req) {
+		HttpServletRequest req,
+		String accessToken) {
 
 		// process the capabilities list if needed
 		if (t.getCapabilitiesRequest() != null && t.getCapabilities() == null) {
@@ -224,13 +225,13 @@ public class TransactionEndpoint {
 					SignatureVerifier.checkCavageSignature(signature, req, t.getKey().getJwk());
 					break;
 				case JWSD:
-					SignatureVerifier.checkDetachedJws(jwsd, req, t.getKey().getJwk());
+					SignatureVerifier.checkDetachedJws(jwsd, req, t.getKey().getJwk(), accessToken);
 					break;
 				case DPOP:
-					SignatureVerifier.checkDpop(dpop, req, t.getKey().getJwk());
+					SignatureVerifier.checkDpop(dpop, req, t.getKey().getJwk(), accessToken);
 					break;
 				case OAUTHPOP:
-					SignatureVerifier.checkOAuthPop(oauthPop, req, t.getKey().getJwk());
+					SignatureVerifier.checkOAuthPop(oauthPop, req, t.getKey().getJwk(), accessToken);
 					break;
 				case JWS:
 					if (req.getMethod().equals(HttpMethod.GET.toString())
@@ -240,9 +241,9 @@ public class TransactionEndpoint {
 						|| req.getMethod().equals(HttpMethod.TRACE.toString())) {
 
 						// a body-less method was used, check the header instead
-						SignatureVerifier.checkDetachedJws(jwsd, req, t.getKey().getJwk());
+						SignatureVerifier.checkDetachedJws(jwsd, req, t.getKey().getJwk(), accessToken);
 					} else {
-						SignatureVerifier.checkAttachedJws(req, t.getKey().getJwk());
+						SignatureVerifier.checkAttachedJws(req, t.getKey().getJwk(), accessToken);
 					}
 					break;
 				case MTLS:
