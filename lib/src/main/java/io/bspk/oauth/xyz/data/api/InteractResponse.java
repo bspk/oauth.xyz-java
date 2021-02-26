@@ -18,7 +18,7 @@ public class InteractResponse {
 
 	private String redirect;
 	private String app;
-	private String callback;
+	private String finish;
 	private UserCodeResponse userCode;
 
 
@@ -31,7 +31,7 @@ public class InteractResponse {
 		return new InteractResponse()
 			.setRedirect(interact.getInteractionUrl())
 			.setApp(interact.getAppUrl())
-			.setCallback(interact.getServerNonce())
+			.setFinish(interact.getServerNonce())
 			.setUserCode(UserCodeResponse.of(interact));
 
 

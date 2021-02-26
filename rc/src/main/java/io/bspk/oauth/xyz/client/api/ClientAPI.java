@@ -34,17 +34,18 @@ import com.nimbusds.jose.jwk.JWK;
 
 import io.bspk.oauth.xyz.client.repository.PendingTransactionRepository;
 import io.bspk.oauth.xyz.crypto.Hash;
-import io.bspk.oauth.xyz.data.Callback;
+import io.bspk.oauth.xyz.data.Interact.InteractStart;
+import io.bspk.oauth.xyz.data.InteractFinish;
 import io.bspk.oauth.xyz.data.Key;
 import io.bspk.oauth.xyz.data.Key.Proof;
 import io.bspk.oauth.xyz.data.PendingTransaction;
 import io.bspk.oauth.xyz.data.PendingTransaction.Entry;
+import io.bspk.oauth.xyz.data.api.AccessTokenRequest;
 import io.bspk.oauth.xyz.data.api.ClientRequest;
 import io.bspk.oauth.xyz.data.api.DisplayRequest;
 import io.bspk.oauth.xyz.data.api.InteractRequest;
 import io.bspk.oauth.xyz.data.api.KeyRequest;
 import io.bspk.oauth.xyz.data.api.PushbackRequest;
-import io.bspk.oauth.xyz.data.api.AccessTokenRequest;
 import io.bspk.oauth.xyz.data.api.TransactionContinueRequest;
 import io.bspk.oauth.xyz.data.api.TransactionRequest;
 import io.bspk.oauth.xyz.data.api.TransactionResponse;
@@ -132,10 +133,10 @@ public class ClientAPI {
 
 		TransactionRequest request = new TransactionRequest()
 			.setInteract(new InteractRequest()
-				.setCallback(Callback.redirect()
+				.setFinish(InteractFinish.redirect()
 					.setUri(callbackBaseUrl + "/" + callbackId)
 					.setNonce(nonce))
-				.setRedirect(true))
+				.setStart(InteractStart.REDIRECT))
 			.setAccessToken(AccessTokenRequest.ofReferences(
 					"openid",
 					"profile",
@@ -167,7 +168,7 @@ public class ClientAPI {
 		PendingTransaction pending = new PendingTransaction()
 			.setCallbackId(callbackId)
 			.setClientNonce(nonce)
-			.setHashMethod(request.getInteract().getCallback().getHashMethod())
+			.setHashMethod(request.getInteract().getFinish().getHashMethod())
 			.setOwner(session.getId())
 			.setKey(key)
 			.add(request, response);
@@ -191,7 +192,7 @@ public class ClientAPI {
 
 		TransactionRequest request = new TransactionRequest()
 			.setInteract(new InteractRequest()
-				.setUserCode(true))
+				.setStart(InteractStart.USER_CODE))
 			.setAccessToken(AccessTokenRequest.ofReferences("foo"))
 			.setUser(new UserRequest());
 
@@ -241,11 +242,10 @@ public class ClientAPI {
 
 		TransactionRequest request = new TransactionRequest()
 			.setInteract(new InteractRequest()
-				.setCallback(Callback.pushback()
+				.setFinish(InteractFinish.pushback()
 					.setUri(pushbackBaseUrl + "/" + callbackId)
 					.setNonce(nonce))
-				.setUserCode(true)
-				.setRedirect(true))
+				.setStart(InteractStart.USER_CODE, InteractStart.REDIRECT))
 			.setAccessToken(
 				AccessTokenRequest.ofReferences("read", "write", "dolphin")
 					.setLabel("blanktoken"),
@@ -291,7 +291,7 @@ public class ClientAPI {
 		PendingTransaction pending = new PendingTransaction()
 			.setCallbackId(callbackId)
 			.setClientNonce(nonce)
-			.setHashMethod(request.getInteract().getCallback().getHashMethod())
+			.setHashMethod(request.getInteract().getFinish().getHashMethod())
 			.setOwner(session.getId())
 			.setKey(key)
 			.add(request, response);

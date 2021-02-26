@@ -1,12 +1,16 @@
 package io.bspk.oauth.xyz.data;
 
+import java.util.Collections;
 import java.util.Optional;
+import java.util.Set;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonValue;
 import com.fasterxml.jackson.databind.PropertyNamingStrategy;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
 
 import io.bspk.oauth.xyz.crypto.Hash.HashMethod;
-import io.bspk.oauth.xyz.data.Callback.CallbackMethod;
+import io.bspk.oauth.xyz.data.InteractFinish.CallbackMethod;
 import io.bspk.oauth.xyz.data.api.InteractRequest;
 import lombok.Data;
 import lombok.experimental.Accessors;
@@ -20,12 +24,24 @@ import lombok.experimental.Accessors;
 @JsonNaming(PropertyNamingStrategy.SnakeCaseStrategy.class)
 public class Interact {
 
-	/** request parameters */
-	private boolean canRedirect;
-	private boolean canUserCode;
-	private boolean canDidComm;
-	private boolean canDidCommQuery;
+	public enum InteractStart {
+		REDIRECT,
+		APP,
+		USER_CODE;
 
+		@JsonCreator
+		public static InteractStart fromJson(String key) {
+			return key == null ? null :
+				valueOf(key.toUpperCase());
+		}
+
+		@JsonValue
+		public String toJson() {
+			return name().toLowerCase();
+		}
+	}
+
+	private Set<InteractStart> startMethods = Collections.emptySet();
 	private String interactionUrl;
 	private String appUrl;
 	private String interactId;
@@ -44,17 +60,14 @@ public class Interact {
 	 */
 	public static Interact of(InteractRequest interact) {
 
-		Optional<Callback> callback = Optional.ofNullable(interact.getCallback());
+		Optional<InteractFinish> interactFinish = Optional.ofNullable(interact.getFinish());
 
 		return new Interact()
-			.setCanDidComm(Optional.ofNullable(interact.getDidComm()).orElse(Boolean.FALSE))
-			.setCanDidCommQuery(Optional.ofNullable(interact.getDidCommQuery()).orElse(Boolean.FALSE))
-			.setCanUserCode(Optional.ofNullable(interact.getUserCode()).orElse(Boolean.FALSE))
-			.setCanRedirect(Optional.ofNullable(interact.getRedirect()).orElse(Boolean.FALSE))
-			.setCallbackMethod(callback.map(Callback::getMethod).orElse(null))
-			.setCallbackUri(callback.map(Callback::getUri).orElse(null))
-			.setClientNonce(callback.map(Callback::getNonce).orElse(null))
-			.setCallbackHashMethod(callback.map(Callback::getHashMethod).orElse(null));
+			.setStartMethods(Optional.ofNullable(interact.getStart()).orElse(Collections.emptySet()))
+			.setCallbackMethod(interactFinish.map(InteractFinish::getMethod).orElse(null))
+			.setCallbackUri(interactFinish.map(InteractFinish::getUri).orElse(null))
+			.setClientNonce(interactFinish.map(InteractFinish::getNonce).orElse(null))
+			.setCallbackHashMethod(interactFinish.map(InteractFinish::getHashMethod).orElse(null));
 	}
 
 }

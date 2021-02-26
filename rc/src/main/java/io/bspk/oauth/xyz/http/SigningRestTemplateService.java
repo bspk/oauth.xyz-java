@@ -295,7 +295,7 @@ public class SigningRestTemplateService {
 
 			// cover the access token if it exists
 			if (hasAccessToken()) {
-				headerBuilder.customParam("at_hash", Hash.getAtHash(clientKey.getAlgorithm(), getAccessTokenValue().getBytes()));
+				headerBuilder.customParam("at_hash", Hash.getAtHash(clientKey.getAlgorithm(), getAccessTokenValue().getBytes()).toString());
 			}
 
 			JWSHeader header = headerBuilder

@@ -28,7 +28,7 @@ import io.bspk.oauth.xyz.authserver.data.api.UserInteractionFormSubmission;
 import io.bspk.oauth.xyz.authserver.repository.TransactionRepository;
 import io.bspk.oauth.xyz.crypto.Hash;
 import io.bspk.oauth.xyz.crypto.Hash.HashMethod;
-import io.bspk.oauth.xyz.data.Callback.CallbackMethod;
+import io.bspk.oauth.xyz.data.InteractFinish.CallbackMethod;
 import io.bspk.oauth.xyz.data.Transaction;
 import io.bspk.oauth.xyz.data.Transaction.Status;
 import io.bspk.oauth.xyz.data.User;

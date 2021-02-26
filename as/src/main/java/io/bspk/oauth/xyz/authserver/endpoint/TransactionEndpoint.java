@@ -39,6 +39,7 @@ import io.bspk.oauth.xyz.data.Capability;
 import io.bspk.oauth.xyz.data.Client;
 import io.bspk.oauth.xyz.data.Display;
 import io.bspk.oauth.xyz.data.Interact;
+import io.bspk.oauth.xyz.data.Interact.InteractStart;
 import io.bspk.oauth.xyz.data.Key;
 import io.bspk.oauth.xyz.data.Key.Proof;
 import io.bspk.oauth.xyz.data.Subject;
@@ -308,7 +309,7 @@ public class TransactionEndpoint {
 
 				if (t.getInteract() != null) {
 
-					if (t.getInteract().isCanRedirect()) {
+					if (t.getInteract().getStartMethods().contains(InteractStart.REDIRECT)) {
 
 						String interactId = RandomStringUtils.randomAlphanumeric(10);
 
@@ -331,7 +332,7 @@ public class TransactionEndpoint {
 
 					}
 
-					if (t.getInteract().isCanUserCode()) {
+					if (t.getInteract().getStartMethods().contains(InteractStart.USER_CODE)) {
 						String userCode = RandomStringUtils.random(8, USER_CODE_CHARS);
 
 						t.getInteract().setUserCode(userCode);

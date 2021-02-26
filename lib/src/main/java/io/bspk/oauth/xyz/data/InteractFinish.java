@@ -12,10 +12,10 @@ import lombok.experimental.Accessors;
 @Data
 @Accessors(chain = true)
 @JsonNaming(PropertyNamingStrategy.SnakeCaseStrategy.class)
-public class Callback {
+public class InteractFinish {
 	public enum CallbackMethod {
 		REDIRECT,
-		PUSHBACK,
+		PUSH,
 		;
 
 		@JsonCreator
@@ -35,11 +35,11 @@ public class Callback {
 	private CallbackMethod method;
 	private HashMethod hashMethod = HashMethod.SHA3;
 
-	public static Callback redirect() {
-		return new Callback().setMethod(CallbackMethod.REDIRECT);
+	public static InteractFinish redirect() {
+		return new InteractFinish().setMethod(CallbackMethod.REDIRECT);
 	}
 
-	public static Callback pushback() {
-		return new Callback().setMethod(CallbackMethod.PUSHBACK);
+	public static InteractFinish pushback() {
+		return new InteractFinish().setMethod(CallbackMethod.PUSH);
 	}
 }

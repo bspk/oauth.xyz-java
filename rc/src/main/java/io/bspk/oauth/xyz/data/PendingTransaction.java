@@ -148,8 +148,8 @@ public class PendingTransaction {
 				setInteractionUrl(interact.getRedirect());
 			}
 
-			if (interact.getCallback() != null) {
-				setServerNonce(interact.getCallback());
+			if (interact.getFinish() != null) {
+				setServerNonce(interact.getFinish());
 			}
 		}
 
