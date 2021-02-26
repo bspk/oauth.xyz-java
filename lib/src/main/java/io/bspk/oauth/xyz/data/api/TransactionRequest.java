@@ -35,7 +35,7 @@ public class TransactionRequest {
 	private HandleAwareField<UserRequest> user;
 	@JsonSerialize(using =  MultipleAwareFieldSerializer.class)
 	@JsonDeserialize(using = MultipleAwareFieldDeserializer.class)
-	private MultipleAwareField<ResourceRequest> accessToken;
+	private MultipleAwareField<AccessTokenRequest> accessToken;
 	private Set<Capability> capabilities;
 	private SubjectRequest subject;
 
@@ -65,13 +65,13 @@ public class TransactionRequest {
 
 	@Tolerate
 	@JsonIgnore
-	public TransactionRequest setAccessToken(ResourceRequest accessToken) {
+	public TransactionRequest setAccessToken(AccessTokenRequest accessToken) {
 		return setAccessToken(MultipleAwareField.of(accessToken));
 	}
 
 	@Tolerate
 	@JsonIgnore
-	public TransactionRequest setAccessToken(ResourceRequest... accessToken) {
+	public TransactionRequest setAccessToken(AccessTokenRequest... accessToken) {
 		return setAccessToken(MultipleAwareField.of(accessToken));
 	}
 

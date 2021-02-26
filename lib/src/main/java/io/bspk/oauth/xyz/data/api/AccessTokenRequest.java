@@ -26,7 +26,7 @@ import lombok.experimental.Accessors;
 @Data
 @Accessors(chain = true)
 @JsonNaming(PropertyNamingStrategy.SnakeCaseStrategy.class)
-public class ResourceRequest {
+public class AccessTokenRequest {
 	public enum TokenFlag {
 		BEARER,
 		SPLIT;
@@ -55,8 +55,8 @@ public class ResourceRequest {
 		return flags != null && flags.contains(TokenFlag.BEARER);
 	}
 
-	public static ResourceRequest ofReferences(String... references) {
-		return new ResourceRequest()
+	public static AccessTokenRequest ofReferences(String... references) {
+		return new AccessTokenRequest()
 			.setAccess(Arrays.stream(references)
 				.map(r -> HandleAwareField.<RequestedResource>of(r))
 				.collect(Collectors.toList()));

@@ -44,9 +44,9 @@ import io.bspk.oauth.xyz.data.Key.Proof;
 import io.bspk.oauth.xyz.data.Subject;
 import io.bspk.oauth.xyz.data.Transaction;
 import io.bspk.oauth.xyz.data.Transaction.Status;
+import io.bspk.oauth.xyz.data.api.AccessTokenRequest;
 import io.bspk.oauth.xyz.data.api.ClientRequest;
 import io.bspk.oauth.xyz.data.api.HandleAwareField;
-import io.bspk.oauth.xyz.data.api.ResourceRequest;
 import io.bspk.oauth.xyz.data.api.TransactionContinueRequest;
 import io.bspk.oauth.xyz.data.api.TransactionRequest;
 import io.bspk.oauth.xyz.data.api.TransactionResponse;
@@ -139,7 +139,7 @@ public class TransactionEndpoint {
 
 			t.setSubjectRequest(incoming.getSubject());
 
-			t.setResourceRequest(incoming.getAccessToken());
+			t.setAccessTokenRequest(incoming.getAccessToken());
 
 			t.setCapabilitiesRequest(incoming.getCapabilities());
 
@@ -361,13 +361,13 @@ public class TransactionEndpoint {
 	}
 
 	private void createNewAccessTokens(Transaction t) {
-		if (t.getResourceRequest() == null) {
+		if (t.getAccessTokenRequest() == null) {
 			// no resources requested, no access token
-		} else if (t.getResourceRequest().isMultiple()) {
+		} else if (t.getAccessTokenRequest().isMultiple()) {
 			// if the request was for multiple resources, create multiple access tokens
-			List<ResourceRequest> resources = t.getResourceRequest().asMultiple();
+			List<AccessTokenRequest> resources = t.getAccessTokenRequest().asMultiple();
 			List<AccessToken> tokens = new ArrayList<>();
-			for (ResourceRequest req : resources) {
+			for (AccessTokenRequest req : resources) {
 				if (Strings.isNullOrEmpty(req.getLabel())) {
 					throw new IllegalArgumentException("Required 'label' not found");
 				}
@@ -386,7 +386,7 @@ public class TransactionEndpoint {
 			t.setAccessToken(tokens);
 		} else {
 			// otherwise set a single access token bound to the client's key
-			ResourceRequest req = t.getResourceRequest().asSingle();
+			AccessTokenRequest req = t.getAccessTokenRequest().asSingle();
 			if (req.isBearer()) {
 				t.setAccessToken(
 					AccessToken.create(Duration.ofHours(1))
