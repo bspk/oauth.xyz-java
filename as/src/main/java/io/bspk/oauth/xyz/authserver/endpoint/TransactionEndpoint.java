@@ -105,6 +105,7 @@ public class TransactionEndpoint {
 	public ResponseEntity<TransactionResponse> createTransaction(@RequestBody TransactionRequest incoming,
 		@RequestHeader(name = HttpHeaders.AUTHORIZATION, required = false) String auth,
 		@RequestHeader(name = "Signature", required = false) String signature,
+		@RequestHeader(name = "Signature-Input", required = false) String signatureInput,
 		@RequestHeader(name = "Digest", required = false) String digest,
 		@RequestHeader(name = "Detached-JWS", required = false) String jwsd,
 		@RequestHeader(name = "DPoP", required = false) String dpop,
@@ -144,7 +145,7 @@ public class TransactionEndpoint {
 
 			t.setCapabilitiesRequest(incoming.getCapabilities());
 
-			return processTransaction(t, getInstanceIdIfNew(incoming, client), signature, digest, jwsd, dpop, oauthPop, req, null);
+			return processTransaction(t, getInstanceIdIfNew(incoming, client), signature, signatureInput, digest, jwsd, dpop, oauthPop, req, null);
 		}
 
 
@@ -164,6 +165,7 @@ public class TransactionEndpoint {
 	public ResponseEntity<TransactionResponse> continueTransaction(@RequestBody(required = false) TransactionContinueRequest incoming,
 		@RequestHeader(name = HttpHeaders.AUTHORIZATION, required = false) String auth,
 		@RequestHeader(name = "Signature", required = false) String signature,
+		@RequestHeader(name = "Signature-Input", required = false) String signatureInput,
 		@RequestHeader(name = "Digest", required = false) String digest,
 		@RequestHeader(name = "Detached-JWS", required = false) String jwsd,
 		@RequestHeader(name = "DPoP", required = false) String dpop,
@@ -195,7 +197,7 @@ public class TransactionEndpoint {
 
 				}
 
-				return processTransaction(t, null, signature, digest, jwsd, dpop, oauthPop, req, accessToken);
+				return processTransaction(t, null, signature, signatureInput, digest, jwsd, dpop, oauthPop, req, accessToken);
 			}
 
 		} else {
@@ -206,6 +208,7 @@ public class TransactionEndpoint {
 
 	private ResponseEntity<TransactionResponse> processTransaction(Transaction t, String instanceId,
 		String signature,
+		String signatureInput,
 		String digest,
 		String jwsd,
 		String dpop,
@@ -223,7 +226,7 @@ public class TransactionEndpoint {
 			switch (t.getKey().getProof()) {
 				case HTTPSIG:
 					SignatureVerifier.ensureDigest(digest, req); // make sure the digest header is accurate
-					SignatureVerifier.checkCavageSignature(signature, req, t.getKey().getJwk());
+					SignatureVerifier.checkHttpMessageSignature(signature, signatureInput, req, t.getKey().getJwk());
 					break;
 				case JWSD:
 					SignatureVerifier.checkDetachedJws(jwsd, req, t.getKey().getJwk(), accessToken);

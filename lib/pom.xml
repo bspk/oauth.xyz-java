@@ -78,6 +78,11 @@
 			<groupId>com.nimbusds</groupId>
 			<artifactId>nimbus-jose-jwt</artifactId>
 		</dependency>
+		<dependency>
+		  <groupId>org.greenbytes.https</groupId>
+		  <artifactId>structured-field-values</artifactId>
+		  <version>0.2-SNAPSHOT</version>
+		</dependency>
 	</dependencies>
 
 	<build>
