@@ -376,12 +376,13 @@ public class SigningRestTemplateService {
 				String requestTarget = request.getMethodValue().toLowerCase() + " " + request.getURI().getRawPath();
 				signatureBlock.put(StringItem.valueOf("@request-target"), requestTarget);
 
-				List<String> headersToSign = Lists.newArrayList("Host", "Date", "Digest");
+				List<String> headersToSign = Lists.newArrayList("Host", "Date");
 
 				if (request.getMethod() == HttpMethod.PUT ||
 					request.getMethod() == HttpMethod.PATCH ||
 					request.getMethod() == HttpMethod.POST) {
 					headersToSign.add("Content-Length");
+					headersToSign.add("Digest");
 				}
 
 				if (hasAccessToken()) {
@@ -459,12 +460,13 @@ public class SigningRestTemplateService {
 				String requestTarget = request.getMethodValue().toLowerCase() + " " + request.getURI().getRawPath();
 				signatureBlock.put("(request-target)", requestTarget);
 
-				List<String> headersToSign = Lists.newArrayList("Host", "Date", "Digest");
+				List<String> headersToSign = Lists.newArrayList("Host", "Date");
 
 				if (request.getMethod() == HttpMethod.PUT ||
 					request.getMethod() == HttpMethod.PATCH ||
 					request.getMethod() == HttpMethod.POST) {
 					headersToSign.add("Content-Length");
+					headersToSign.add("Digest");
 				}
 
 				if (hasAccessToken()) {
