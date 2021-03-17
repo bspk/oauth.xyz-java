@@ -17,6 +17,13 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.RandomStringUtils;
+import org.greenbytes.http.sfv.ByteSequenceItem;
+import org.greenbytes.http.sfv.Dictionary;
+import org.greenbytes.http.sfv.InnerList;
+import org.greenbytes.http.sfv.IntegerItem;
+import org.greenbytes.http.sfv.Item;
+import org.greenbytes.http.sfv.Parameters;
+import org.greenbytes.http.sfv.StringItem;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpMethod;
@@ -104,7 +111,7 @@ public class SigningRestTemplateService {
 			case HTTPSIG:
 				return createRestTemplate(List.of(
 					new AccessTokenInjectingInterceptor(key, accessTokenValue),
-					new CavageSigningInterceptor(key, accessTokenValue),
+					new HttpMessageSigningInterceptor(key, accessTokenValue),
 					new RequestResponseLoggingInterceptor()
 				));
 			case OAUTHPOP:
@@ -343,6 +350,95 @@ public class SigningRestTemplateService {
 		}
 	}
 
+	private class HttpMessageSigningInterceptor  extends KeyAndTokenAwareInterceptor implements ClientHttpRequestInterceptor {
+
+		private final Logger log = LoggerFactory.getLogger(this.getClass());
+
+		public HttpMessageSigningInterceptor(Key key, String accessTokenValue) {
+			super(key, accessTokenValue);
+		}
+
+		@Override
+		public ClientHttpResponse intercept(HttpRequest request, byte[] body, ClientHttpRequestExecution execution) throws IOException {
+
+			try {
+
+				String alg = "rsa-sha256";
+				// TODO: update with new signature mechanisms, right now we only lock on RSA-256
+				Parameters sigParameters = Parameters.valueOf(Map.of(
+					"alg", StringItem.valueOf(alg),
+					"keyid", StringItem.valueOf(getKey().getJwk().getKeyID()),
+					"created", IntegerItem.valueOf(Instant.now().getEpochSecond())
+					));
+
+				// collect the base string
+				Map<Item<?>, String> signatureBlock = new LinkedHashMap<>();
+				String requestTarget = request.getMethodValue().toLowerCase() + " " + request.getURI().getRawPath();
+				signatureBlock.put(StringItem.valueOf("@request-target"), requestTarget);
+
+				List<String> headersToSign = Lists.newArrayList("Host", "Date");
+
+				if (request.getMethod() == HttpMethod.PUT ||
+					request.getMethod() == HttpMethod.PATCH ||
+					request.getMethod() == HttpMethod.POST) {
+					headersToSign.add("Content-Length");
+					headersToSign.add("Digest");
+				}
+
+				if (hasAccessToken()) {
+					headersToSign.add("Authorization");
+				}
+
+				headersToSign.forEach((h) -> {
+					if (request.getHeaders().getFirst(h) != null) {
+						signatureBlock.put(
+							StringItem.valueOf(h.toLowerCase()),
+							request.getHeaders().getFirst(h).strip());
+					}
+				});
+
+				// copy over the items we've added to the signature block so far
+				InnerList coveredContent = InnerList.valueOf(List.copyOf(signatureBlock.keySet()))
+					.withParams(sigParameters);
+
+				signatureBlock.put(
+					StringItem.valueOf("@signature-params"),
+					coveredContent.serialize());
+
+				String input = signatureBlock.entrySet().stream()
+					.map(e -> e.getKey().serialize() + ": " + e.getValue())
+					.collect(Collectors.joining("\n"));
+
+				RSAKey rsaKey = getKey().getJwk().toRSAKey();
+
+				Signature signature = Signature.getInstance("SHA256withRSA");
+
+				signature.initSign(rsaKey.toPrivateKey());
+				signature.update(input.getBytes("UTF-8"));
+				byte[] s = signature.sign();
+
+				byte[] encoded = Base64.getEncoder().encode(s);
+
+				String sigId = RandomStringUtils.randomAlphanumeric(5).toLowerCase();
+
+				Dictionary sigHeader = Dictionary.valueOf(Map.of(
+					sigId, ByteSequenceItem.valueOf(encoded)));
+
+				Dictionary sigInputHeader = Dictionary.valueOf(Map.of(
+					sigId, coveredContent));
+
+				request.getHeaders().add("Signature", sigHeader.serialize());
+				request.getHeaders().add("Signature-Input", sigInputHeader.serialize());
+
+			} catch (NoSuchAlgorithmException | InvalidKeyException | JOSEException | SignatureException e) {
+				throw new RuntimeException(e);
+			}
+
+			return execution.execute(request, body);
+		}
+
+	}
+
 	private class CavageSigningInterceptor extends KeyAndTokenAwareInterceptor implements ClientHttpRequestInterceptor {
 
 		private final Logger log = LoggerFactory.getLogger(this.getClass());
@@ -364,12 +460,13 @@ public class SigningRestTemplateService {
 				String requestTarget = request.getMethodValue().toLowerCase() + " " + request.getURI().getRawPath();
 				signatureBlock.put("(request-target)", requestTarget);
 
-				List<String> headersToSign = Lists.newArrayList("Host", "Date", "Digest");
+				List<String> headersToSign = Lists.newArrayList("Host", "Date");
 
 				if (request.getMethod() == HttpMethod.PUT ||
 					request.getMethod() == HttpMethod.PATCH ||
 					request.getMethod() == HttpMethod.POST) {
 					headersToSign.add("Content-Length");
+					headersToSign.add("Digest");
 				}
 
 				if (hasAccessToken()) {
@@ -392,27 +489,27 @@ public class SigningRestTemplateService {
 
 				signature.initSign(rsaKey.toPrivateKey());
 				signature.update(input.getBytes("UTF-8"));
-		        byte[] s = signature.sign();
+				byte[] s = signature.sign();
 
-		        String encoded = Base64.getEncoder().encodeToString(s);
+				String encoded = Base64.getEncoder().encodeToString(s);
 
-		        String headers = signatureBlock.keySet().stream()
-		        	.map(String::toLowerCase)
-		        	.collect(Collectors.joining(" "));
+				String headers = signatureBlock.keySet().stream()
+					.map(String::toLowerCase)
+					.collect(Collectors.joining(" "));
 
-		        Map<String, String> signatureHeader = new LinkedHashMap<>();
+				Map<String, String> signatureHeader = new LinkedHashMap<>();
 
-		        signatureHeader.put("keyId", getKey().getJwk().getKeyID());
-		        signatureHeader.put("algorithm", alg);
-		        signatureHeader.put("headers", headers);
-		        signatureHeader.put("signature", encoded);
+				signatureHeader.put("keyId", getKey().getJwk().getKeyID());
+				signatureHeader.put("algorithm", alg);
+				signatureHeader.put("headers", headers);
+				signatureHeader.put("signature", encoded);
 
 
-		        String signatureHeaderPayload = signatureHeader.entrySet()
-		        	.stream().map(e -> e.getKey() + "=\"" + e.getValue() + "\"") // TODO: the value should likely be encoded
-		        	.collect(Collectors.joining(","));
+				String signatureHeaderPayload = signatureHeader.entrySet()
+					.stream().map(e -> e.getKey() + "=\"" + e.getValue() + "\"") // TODO: the value should likely be encoded
+					.collect(Collectors.joining(","));
 
-		        request.getHeaders().add("Signature", signatureHeaderPayload);
+				request.getHeaders().add("Signature", signatureHeaderPayload);
 
 			} catch (NoSuchAlgorithmException | InvalidKeyException | JOSEException | SignatureException e) {
 				throw new RuntimeException(e);

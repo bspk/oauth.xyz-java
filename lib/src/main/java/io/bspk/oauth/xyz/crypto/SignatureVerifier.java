@@ -18,6 +18,12 @@ import java.util.stream.Stream;
 
 import javax.servlet.http.HttpServletRequest;
 
+import org.greenbytes.http.sfv.ByteSequenceItem;
+import org.greenbytes.http.sfv.Dictionary;
+import org.greenbytes.http.sfv.InnerList;
+import org.greenbytes.http.sfv.Item;
+import org.greenbytes.http.sfv.Parser;
+import org.greenbytes.http.sfv.StringItem;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.web.util.UriUtils;
@@ -80,6 +86,91 @@ public class SignatureVerifier {
 		} catch (JOSEException e) {
 			throw new RuntimeException("Bad JWS", e);
 		}
+	}
+
+	public static void checkHttpMessageSignature(String signatureHeaderPayload, String signatureInputHeaderPayload, HttpServletRequest request, JWK clientKey) {
+		if (Strings.isNullOrEmpty(signatureHeaderPayload)) {
+			throw new RuntimeException("Missing signature header");
+		}
+		if (Strings.isNullOrEmpty(signatureInputHeaderPayload)) {
+			throw new RuntimeException("Missing signature input header");
+		}
+
+
+		try {
+			Dictionary signatureInput = Parser.parseDictionary(signatureInputHeaderPayload);
+			Dictionary signature = Parser.parseDictionary(signatureHeaderPayload);
+
+
+			// TODO: not sure how to make this more robust against multiple signatures
+			if (signatureInput.get().keySet().size() != 1) {
+				throw new RuntimeException("Found " + signatureInput.get().keySet().size() + " signature IDs");
+			}
+
+			String sigId = signatureInput.get().keySet().iterator().next(); // get the first and only item
+			if (!signature.get().containsKey(sigId)) {
+				throw new RuntimeException("Didn't find signature for id " + sigId);
+			}
+
+			// TODO: cast?
+			InnerList sigParams = (InnerList) signatureInput.get().get(sigId);
+			ByteSequenceItem sigBytes = (ByteSequenceItem) signature.get().get(sigId);
+
+			// collect the base string
+			Map<Item<?>, String> signatureBlock = new LinkedHashMap<>();
+
+			sigParams.get().forEach((c) -> {
+				if (c instanceof StringItem) {
+					String h = ((StringItem)c).get();
+					if (h.equals("@request-target")) {
+						String requestTarget = request.getMethod().toLowerCase() + " " + request.getRequestURI();
+						signatureBlock.put(
+							c, requestTarget);
+					} else if (request.getHeader(h) != null) {
+						signatureBlock.put(
+							c,
+							request.getHeader(h).trim());
+					} else {
+						throw new RuntimeException("Couldn't find covered content: " + c);
+					}
+				} else {
+					throw new RuntimeException("Unknown covered content type for: " + c);
+				}
+			});
+
+			signatureBlock.put(
+				StringItem.valueOf("@signature-params"),
+				sigParams.serialize());
+
+
+			String input = signatureBlock.entrySet().stream()
+				.map(e -> e.getKey().serialize() + ": " + e.getValue().strip())
+				.collect(Collectors.joining("\n"));
+
+
+			// TODO: algorithm agility
+			if (!sigParams.getParams().get("alg").get().equals("rsa-sha256")) {
+				throw new RuntimeException("Unknown algorithm: " + sigParams.getParams().get("alg").get());
+			}
+			RSAKey rsaKey = clientKey.toRSAKey();
+
+			Signature signer = Signature.getInstance("SHA256withRSA");
+
+			byte[] signatureBytes = Base64.getDecoder().decode(sigBytes.get().array());
+
+			signer.initVerify(rsaKey.toPublicKey());
+			signer.update(input.getBytes("UTF-8"));
+
+	        if (!signer.verify(signatureBytes)) {
+	        	throw new RuntimeException("Bad Signature, no biscuit");
+	        }
+
+		} catch (NoSuchAlgorithmException | InvalidKeyException | JOSEException | SignatureException | UnsupportedEncodingException e) {
+			throw new RuntimeException("Bad crypto, no biscuit", e);
+		}
+
+		log.info("++ Verified HTTP Message signature");
+
 	}
 
 	public static void checkCavageSignature(String signatureHeaderPayload, HttpServletRequest request, JWK clientKey) {
