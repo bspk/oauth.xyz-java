@@ -10,6 +10,7 @@ import java.util.Set;
 import javax.servlet.http.HttpServletRequest;
 
 import org.apache.commons.lang3.RandomStringUtils;
+import org.greenbytes.http.sfv.Dictionary;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -104,8 +105,8 @@ public class TransactionEndpoint {
 	@PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
 	public ResponseEntity<TransactionResponse> createTransaction(@RequestBody TransactionRequest incoming,
 		@RequestHeader(name = HttpHeaders.AUTHORIZATION, required = false) String auth,
-		@RequestHeader(name = "Signature", required = false) String signature,
-		@RequestHeader(name = "Signature-Input", required = false) String signatureInput,
+		@RequestHeader(name = "Signature", required = false) Dictionary signature,
+		@RequestHeader(name = "Signature-Input", required = false) Dictionary signatureInput,
 		@RequestHeader(name = "Digest", required = false) String digest,
 		@RequestHeader(name = "Detached-JWS", required = false) String jwsd,
 		@RequestHeader(name = "DPoP", required = false) String dpop,
@@ -164,8 +165,8 @@ public class TransactionEndpoint {
 	@PostMapping(value = "/continue", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
 	public ResponseEntity<TransactionResponse> continueTransaction(@RequestBody(required = false) TransactionContinueRequest incoming,
 		@RequestHeader(name = HttpHeaders.AUTHORIZATION, required = false) String auth,
-		@RequestHeader(name = "Signature", required = false) String signature,
-		@RequestHeader(name = "Signature-Input", required = false) String signatureInput,
+		@RequestHeader(name = "Signature", required = false) Dictionary signature,
+		@RequestHeader(name = "Signature-Input", required = false) Dictionary signatureInput,
 		@RequestHeader(name = "Digest", required = false) String digest,
 		@RequestHeader(name = "Detached-JWS", required = false) String jwsd,
 		@RequestHeader(name = "DPoP", required = false) String dpop,
@@ -207,8 +208,8 @@ public class TransactionEndpoint {
 	}
 
 	private ResponseEntity<TransactionResponse> processTransaction(Transaction t, String instanceId,
-		String signature,
-		String signatureInput,
+		Dictionary signature,
+		Dictionary signatureInput,
 		String digest,
 		String jwsd,
 		String dpop,

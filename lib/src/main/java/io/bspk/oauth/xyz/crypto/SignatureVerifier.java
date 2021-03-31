@@ -22,7 +22,6 @@ import org.greenbytes.http.sfv.ByteSequenceItem;
 import org.greenbytes.http.sfv.Dictionary;
 import org.greenbytes.http.sfv.InnerList;
 import org.greenbytes.http.sfv.Item;
-import org.greenbytes.http.sfv.Parser;
 import org.greenbytes.http.sfv.StringItem;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -88,20 +87,16 @@ public class SignatureVerifier {
 		}
 	}
 
-	public static void checkHttpMessageSignature(String signatureHeaderPayload, String signatureInputHeaderPayload, HttpServletRequest request, JWK clientKey) {
-		if (Strings.isNullOrEmpty(signatureHeaderPayload)) {
+	public static void checkHttpMessageSignature(Dictionary signature, Dictionary signatureInput, HttpServletRequest request, JWK clientKey) {
+		if (signature == null) {
 			throw new RuntimeException("Missing signature header");
 		}
-		if (Strings.isNullOrEmpty(signatureInputHeaderPayload)) {
+		if (signatureInput == null) {
 			throw new RuntimeException("Missing signature input header");
 		}
 
 
 		try {
-			Dictionary signatureInput = Parser.parseDictionary(signatureInputHeaderPayload);
-			Dictionary signature = Parser.parseDictionary(signatureHeaderPayload);
-
-
 			// TODO: not sure how to make this more robust against multiple signatures
 			if (signatureInput.get().keySet().size() != 1) {
 				throw new RuntimeException("Found " + signatureInput.get().keySet().size() + " signature IDs");

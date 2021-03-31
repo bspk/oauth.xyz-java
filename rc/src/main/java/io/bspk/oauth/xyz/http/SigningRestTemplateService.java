@@ -419,7 +419,7 @@ public class SigningRestTemplateService {
 
 				byte[] encoded = Base64.getEncoder().encode(s);
 
-				String sigId = RandomStringUtils.randomAlphanumeric(5).toLowerCase();
+				String sigId = RandomStringUtils.randomAlphabetic(5).toLowerCase();
 
 				Dictionary sigHeader = Dictionary.valueOf(Map.of(
 					sigId, ByteSequenceItem.valueOf(encoded)));
