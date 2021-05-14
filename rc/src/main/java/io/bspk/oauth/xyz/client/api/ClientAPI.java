@@ -31,6 +31,7 @@ import org.springframework.web.util.UriComponentsBuilder;
 
 import com.google.common.base.Strings;
 import com.nimbusds.jose.jwk.JWK;
+import com.sailpoint.ietf.subjectidentifiers.model.SubjectIdentifierFormats;
 
 import io.bspk.oauth.xyz.client.repository.PendingTransactionRepository;
 import io.bspk.oauth.xyz.crypto.Hash;
@@ -46,6 +47,7 @@ import io.bspk.oauth.xyz.data.api.DisplayRequest;
 import io.bspk.oauth.xyz.data.api.InteractRequest;
 import io.bspk.oauth.xyz.data.api.KeyRequest;
 import io.bspk.oauth.xyz.data.api.PushbackRequest;
+import io.bspk.oauth.xyz.data.api.SubjectRequest;
 import io.bspk.oauth.xyz.data.api.TransactionContinueRequest;
 import io.bspk.oauth.xyz.data.api.TransactionRequest;
 import io.bspk.oauth.xyz.data.api.TransactionResponse;
@@ -142,7 +144,12 @@ public class ClientAPI {
 					"profile",
 					"email",
 					"phone"
-					));
+					))
+			.setSubject(SubjectRequest.ofSubjectFormats(
+					SubjectIdentifierFormats.EMAIL,
+					SubjectIdentifierFormats.OPAQUE,
+					SubjectIdentifierFormats.ISSUER_SUBJECT
+				));
 //			.setKeys(new KeyRequest()
 //				.setHandle("client"));
 

@@ -6,6 +6,8 @@ import java.util.List;
 
 import com.fasterxml.jackson.databind.PropertyNamingStrategy;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
+import com.sailpoint.ietf.subjectidentifiers.model.SubjectIdentifier;
+import com.sailpoint.ietf.subjectidentifiers.model.SubjectIdentifierFormats;
 
 import io.bspk.oauth.xyz.data.api.SubjectRequest;
 import lombok.Data;
@@ -26,25 +28,34 @@ public class Subject {
 
 	public static Subject of(SubjectRequest request, User user) {
 		Subject c = new Subject();
-		List<String> subIdsRequest = request.getSubIds();
+		List<SubjectIdentifierFormats> subIdsRequest = request.getSubIds();
 		List<SubjectIdentifier> subIds = new ArrayList<>();
 
 		if (subIdsRequest != null) {
-			if (subIdsRequest.contains("iss-sub")) {
-				subIds.add(new SubjectIdentifier()
-					.setSubjectType("iss-sub")
-					.setSub(user.getId())
-					.setIss(user.getIss()));
+			if (subIdsRequest.contains(SubjectIdentifierFormats.ISSUER_SUBJECT)) {
+				subIds.add(new SubjectIdentifier.Builder()
+					.format(SubjectIdentifierFormats.ISSUER_SUBJECT)
+					.subject(user.getId())
+					.issuer(user.getIss())
+					.build());
 			}
-			if (subIdsRequest.contains("email")) {
-				subIds.add(new SubjectIdentifier()
-					.setSubjectType("email")
-					.setEmail(user.getEmail()));
+			if (subIdsRequest.contains(SubjectIdentifierFormats.EMAIL)) {
+				subIds.add(new SubjectIdentifier.Builder()
+					.format(SubjectIdentifierFormats.EMAIL)
+					.email(user.getEmail())
+					.build());
 			}
-			if (subIdsRequest.contains("phone-number")) {
-				subIds.add(new SubjectIdentifier()
-					.setSubjectType("phone_number")
-					.setPhoneNumber(user.getPhone()));
+			if (subIdsRequest.contains(SubjectIdentifierFormats.PHONE_NUMBER)) {
+				subIds.add(new SubjectIdentifier.Builder()
+					.format(SubjectIdentifierFormats.PHONE_NUMBER)
+					.phoneNumber(user.getPhone())
+					.build());
+			}
+			if (subIdsRequest.contains(SubjectIdentifierFormats.OPAQUE)) {
+				subIds.add(new SubjectIdentifier.Builder()
+					.format(SubjectIdentifierFormats.OPAQUE)
+					.id(user.getId())
+					.build());
 			}
 			// TODO: add other types
 
