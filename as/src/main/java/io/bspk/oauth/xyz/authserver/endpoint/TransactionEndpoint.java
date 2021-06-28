@@ -30,13 +30,11 @@ import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import com.google.common.base.Strings;
-import com.google.common.collect.Sets;
 
 import io.bspk.oauth.xyz.authserver.repository.ClientRepository;
 import io.bspk.oauth.xyz.authserver.repository.TransactionRepository;
 import io.bspk.oauth.xyz.crypto.SignatureVerifier;
 import io.bspk.oauth.xyz.data.AccessToken;
-import io.bspk.oauth.xyz.data.Capability;
 import io.bspk.oauth.xyz.data.Client;
 import io.bspk.oauth.xyz.data.Display;
 import io.bspk.oauth.xyz.data.Interact;
@@ -66,8 +64,6 @@ public class TransactionEndpoint {
 
 	private static final String USER_CODE_CHARS = "123456789ABCDEFGHJKLMNOPQRSTUVWXYZ";
 
-	private Set<Capability> capabilities = Set.of(Capability.values());
-
 	@Autowired
 	private TransactionRepository transactionRepository;
 
@@ -82,22 +78,21 @@ public class TransactionEndpoint {
 
 		Map<String, Object> disco = new HashMap<>();
 
-		disco.put("key_proofs", Proof.values());
+		disco.put("key_proofs_supported", Proof.values());
 
 		String txEndpoint = UriComponentsBuilder.fromHttpUrl(baseUrl)
 			.path("/api/as/transaction")
 			.build().toUriString();
 
-		disco.put("grant_endpoint", txEndpoint);
+		disco.put("grant_request_endpoint", txEndpoint);
 
-		disco.put("capabilities", capabilities);
-
-		disco.put("interact_methods", Set.of(
+		disco.put("interact_start_methods_supported", Set.of(
 			"redirect",
 			"app",
-			"callback",
 			"user_code"
 		));
+
+		disco.put("interact_finish_methods_supported", Set.of("redirect", "push"));
 
 		return ResponseEntity.ok(disco);
 	}
@@ -143,8 +138,6 @@ public class TransactionEndpoint {
 			t.setSubjectRequest(incoming.getSubject());
 
 			t.setAccessTokenRequest(incoming.getAccessToken());
-
-			t.setCapabilitiesRequest(incoming.getCapabilities());
 
 			return processTransaction(t, getInstanceIdIfNew(incoming, client), signature, signatureInput, digest, jwsd, dpop, oauthPop, req, null);
 		}
@@ -216,11 +209,6 @@ public class TransactionEndpoint {
 		String oauthPop,
 		HttpServletRequest req,
 		String accessToken) {
-
-		// process the capabilities list if needed
-		if (t.getCapabilitiesRequest() != null && t.getCapabilities() == null) {
-			t.setCapabilities(Sets.intersection(t.getCapabilitiesRequest(), capabilities));
-		}
 
 		// validate the method signing as appropriate
 		if (t.getKey() != null) {

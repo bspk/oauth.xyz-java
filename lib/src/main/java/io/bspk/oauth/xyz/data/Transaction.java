@@ -1,7 +1,6 @@
 package io.bspk.oauth.xyz.data;
 
 import java.util.List;
-import java.util.Set;
 
 import org.springframework.data.annotation.Id;
 
@@ -13,8 +12,8 @@ import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 
-import io.bspk.oauth.xyz.data.api.MultipleAwareField;
 import io.bspk.oauth.xyz.data.api.AccessTokenRequest;
+import io.bspk.oauth.xyz.data.api.MultipleAwareField;
 import io.bspk.oauth.xyz.data.api.SubjectRequest;
 import io.bspk.oauth.xyz.json.MultipleAwareFieldDeserializer;
 import io.bspk.oauth.xyz.json.MultipleAwareFieldSerializer;
@@ -69,8 +68,6 @@ public class Transaction {
 	@JsonSerialize(using = MultipleAwareFieldSerializer.class)
 	@JsonDeserialize(using = MultipleAwareFieldDeserializer.class)
 	private MultipleAwareField<AccessTokenRequest> accessTokenRequest;
-	private Set<Capability> capabilitiesRequest;
-	private Set<Capability> capabilities;
 
 	@JsonIgnore
 	@Tolerate

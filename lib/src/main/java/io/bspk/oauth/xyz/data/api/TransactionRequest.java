@@ -1,14 +1,11 @@
 package io.bspk.oauth.xyz.data.api;
 
-import java.util.Set;
-
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.databind.PropertyNamingStrategy;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 
-import io.bspk.oauth.xyz.data.Capability;
 import io.bspk.oauth.xyz.json.HandleAwareFieldDeserializer;
 import io.bspk.oauth.xyz.json.HandleAwareFieldSerializer;
 import io.bspk.oauth.xyz.json.MultipleAwareFieldDeserializer;
@@ -36,7 +33,6 @@ public class TransactionRequest {
 	@JsonSerialize(using =  MultipleAwareFieldSerializer.class)
 	@JsonDeserialize(using = MultipleAwareFieldDeserializer.class)
 	private MultipleAwareField<AccessTokenRequest> accessToken;
-	private Set<Capability> capabilities;
 	private SubjectRequest subject;
 
 	@Tolerate
