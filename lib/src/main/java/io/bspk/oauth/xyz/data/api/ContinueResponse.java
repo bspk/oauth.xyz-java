@@ -17,7 +17,6 @@ public class ContinueResponse {
 
 	private Integer wait;
 	private String uri;
-	private Integer expiresIn;
 	private AccessTokenResponse accessToken;
 
 }

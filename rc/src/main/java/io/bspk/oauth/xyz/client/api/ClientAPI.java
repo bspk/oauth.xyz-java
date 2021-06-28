@@ -331,7 +331,7 @@ public class ClientAPI {
 
 			// check the incoming hash
 
-			String expectedHash = Hash.CalculateInteractHash(pending.getClientNonce(), pending.getServerNonce(), interact, pending.getHashMethod());
+			String expectedHash = Hash.calculateInteractHash(pending.getClientNonce(), pending.getServerNonce(), interact, asEndpoint, pending.getHashMethod());
 
 			if (!expectedHash.equals(interactHash)) {
 				return ResponseEntity.badRequest().build(); // TODO: redirect this someplace useful?
@@ -374,7 +374,7 @@ public class ClientAPI {
 
 			// check the incoming hash
 
-			String expectedHash = Hash.CalculateInteractHash(pending.getClientNonce(), pending.getServerNonce(), pushback.getInteractRef(), pending.getHashMethod());
+			String expectedHash = Hash.calculateInteractHash(pending.getClientNonce(), pending.getServerNonce(), pushback.getInteractRef(), asEndpoint, pending.getHashMethod());
 
 			if (!expectedHash.equals(pushback.getHash())) {
 				return ResponseEntity.badRequest().build(); // TODO: redirect this someplace useful?

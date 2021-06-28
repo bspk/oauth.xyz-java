@@ -7,7 +7,6 @@ import java.util.function.Function;
 
 import org.bouncycastle.jcajce.provider.digest.SHA1;
 import org.bouncycastle.jcajce.provider.digest.SHA256;
-import org.bouncycastle.jcajce.provider.digest.SHA256.Digest;
 import org.bouncycastle.jcajce.provider.digest.SHA3;
 import org.bouncycastle.jcajce.provider.digest.SHA384;
 import org.bouncycastle.jcajce.provider.digest.SHA512;
@@ -74,12 +73,13 @@ public abstract class Hash {
 
 	}
 
-	public static String CalculateInteractHash(String clientNonce, String serverNonce, String interact, HashMethod hashMethod) {
+	public static String calculateInteractHash(String clientNonce, String serverNonce, String interact, String endpointUri, HashMethod hashMethod) {
 		return hashMethod.getFunction().apply(
 			Joiner.on('\n')
 			.join(clientNonce,
 				serverNonce,
-				interact));
+				interact,
+				endpointUri));
 	}
 
 	public static String SHA256_encode(String input) {
@@ -110,34 +110,34 @@ public abstract class Hash {
 
 	// This is the OIDC "at_hash" algorithm, used with JOSE-based signing mechanisms
 	public static Base64URL getAtHash(Algorithm signingAlg, byte[] bytes) {
-	
+
 		//Switch based on the given signing algorithm - use SHA-xxx with the same 'xxx' bitnumber
 		//as the JWSAlgorithm to hash the token.
-	
+
 		MessageDigest hasher = null;
 		if (signingAlg.equals(JWSAlgorithm.HS256) || signingAlg.equals(JWSAlgorithm.ES256) || signingAlg.equals(JWSAlgorithm.RS256) || signingAlg.equals(JWSAlgorithm.PS256)) {
 			hasher = new SHA256.Digest();
 		}
-	
+
 		else if (signingAlg.equals(JWSAlgorithm.ES384) || signingAlg.equals(JWSAlgorithm.HS384) || signingAlg.equals(JWSAlgorithm.RS384) || signingAlg.equals(JWSAlgorithm.PS384)) {
 			hasher = new SHA384.Digest();
 		}
-	
+
 		else if (signingAlg.equals(JWSAlgorithm.ES512) || signingAlg.equals(JWSAlgorithm.HS512) || signingAlg.equals(JWSAlgorithm.RS512) || signingAlg.equals(JWSAlgorithm.PS512)) {
 			hasher = new SHA512.Digest();
 		}
-	
+
 		if (hasher != null) {
 			hasher.reset();
 			hasher.update(bytes);
-	
+
 			byte[] hashBytes = hasher.digest();
 			byte[] hashBytesLeftHalf = Arrays.copyOf(hashBytes, hashBytes.length / 2);
 			Base64URL encodedHash = Base64URL.encode(hashBytesLeftHalf);
-	
+
 			return encodedHash;
 		}
-	
+
 		return null;
 	}
 }

@@ -116,10 +116,16 @@ public class InteractionEndpoint {
 				String serverNonce = transaction.getInteract().getServerNonce();
 				HashMethod hashMethod = transaction.getInteract().getCallbackHashMethod();
 
-				String hash = Hash.CalculateInteractHash(clientNonce,
+				String txEndpoint = UriComponentsBuilder.fromHttpUrl(baseUrl)
+					.path("/api/as/transaction")
+					.build().toUriString();
+
+				String hash = Hash.calculateInteractHash(clientNonce,
 						serverNonce,
 						interactRef,
-						hashMethod);
+						txEndpoint,
+						hashMethod
+						);
 
 				if (transaction.getInteract().getCallbackMethod().equals(CallbackMethod.REDIRECT)) {
 					// do a redirection
