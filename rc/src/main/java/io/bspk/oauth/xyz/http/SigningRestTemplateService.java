@@ -13,7 +13,6 @@ import java.util.Date;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.RandomStringUtils;
@@ -289,30 +288,26 @@ public class SigningRestTemplateService {
 			JWK clientKey = getKey().getJwk();
 
 			JWSHeader.Builder headerBuilder = new JWSHeader.Builder(JWSAlgorithm.parse(clientKey.getAlgorithm().getName()))
-				.type(JOSEObjectType.JOSE)
+				.type(new JOSEObjectType("gnap-binding+jwsd"))
 				.keyID(clientKey.getKeyID())
 				.customParam("htm", request.getMethod().toString())
-				.customParam("htu", request.getURI().toString());
-
-			if (!attached) {
-				// if it's the detached version, set the detached JWS headers
-				headerBuilder.base64URLEncodePayload(false)
-					.criticalParams(Set.of("b64"));
-			}
+				.customParam("uri", request.getURI().toString());
 
 			// cover the access token if it exists
 			if (hasAccessToken()) {
-				headerBuilder.customParam("at_hash", Hash.getAtHash(clientKey.getAlgorithm(), getAccessTokenValue().getBytes()).toString());
+				headerBuilder.customParam("ath", Hash.SHA256_encode_url(getAccessTokenValue().getBytes()).toString());
 			}
 
 			JWSHeader header = headerBuilder
 				.build();
 
 			Payload payload;
-			if (body == null) {
+			if (body == null || body.length == 0) {
+				// if the body is empty, use an empty payload
 				payload = new Payload(new byte[0]);
 			} else {
-				payload = new Payload(body);
+				// if the body's not empty, the payload is a hash of the body
+				payload = new Payload(Hash.SHA256_encode_url(body));
 			}
 
 			//log.info(">> " + payload.toBase64URL().toString());
@@ -324,7 +319,7 @@ public class SigningRestTemplateService {
 
 				jwsObject.sign(signer);
 
-				String signature = jwsObject.serialize(true);
+				String signature = jwsObject.serialize();
 
 				if (attached) {
 
@@ -363,10 +358,8 @@ public class SigningRestTemplateService {
 
 			try {
 
-				String alg = "rsa-sha256";
 				// TODO: update with new signature mechanisms, right now we only lock on RSA-256
 				Parameters sigParameters = Parameters.valueOf(Map.of(
-					"alg", StringItem.valueOf(alg),
 					"keyid", StringItem.valueOf(getKey().getJwk().getKeyID()),
 					"created", IntegerItem.valueOf(Instant.now().getEpochSecond())
 					));

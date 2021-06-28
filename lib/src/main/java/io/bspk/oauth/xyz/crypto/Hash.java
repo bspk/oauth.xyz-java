@@ -1,14 +1,12 @@
 package io.bspk.oauth.xyz.crypto;
 
 import java.security.MessageDigest;
-import java.util.Arrays;
 import java.util.Base64;
 import java.util.function.Function;
 
 import org.bouncycastle.jcajce.provider.digest.SHA1;
 import org.bouncycastle.jcajce.provider.digest.SHA256;
 import org.bouncycastle.jcajce.provider.digest.SHA3;
-import org.bouncycastle.jcajce.provider.digest.SHA384;
 import org.bouncycastle.jcajce.provider.digest.SHA512;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -16,8 +14,6 @@ import org.slf4j.LoggerFactory;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
 import com.google.common.base.Joiner;
-import com.nimbusds.jose.Algorithm;
-import com.nimbusds.jose.JWSAlgorithm;
 import com.nimbusds.jose.util.Base64URL;
 
 import lombok.AllArgsConstructor;
@@ -108,36 +104,17 @@ public abstract class Hash {
 		return new String(encoded);
 	}
 
-	// This is the OIDC "at_hash" algorithm, used with JOSE-based signing mechanisms
-	public static Base64URL getAtHash(Algorithm signingAlg, byte[] bytes) {
-
-		//Switch based on the given signing algorithm - use SHA-xxx with the same 'xxx' bitnumber
-		//as the JWSAlgorithm to hash the token.
-
-		MessageDigest hasher = null;
-		if (signingAlg.equals(JWSAlgorithm.HS256) || signingAlg.equals(JWSAlgorithm.ES256) || signingAlg.equals(JWSAlgorithm.RS256) || signingAlg.equals(JWSAlgorithm.PS256)) {
-			hasher = new SHA256.Digest();
+	// does a sha256 hash
+	public static Base64URL SHA256_encode_url(byte[] input) {
+		if (input == null || input.length == 0) {
+			return null;
 		}
 
-		else if (signingAlg.equals(JWSAlgorithm.ES384) || signingAlg.equals(JWSAlgorithm.HS384) || signingAlg.equals(JWSAlgorithm.RS384) || signingAlg.equals(JWSAlgorithm.PS384)) {
-			hasher = new SHA384.Digest();
-		}
+		MessageDigest digest = new SHA256.Digest();
+		byte[] output = digest.digest(input);
 
-		else if (signingAlg.equals(JWSAlgorithm.ES512) || signingAlg.equals(JWSAlgorithm.HS512) || signingAlg.equals(JWSAlgorithm.RS512) || signingAlg.equals(JWSAlgorithm.PS512)) {
-			hasher = new SHA512.Digest();
-		}
+		Base64URL encodedHash = Base64URL.encode(output);
 
-		if (hasher != null) {
-			hasher.reset();
-			hasher.update(bytes);
-
-			byte[] hashBytes = hasher.digest();
-			byte[] hashBytesLeftHalf = Arrays.copyOf(hashBytes, hashBytes.length / 2);
-			Base64URL encodedHash = Base64URL.encode(hashBytesLeftHalf);
-
-			return encodedHash;
-		}
-
-		return null;
+		return encodedHash;
 	}
 }

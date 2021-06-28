@@ -144,9 +144,10 @@ public class SignatureVerifier {
 
 
 			// TODO: algorithm agility
-			if (!sigParams.getParams().get("alg").get().equals("rsa-sha256")) {
-				throw new RuntimeException("Unknown algorithm: " + sigParams.getParams().get("alg").get());
-			}
+
+//			if (!sigParams.getParams().get("alg").get().equals("rsa-sha256")) {
+//				throw new RuntimeException("Unknown algorithm: " + sigParams.getParams().get("alg").get());
+//			}
 			RSAKey rsaKey = clientKey.toRSAKey();
 
 			Signature signer = Signature.getInstance("SHA256withRSA");
@@ -230,7 +231,17 @@ public class SignatureVerifier {
 		try {
 
 			Base64URL[] parts = JOSEObject.split(jwsd);
-			Payload payload = new Payload((byte[])request.getAttribute(DigestWrappingFilter.BODY_BYTES));
+
+
+
+			Payload payload = null;
+
+			byte[] body = (byte[])request.getAttribute(DigestWrappingFilter.BODY_BYTES);
+			if (body == null || body.length == 0) {
+				payload = new Payload(new byte[0]);
+			} else {
+				payload = new Payload(Hash.SHA256_encode_url(body));
+			}
 
 			//log.info("<< " + payload.toBase64URL().toString());
 
@@ -260,27 +271,27 @@ public class SignatureVerifier {
 			throw new RuntimeException("Couldn't verify method");
 		}
 
-		if (header.getCustomParam("htu") == null) {
+		if (header.getCustomParam("uri") == null) {
 			throw new RuntimeException("Couldn't get uri");
 		} else {
 			StringBuffer url = request.getRequestURL();
 			if (request.getQueryString() != null) {
 				url.append('?').append(request.getQueryString());
 			}
-			if (!header.getCustomParam("htu").equals(url.toString())) {
+			if (!header.getCustomParam("uri").equals(url.toString())) {
 				throw new RuntimeException("Couldn't verify uri");
 			}
 		}
 
 		if (!Strings.isNullOrEmpty(accessToken)) {
-			if (header.getCustomParam("at_hash") == null) {
+			if (header.getCustomParam("ath") == null) {
 				throw new RuntimeException("Couldn't get access token hash");
 			} else {
-				Base64URL expected = Hash.getAtHash(header.getAlgorithm(), accessToken.getBytes());
-				Base64URL actual = Base64URL.from(header.getCustomParam("at_hash").toString());
+				Base64URL expected = Hash.SHA256_encode_url(accessToken.getBytes());
+				Base64URL actual = Base64URL.from(header.getCustomParam("ath").toString());
 
 				if (!expected.equals(actual)) {
-					throw new RuntimeException("Access token hash does not match");
+					throw new RuntimeException("Access token hash does not match: " + expected + " / " + actual);
 				}
 			}
 		}
@@ -326,11 +337,11 @@ public class SignatureVerifier {
 			}
 
 			if (!Strings.isNullOrEmpty(accessToken)) {
-				if (claims.getClaim("at_hash") == null) {
+				if (claims.getClaim("ath") == null) {
 					throw new RuntimeException("Couldn't get access token hash");
 				} else {
-					Base64URL expected = Hash.getAtHash(jwt.getHeader().getAlgorithm(), accessToken.getBytes());
-					Base64URL actual = Base64URL.from(claims.getStringClaim("at_hash"));
+					Base64URL expected = Hash.SHA256_encode_url(accessToken.getBytes());
+					Base64URL actual = Base64URL.from(claims.getStringClaim("ath"));
 
 					if (!expected.equals(actual)) {
 						throw new RuntimeException("Access token hash does not match");

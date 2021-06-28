@@ -6,6 +6,7 @@ import java.util.Optional;
 
 import javax.servlet.http.HttpServletRequest;
 
+import org.greenbytes.http.sfv.Dictionary;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
@@ -44,7 +45,8 @@ public class ResourceEndpoint {
 	@GetMapping(produces = MediaType.APPLICATION_JSON_VALUE)
 	public ResponseEntity<?> getResource(
 		@RequestHeader(name = HttpHeaders.AUTHORIZATION, required = false) String auth,
-		@RequestHeader(name = "Signature", required = false) String signature,
+		@RequestHeader(name = "Signature", required = false) Dictionary signature,
+		@RequestHeader(name = "Signature-Input", required = false) Dictionary signatureInput,
 		@RequestHeader(name = "Digest", required = false) String digest,
 		@RequestHeader(name = "Detached-JWS", required = false) String jwsd,
 		@RequestHeader(name = "DPoP", required = false) String dpop,
@@ -86,7 +88,7 @@ public class ResourceEndpoint {
 				switch (k.getProof()) {
 					case HTTPSIG:
 						SignatureVerifier.ensureDigest(digest, req); // make sure the digest header is accurate
-						SignatureVerifier.checkCavageSignature(signature, req, k.getJwk());
+						SignatureVerifier.checkHttpMessageSignature(signature, signatureInput, req, k.getJwk());
 						break;
 					case JWSD:
 						SignatureVerifier.checkDetachedJws(jwsd, req, k.getJwk(), token.getValue());
