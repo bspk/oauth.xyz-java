@@ -13,6 +13,7 @@ import com.fasterxml.jackson.databind.PropertyNamingStrategy;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
 
 import io.bspk.oauth.xyz.crypto.Hash.HashMethod;
+import io.bspk.oauth.xyz.data.api.AccessTokenRequest.TokenFlag;
 import io.bspk.oauth.xyz.data.api.AccessTokenResponse;
 import io.bspk.oauth.xyz.data.api.InteractResponse;
 import io.bspk.oauth.xyz.data.api.TransactionContinueRequest;
@@ -112,7 +113,7 @@ public class PendingTransaction {
 					.collect(Collectors.toMap(
 						t -> t.getLabel(),
 						t -> {
-							if (t.isBound()) {
+							if (t.getFlags() != null && !t.getFlags().contains(TokenFlag.BEARER)) {
 								if (t.getKey() == null) {
 									// the token is bound but there's no other key, use the client's key
 									return getKey();
@@ -127,7 +128,7 @@ public class PendingTransaction {
 			} else {
 				AccessTokenResponse tokenResponse = response.getAccessToken().asSingle();
 				setAccessToken(tokenResponse.getValue());
-				if (tokenResponse.isBound()) {
+				if (tokenResponse.getFlags() != null && !tokenResponse.getFlags().contains(TokenFlag.BEARER)) {
 					if (tokenResponse.getKey() != null) {
 						setAccessTokenKey(tokenResponse.getKey());
 					} else {
