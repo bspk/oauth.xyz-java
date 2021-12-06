@@ -1,6 +1,7 @@
 package io.bspk.oauth.xyz.crypto;
 
 import java.io.UnsupportedEncodingException;
+import java.net.URI;
 import java.nio.charset.Charset;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
@@ -117,21 +118,46 @@ public class SignatureVerifier {
 			sigParams.get().forEach((c) -> {
 				if (c instanceof StringItem) {
 					String h = ((StringItem)c).get();
-					if (h.equals("@request-target")) {
-						String requestTarget = request.getMethod().toLowerCase() + " " + request.getRequestURI();
-						signatureBlock.put(
-							c, requestTarget);
+					URI uri = URI.create(request.getRequestURL().toString()
+						+ (request.getQueryString() != null ? "?" + request.getQueryString() : ""));
+					if (h.equals("@method")) {
+						signatureBlock.put(c, request.getMethod());
+					} else if (h.equals("@authority")) {
+						signatureBlock.put(c, uri.getHost());
+					} else if (h.equals("@path")) {
+						signatureBlock.put(c,  uri.getRawPath());
+					} else if (h.equals("@query")) {
+						signatureBlock.put(c, uri.getRawQuery());
+					} else if (h.equals("@target-uri")) {
+						signatureBlock.put(c, uri.toString());
+					} else if (h.equals("@scheme")) {
+						signatureBlock.put(c, uri.getScheme());
+					} else if (h.equals("@request-target")) {
+						String reqt = "";
+						if (uri.getRawPath() != null) {
+							reqt += uri.getRawPath();
+						}
+						if (uri.getRawQuery() != null) {
+							reqt += "?" + uri.getRawQuery();
+						}
+						signatureBlock.put(c, reqt);
 					} else if (request.getHeader(h) != null) {
 						signatureBlock.put(
 							c,
 							request.getHeader(h).trim());
 					} else {
-						throw new RuntimeException("Couldn't find covered content: " + c);
+						throw new RuntimeException("Couldn't find covered component: " + c);
 					}
 				} else {
-					throw new RuntimeException("Unknown covered content type for: " + c);
+					throw new RuntimeException("Unknown covered component type for: " + c);
 				}
 			});
+
+			if (signatureBlock.entrySet().stream()
+				.anyMatch(e -> e.getValue() == null)) {
+				// there was a problem adding a value to the stream
+				throw new RuntimeException("Bad Signature input, couldn't derive a component value");
+			}
 
 			signatureBlock.put(
 				StringItem.valueOf("@signature-params"),

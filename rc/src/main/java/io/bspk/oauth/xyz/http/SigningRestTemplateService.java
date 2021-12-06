@@ -1,6 +1,7 @@
 package io.bspk.oauth.xyz.http;
 
 import java.io.IOException;
+import java.net.URI;
 import java.nio.charset.Charset;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
@@ -13,6 +14,7 @@ import java.util.Date;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.RandomStringUtils;
@@ -366,15 +368,32 @@ public class SigningRestTemplateService {
 
 				// collect the base string
 				Map<Item<?>, String> signatureBlock = new LinkedHashMap<>();
-				String requestTarget = request.getMethodValue().toLowerCase() + " " + request.getURI().getRawPath();
-				signatureBlock.put(StringItem.valueOf("@request-target"), requestTarget);
 
-				List<String> headersToSign = Lists.newArrayList("Host", "Date");
+				URI uri = request.getURI();
+
+				signatureBlock.put(StringItem.valueOf("@method"), request.getMethod().toString());
+				signatureBlock.put(StringItem.valueOf("@target-uri"), uri.toString());
+				signatureBlock.put(StringItem.valueOf("@authority"), uri.getHost());
+				signatureBlock.put(StringItem.valueOf("@path"), uri.getRawPath());
+				signatureBlock.put(StringItem.valueOf("@query"), uri.getRawQuery());
+				signatureBlock.put(StringItem.valueOf("@scheme"), uri.getScheme());
+
+				String reqt = "";
+				if (uri.getRawPath() != null) {
+					reqt += uri.getRawPath();
+				}
+				if (uri.getRawQuery() != null) {
+					reqt += "?" + uri.getRawQuery();
+				}
+				signatureBlock.put(StringItem.valueOf("@request-target"), reqt);
+
+				List<String> headersToSign = Lists.newArrayList();
 
 				if (request.getMethod() == HttpMethod.PUT ||
 					request.getMethod() == HttpMethod.PATCH ||
 					request.getMethod() == HttpMethod.POST) {
 					headersToSign.add("Content-Length");
+					headersToSign.add("Content-Type");
 					headersToSign.add("Digest");
 				}
 
@@ -390,6 +409,11 @@ public class SigningRestTemplateService {
 					}
 				});
 
+				// strip out all the null values from the map (we couldn't derive a value)
+				signatureBlock.values().removeIf(Objects::isNull);
+
+				// TODO: ensure basic coverage here
+
 				// copy over the items we've added to the signature block so far
 				InnerList coveredContent = InnerList.valueOf(List.copyOf(signatureBlock.keySet()))
 					.withParams(sigParameters);
@@ -399,6 +423,7 @@ public class SigningRestTemplateService {
 					coveredContent.serialize());
 
 				String input = signatureBlock.entrySet().stream()
+					.filter(e -> e.getValue() != null)
 					.map(e -> e.getKey().serialize() + ": " + e.getValue())
 					.collect(Collectors.joining("\n"));
 

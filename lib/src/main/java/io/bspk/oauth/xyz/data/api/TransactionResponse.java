@@ -28,7 +28,6 @@ public class TransactionResponse {
 
 	@JsonProperty("continue") // "continue" is a java keyword
 	private ContinueResponse cont;
-	private String userHandle;
 	private String instanceId;
 	@JsonSerialize(using =  MultipleAwareFieldSerializer.class)
 	@JsonDeserialize(using = MultipleAwareFieldDeserializer.class)
