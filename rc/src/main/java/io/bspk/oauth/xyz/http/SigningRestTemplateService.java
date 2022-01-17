@@ -3,10 +3,14 @@ package io.bspk.oauth.xyz.http;
 import java.io.IOException;
 import java.net.URI;
 import java.nio.charset.Charset;
+import java.security.InvalidAlgorithmParameterException;
 import java.security.InvalidKeyException;
+import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.Signature;
 import java.security.SignatureException;
+import java.security.spec.MGF1ParameterSpec;
+import java.security.spec.PSSParameterSpec;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Base64;
@@ -18,6 +22,7 @@ import java.util.Objects;
 import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.RandomStringUtils;
+import org.bouncycastle.jcajce.provider.digest.SHA512;
 import org.greenbytes.http.sfv.ByteSequenceItem;
 import org.greenbytes.http.sfv.Dictionary;
 import org.greenbytes.http.sfv.InnerList;
@@ -111,6 +116,7 @@ public class SigningRestTemplateService {
 				));
 			case HTTPSIG:
 				return createRestTemplate(List.of(
+					new ContentDigestInterceptor(),
 					new AccessTokenInjectingInterceptor(key, accessTokenValue),
 					new HttpMessageSigningInterceptor(key, accessTokenValue),
 					new RequestResponseLoggingInterceptor()
@@ -269,6 +275,31 @@ public class SigningRestTemplateService {
 
 	}
 
+	private class ContentDigestInterceptor implements ClientHttpRequestInterceptor {
+		private final Logger log = LoggerFactory.getLogger(this.getClass());
+
+		@Override
+		public ClientHttpResponse intercept(HttpRequest request, byte[] body, ClientHttpRequestExecution execution) throws IOException {
+			if (body != null && body.length > 0) {
+
+				MessageDigest sha = new SHA512.Digest();
+
+				byte[] digest = sha.digest(body);
+
+				ByteSequenceItem seq = ByteSequenceItem.valueOf(digest);
+
+				Dictionary dict = Dictionary.valueOf(Map.of(
+					"sha-512", seq
+					));
+
+				request.getHeaders().add("Content-Digest", dict.serialize());
+
+			}
+
+			return execution.execute(request, body);
+		}
+	}
+
 	// this handles both the detached and attached versions
 	private class JwsSigningInterceptor extends KeyAndTokenAwareInterceptor implements ClientHttpRequestInterceptor {
 
@@ -360,7 +391,7 @@ public class SigningRestTemplateService {
 
 			try {
 
-				// TODO: update with new signature mechanisms, right now we only lock on RSA-256
+				// TODO: update with new signature mechanisms, right now we only lock on RSA-PSS
 				Parameters sigParameters = Parameters.valueOf(Map.of(
 					"keyid", StringItem.valueOf(getKey().getJwk().getKeyID()),
 					"created", IntegerItem.valueOf(Instant.now().getEpochSecond())
@@ -394,7 +425,7 @@ public class SigningRestTemplateService {
 					request.getMethod() == HttpMethod.POST) {
 					headersToSign.add("Content-Length");
 					headersToSign.add("Content-Type");
-					headersToSign.add("Digest");
+					headersToSign.add("Content-Digest");
 				}
 
 				if (hasAccessToken()) {
@@ -429,18 +460,21 @@ public class SigningRestTemplateService {
 
 				RSAKey rsaKey = getKey().getJwk().toRSAKey();
 
-				Signature signature = Signature.getInstance("SHA256withRSA");
+				Signature signer = Signature.getInstance("RSASSA-PSS");
+				signer.setParameter(
+					new PSSParameterSpec("SHA-512", "MGF1", MGF1ParameterSpec.SHA512, 64, 1));
 
-				signature.initSign(rsaKey.toPrivateKey());
-				signature.update(input.getBytes("UTF-8"));
-				byte[] s = signature.sign();
+				MessageDigest sha = new SHA512.Digest();
+				byte[] hash = sha.digest(input.getBytes());
 
-				byte[] encoded = Base64.getEncoder().encode(s);
+				signer.initSign(rsaKey.toPrivateKey());
+				signer.update(hash);
+				byte[] s = signer.sign();
 
 				String sigId = RandomStringUtils.randomAlphabetic(5).toLowerCase();
 
 				Dictionary sigHeader = Dictionary.valueOf(Map.of(
-					sigId, ByteSequenceItem.valueOf(encoded)));
+					sigId, ByteSequenceItem.valueOf(s)));
 
 				Dictionary sigInputHeader = Dictionary.valueOf(Map.of(
 					sigId, coveredContent));
@@ -448,7 +482,7 @@ public class SigningRestTemplateService {
 				request.getHeaders().add("Signature", sigHeader.serialize());
 				request.getHeaders().add("Signature-Input", sigInputHeader.serialize());
 
-			} catch (NoSuchAlgorithmException | InvalidKeyException | JOSEException | SignatureException e) {
+			} catch (NoSuchAlgorithmException | InvalidKeyException | JOSEException | SignatureException | InvalidAlgorithmParameterException e) {
 				throw new RuntimeException(e);
 			}
 

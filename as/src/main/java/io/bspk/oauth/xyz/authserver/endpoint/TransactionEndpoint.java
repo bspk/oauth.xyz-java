@@ -102,6 +102,7 @@ public class TransactionEndpoint {
 		@RequestHeader(name = HttpHeaders.AUTHORIZATION, required = false) String auth,
 		@RequestHeader(name = "Signature", required = false) Dictionary signature,
 		@RequestHeader(name = "Signature-Input", required = false) Dictionary signatureInput,
+		@RequestHeader(name = "Content-Digest", required = false) Dictionary contentDigest,
 		@RequestHeader(name = "Digest", required = false) String digest,
 		@RequestHeader(name = "Detached-JWS", required = false) String jwsd,
 		@RequestHeader(name = "DPoP", required = false) String dpop,
@@ -139,7 +140,7 @@ public class TransactionEndpoint {
 
 			t.setAccessTokenRequest(incoming.getAccessToken());
 
-			return processTransaction(t, getInstanceIdIfNew(incoming, client), signature, signatureInput, digest, jwsd, dpop, oauthPop, req, null);
+			return processTransaction(t, getInstanceIdIfNew(incoming, client), signature, signatureInput, contentDigest, digest, jwsd, dpop, oauthPop, req, null);
 		}
 
 
@@ -160,6 +161,7 @@ public class TransactionEndpoint {
 		@RequestHeader(name = HttpHeaders.AUTHORIZATION, required = false) String auth,
 		@RequestHeader(name = "Signature", required = false) Dictionary signature,
 		@RequestHeader(name = "Signature-Input", required = false) Dictionary signatureInput,
+		@RequestHeader(name = "Content-Digest", required = false) Dictionary contentDigest,
 		@RequestHeader(name = "Digest", required = false) String digest,
 		@RequestHeader(name = "Detached-JWS", required = false) String jwsd,
 		@RequestHeader(name = "DPoP", required = false) String dpop,
@@ -191,7 +193,7 @@ public class TransactionEndpoint {
 
 				}
 
-				return processTransaction(t, null, signature, signatureInput, digest, jwsd, dpop, oauthPop, req, accessToken);
+				return processTransaction(t, null, signature, signatureInput, contentDigest, digest, jwsd, dpop, oauthPop, req, accessToken);
 			}
 
 		} else {
@@ -203,6 +205,7 @@ public class TransactionEndpoint {
 	private ResponseEntity<TransactionResponse> processTransaction(Transaction t, String instanceId,
 		Dictionary signature,
 		Dictionary signatureInput,
+		Dictionary contentDigest,
 		String digest,
 		String jwsd,
 		String dpop,
@@ -214,7 +217,7 @@ public class TransactionEndpoint {
 		if (t.getKey() != null) {
 			switch (t.getKey().getProof()) {
 				case HTTPSIG:
-					SignatureVerifier.ensureDigest(digest, req); // make sure the digest header is accurate
+					SignatureVerifier.ensureContentDigest(contentDigest, req); // make sure the digest header is accurate
 					SignatureVerifier.checkHttpMessageSignature(signature, signatureInput, req, t.getKey().getJwk());
 					break;
 				case JWSD:

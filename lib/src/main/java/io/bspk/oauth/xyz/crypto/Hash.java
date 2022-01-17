@@ -60,13 +60,18 @@ public abstract class Hash {
 	}
 
 	public static String SHA2_512_encode(String input) {
-		MessageDigest digest = new SHA512.Digest();
-		byte[] output = digest.digest(input.getBytes());
+		byte[] output = SHA2_512_digest(input.getBytes());
 
 		byte[] encoded = Base64.getUrlEncoder().withoutPadding().encode(output);
 
 		return new String(encoded);
 
+	}
+
+	public static byte[] SHA2_512_digest(byte[] input) {
+		MessageDigest digest = new SHA512.Digest();
+		byte[] output = digest.digest(input);
+		return output;
 	}
 
 	public static String calculateInteractHash(String clientNonce, String serverNonce, String interact, String endpointUri, HashMethod hashMethod) {

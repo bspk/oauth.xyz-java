@@ -39,13 +39,13 @@ public class DigestWrappingFilter implements Filter {
 
 		CachingRequestWrapper requestWrapper = new CachingRequestWrapper((HttpServletRequest) request);
 
-		calculateDigest(requestWrapper);
+		attachBodyBytes(requestWrapper);
 
 		chain.doFilter(requestWrapper, response);
 
 	}
 
-	private void calculateDigest(CachingRequestWrapper requestWrapper) {
+	private void attachBodyBytes(CachingRequestWrapper requestWrapper) {
 		byte[] bytes = requestWrapper.getSavedBody();
 
 		/*

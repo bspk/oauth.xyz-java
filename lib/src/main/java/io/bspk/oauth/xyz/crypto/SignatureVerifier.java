@@ -2,11 +2,16 @@ package io.bspk.oauth.xyz.crypto;
 
 import java.io.UnsupportedEncodingException;
 import java.net.URI;
+import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
+import java.security.InvalidAlgorithmParameterException;
 import java.security.InvalidKeyException;
+import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.Signature;
 import java.security.SignatureException;
+import java.security.spec.MGF1ParameterSpec;
+import java.security.spec.PSSParameterSpec;
 import java.text.ParseException;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -14,15 +19,19 @@ import java.util.Base64;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import javax.servlet.http.HttpServletRequest;
 
+import org.bouncycastle.jcajce.provider.digest.SHA256;
+import org.bouncycastle.jcajce.provider.digest.SHA512;
 import org.greenbytes.http.sfv.ByteSequenceItem;
 import org.greenbytes.http.sfv.Dictionary;
 import org.greenbytes.http.sfv.InnerList;
 import org.greenbytes.http.sfv.Item;
+import org.greenbytes.http.sfv.ListElement;
 import org.greenbytes.http.sfv.StringItem;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -30,6 +39,7 @@ import org.springframework.web.util.UriUtils;
 
 import com.google.common.base.Joiner;
 import com.google.common.base.Strings;
+import com.google.common.net.HttpHeaders;
 import com.nimbusds.jose.JOSEException;
 import com.nimbusds.jose.JOSEObject;
 import com.nimbusds.jose.JWSHeader;
@@ -98,101 +108,130 @@ public class SignatureVerifier {
 
 
 		try {
-			// TODO: not sure how to make this more robust against multiple signatures
-			if (signatureInput.get().keySet().size() != 1) {
-				throw new RuntimeException("Found " + signatureInput.get().keySet().size() + " signature IDs");
-			}
+			// all signatures have to pass
 
-			String sigId = signatureInput.get().keySet().iterator().next(); // get the first and only item
-			if (!signature.get().containsKey(sigId)) {
-				throw new RuntimeException("Didn't find signature for id " + sigId);
-			}
+			for (String sigId : signatureInput.get().keySet()) {
 
-			// TODO: cast?
-			InnerList sigParams = (InnerList) signatureInput.get().get(sigId);
-			ByteSequenceItem sigBytes = (ByteSequenceItem) signature.get().get(sigId);
+				if (!signature.get().containsKey(sigId)) {
+					throw new RuntimeException("Didn't find signature for id " + sigId);
+				}
 
-			// collect the base string
-			Map<Item<?>, String> signatureBlock = new LinkedHashMap<>();
+				// TODO: cast is ok?
+				InnerList sigParams = (InnerList) signatureInput.get().get(sigId);
+				ByteSequenceItem sigBytes = (ByteSequenceItem) signature.get().get(sigId);
 
-			sigParams.get().forEach((c) -> {
-				if (c instanceof StringItem) {
-					String h = ((StringItem)c).get();
-					URI uri = URI.create(request.getRequestURL().toString()
-						+ (request.getQueryString() != null ? "?" + request.getQueryString() : ""));
-					if (h.equals("@method")) {
-						signatureBlock.put(c, request.getMethod());
-					} else if (h.equals("@authority")) {
-						signatureBlock.put(c, uri.getHost());
-					} else if (h.equals("@path")) {
-						signatureBlock.put(c,  uri.getRawPath());
-					} else if (h.equals("@query")) {
-						signatureBlock.put(c, uri.getRawQuery());
-					} else if (h.equals("@target-uri")) {
-						signatureBlock.put(c, uri.toString());
-					} else if (h.equals("@scheme")) {
-						signatureBlock.put(c, uri.getScheme());
-					} else if (h.equals("@request-target")) {
-						String reqt = "";
-						if (uri.getRawPath() != null) {
-							reqt += uri.getRawPath();
+				// ensure proper coverage
+				// get components as strings for comparison
+				Set<String> components = sigParams.get().stream()
+					.map(StringItem.class::cast)
+					.map(StringItem::get)
+					.collect(Collectors.toSet());
+
+
+				byte[] savedBody = (byte[]) request.getAttribute(DigestWrappingFilter.BODY_BYTES);
+
+				if (savedBody != null && savedBody.length > 0
+					&& !(components.contains("content-digest"))) {
+					// missing the content-digest header
+					throw new RuntimeException("Missing content-digest header on non-empty body");
+				}
+
+				if (request.getHeader(HttpHeaders.AUTHORIZATION) != null
+					&& !(components.contains("authorization"))) {
+					throw new RuntimeException("Missing authorizaiton header on a protected call");
+				}
+
+				if (components.contains("@method")
+					&& (components.contains("@target-uri") ||
+						(components.containsAll(Set.of("@authority", "@path", "@query", "@scheme"))))) { // we allow the URI in parts?
+
+					// collect the base string
+					Map<Item<?>, String> signatureBlock = new LinkedHashMap<>();
+
+					sigParams.get().forEach((c) -> {
+						if (c instanceof StringItem) {
+							String h = ((StringItem)c).get();
+							URI uri = URI.create(request.getRequestURL().toString()
+								+ (request.getQueryString() != null ? "?" + request.getQueryString() : ""));
+							if (h.equals("@method")) {
+								signatureBlock.put(c, request.getMethod());
+							} else if (h.equals("@authority")) {
+								signatureBlock.put(c, uri.getHost());
+							} else if (h.equals("@path")) {
+								signatureBlock.put(c,  uri.getRawPath());
+							} else if (h.equals("@query")) {
+								signatureBlock.put(c, uri.getRawQuery());
+							} else if (h.equals("@target-uri")) {
+								signatureBlock.put(c, uri.toString());
+							} else if (h.equals("@scheme")) {
+								signatureBlock.put(c, uri.getScheme());
+							} else if (h.equals("@request-target")) {
+								String reqt = "";
+								if (uri.getRawPath() != null) {
+									reqt += uri.getRawPath();
+								}
+								if (uri.getRawQuery() != null) {
+									reqt += "?" + uri.getRawQuery();
+								}
+								signatureBlock.put(c, reqt);
+							} else if (!h.startsWith("@") && request.getHeader(h) != null) {
+								signatureBlock.put(
+									c,
+									request.getHeader(h).trim());
+							} else {
+								throw new RuntimeException("Couldn't find covered component: " + c);
+							}
+						} else {
+							throw new RuntimeException("Unknown covered component type for: " + c);
 						}
-						if (uri.getRawQuery() != null) {
-							reqt += "?" + uri.getRawQuery();
-						}
-						signatureBlock.put(c, reqt);
-					} else if (request.getHeader(h) != null) {
-						signatureBlock.put(
-							c,
-							request.getHeader(h).trim());
-					} else {
-						throw new RuntimeException("Couldn't find covered component: " + c);
+					});
+
+					if (signatureBlock.entrySet().stream()
+						.anyMatch(e -> e.getValue() == null)) {
+						// there was a problem adding a value to the stream
+						throw new RuntimeException("Bad Signature input, couldn't derive a component value");
+					}
+
+					signatureBlock.put(
+						StringItem.valueOf("@signature-params"),
+						sigParams.serialize());
+
+
+					String input = signatureBlock.entrySet().stream()
+						.map(e -> e.getKey().serialize() + ": " + e.getValue().strip())
+						.collect(Collectors.joining("\n"));
+
+
+					// TODO: algorithm agility
+
+					// Right now this locks to RSA-PSS
+
+					Signature signer = Signature.getInstance("RSASSA-PSS");
+					signer.setParameter(
+						new PSSParameterSpec("SHA-512", "MGF1", MGF1ParameterSpec.SHA512, 64, 1));
+
+					MessageDigest sha = new SHA512.Digest();
+					byte[] hash = sha.digest(input.getBytes());
+
+					RSAKey rsaKey = clientKey.toRSAKey();
+
+					signer.initVerify(rsaKey.toPublicKey());
+					signer.update(hash);
+
+					if (!signer.verify(sigBytes.get().array())) {
+						throw new RuntimeException("Bad Signature, no biscuit");
 					}
 				} else {
-					throw new RuntimeException("Unknown covered component type for: " + c);
+					throw new RuntimeException("Missing required covered component, found: " + components);
 				}
-			});
 
-			if (signatureBlock.entrySet().stream()
-				.anyMatch(e -> e.getValue() == null)) {
-				// there was a problem adding a value to the stream
-				throw new RuntimeException("Bad Signature input, couldn't derive a component value");
+				log.info("++ Verified HTTP Message signature " + sigId);
 			}
 
-			signatureBlock.put(
-				StringItem.valueOf("@signature-params"),
-				sigParams.serialize());
 
-
-			String input = signatureBlock.entrySet().stream()
-				.map(e -> e.getKey().serialize() + ": " + e.getValue().strip())
-				.collect(Collectors.joining("\n"));
-
-
-			// TODO: algorithm agility
-
-//			if (!sigParams.getParams().get("alg").get().equals("rsa-sha256")) {
-//				throw new RuntimeException("Unknown algorithm: " + sigParams.getParams().get("alg").get());
-//			}
-			RSAKey rsaKey = clientKey.toRSAKey();
-
-			Signature signer = Signature.getInstance("SHA256withRSA");
-
-			byte[] signatureBytes = Base64.getDecoder().decode(sigBytes.get().array());
-
-			signer.initVerify(rsaKey.toPublicKey());
-			signer.update(input.getBytes("UTF-8"));
-
-	        if (!signer.verify(signatureBytes)) {
-	        	throw new RuntimeException("Bad Signature, no biscuit");
-	        }
-
-		} catch (NoSuchAlgorithmException | InvalidKeyException | JOSEException | SignatureException | UnsupportedEncodingException e) {
+		} catch (NoSuchAlgorithmException | InvalidKeyException | JOSEException | SignatureException | InvalidAlgorithmParameterException e) {
 			throw new RuntimeException("Bad crypto, no biscuit", e);
 		}
-
-		log.info("++ Verified HTTP Message signature");
-
 	}
 
 	public static void checkCavageSignature(String signatureHeaderPayload, HttpServletRequest request, JWK clientKey) {
@@ -235,9 +274,9 @@ public class SignatureVerifier {
 				signature.initVerify(rsaKey.toPublicKey());
 				signature.update(input.getBytes("UTF-8"));
 
-		        if (!signature.verify(signatureBytes)) {
-		        	throw new RuntimeException("Bad Signature, no biscuit");
-		        }
+				if (!signature.verify(signatureBytes)) {
+					throw new RuntimeException("Bad Signature, no biscuit");
+				}
 
 			} catch (NoSuchAlgorithmException | InvalidKeyException | JOSEException | SignatureException | UnsupportedEncodingException e) {
 				throw new RuntimeException("Bad crypto, no biscuit", e);
@@ -519,6 +558,57 @@ public class SignatureVerifier {
 
 	}
 
+
+	public static void ensureContentDigest(Dictionary contentDigestHeader, HttpServletRequest req) {
+
+		byte[] savedBody = (byte[]) req.getAttribute(DigestWrappingFilter.BODY_BYTES);
+
+		if (savedBody == null || savedBody.length == 0) {
+			if (contentDigestHeader == null) {
+				return;
+			} else {
+				throw new RuntimeException("Bad Digest, no body");
+			}
+		} else {
+
+			Map<String, ListElement<? extends Object>> m = contentDigestHeader.get();
+
+			for (String alg : m.keySet()) {
+				if (alg.equals("sha-512")) {
+					MessageDigest sha = new SHA512.Digest();
+
+					byte[] digest = sha.digest(savedBody);
+
+					ByteBuffer expected = ByteBuffer.wrap(digest);
+					ByteBuffer actual = ((ByteSequenceItem)m.get(alg)).get();
+
+					if (!expected.equals(actual)) {
+						throw new RuntimeException("Bad Digest, no biscuit");
+					}
+
+				} else if (alg.equals("sha-256")) {
+					MessageDigest sha = new SHA256.Digest();
+
+					byte[] digest = sha.digest(savedBody);
+
+					ByteBuffer expected = ByteBuffer.wrap(digest);
+					ByteBuffer actual = ((ByteSequenceItem)m.get(alg)).get();
+
+					if (!expected.equals(actual)) {
+						throw new RuntimeException("Bad Digest, no biscuit");
+					}
+
+				} else {
+					throw new RuntimeException("Bad digest, unknown algorithm: " + alg);
+				}
+			}
+
+			log.info("++ Verified body digest");
+
+		}
+
+
+	}
 
 	public static String extractBoundAccessToken(String auth, String oauthPop) {
 

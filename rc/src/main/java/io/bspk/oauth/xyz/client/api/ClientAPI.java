@@ -131,7 +131,7 @@ public class ClientAPI {
 
 		Key key = new Key()
 			.setJwk(clientKey)
-			.setProof(Proof.JWSD);
+			.setProof(Proof.HTTPSIG);
 
 		TransactionRequest request = new TransactionRequest()
 			.setInteract(new InteractRequest()
