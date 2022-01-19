@@ -47,6 +47,7 @@ public class ResourceEndpoint {
 		@RequestHeader(name = HttpHeaders.AUTHORIZATION, required = false) String auth,
 		@RequestHeader(name = "Signature", required = false) Dictionary signature,
 		@RequestHeader(name = "Signature-Input", required = false) Dictionary signatureInput,
+		@RequestHeader(name = "Content-Digest", required = false) Dictionary contentDigest,
 		@RequestHeader(name = "Digest", required = false) String digest,
 		@RequestHeader(name = "Detached-JWS", required = false) String jwsd,
 		@RequestHeader(name = "DPoP", required = false) String dpop,
@@ -87,7 +88,7 @@ public class ResourceEndpoint {
 			} else {
 				switch (k.getProof()) {
 					case HTTPSIG:
-						SignatureVerifier.ensureDigest(digest, req); // make sure the digest header is accurate
+						SignatureVerifier.ensureContentDigest(contentDigest, req); // make sure the digest header is accurate
 						SignatureVerifier.checkHttpMessageSignature(signature, signatureInput, req, k.getJwk());
 						break;
 					case JWSD:

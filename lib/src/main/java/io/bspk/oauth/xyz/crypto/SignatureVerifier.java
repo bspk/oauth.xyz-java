@@ -295,10 +295,6 @@ public class SignatureVerifier {
 
 		try {
 
-			Base64URL[] parts = JOSEObject.split(jwsd);
-
-
-
 			Payload payload = null;
 
 			byte[] body = (byte[])request.getAttribute(DigestWrappingFilter.BODY_BYTES);
@@ -308,9 +304,12 @@ public class SignatureVerifier {
 				payload = new Payload(Hash.SHA256_encode_url(body));
 			}
 
-			//log.info("<< " + payload.toBase64URL().toString());
+			JWSObject jwsObject = JWSObject.parse(jwsd);
 
-			JWSObject jwsObject = new JWSObject(parts[0], payload, parts[2]);
+			// ensure payloads match
+			if (!payload.equals(jwsObject.getPayload())) {
+				throw new RuntimeException("Body hash did not match. Expected " + payload.toString() + " received " + jwsObject.getPayload().toString());
+			}
 
 			verifyJWS(jwsObject, request, jwk, accessToken);
 
