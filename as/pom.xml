@@ -81,6 +81,17 @@
 	<build>
 		<plugins>
 			<plugin>
+				<groupId>com.heroku.sdk</groupId>
+				<artifactId>heroku-maven-plugin</artifactId>
+				<version>3.0.3</version>
+				<configuration>
+					<appName>xyz-as</appName>
+					<processTypes>
+						<web>java -Dserver.port=$PORT -Dspring.profiles.active=heroku $JAVA_OPTS -jar target/*.jar</web>
+					</processTypes>
+				</configuration>
+			</plugin>
+			<plugin>
 				<groupId>org.springframework.boot</groupId>
 				<artifactId>spring-boot-maven-plugin</artifactId>
 			</plugin>

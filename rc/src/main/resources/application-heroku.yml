@@ -1,0 +1,8 @@
+spring:
+  data.mongodb.uri:
+    mongodb+srv://oauth_xyz_c:${MONGO_PW}@cluster0.39rin.mongodb.net/oauth_xyz_c?retryWrites=true&w=majority
+
+oauth.xyz:
+  root: https://xyz-c.herokuapp.com/
+  asEndpoint: https://xyz-as.herokuapp.com/api/as/transaction
+  rsEndpoint: https://xyz-rs.herokuapp.com/api/rs

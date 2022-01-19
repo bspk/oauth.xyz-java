@@ -1,0 +1,5 @@
+spring:
+  data.mongodb.uri:  ## This is the same data store the AS uses, so that the RS can look up token information directly
+    mongodb+srv://oauth_xyz_as:${MONGO_PW}@cluster0.39rin.mongodb.net/oauth_xyz_as?retryWrites=true&w=majority
+
+oauth.xyz.root: https://xyz-as.herokuapp.com/
