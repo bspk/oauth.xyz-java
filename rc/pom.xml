@@ -84,7 +84,7 @@
 				<artifactId>heroku-maven-plugin</artifactId>
 				<version>3.0.3</version>
 				<configuration>
-					<appName>xyz-c</appName>
+					<appName>gnap-c</appName>
 					<processTypes>
 						<web>java -Dserver.port=$PORT -Dspring.profiles.active=heroku $JAVA_OPTS -jar target/*.jar</web>
 					</processTypes>

@@ -3,6 +3,6 @@ spring:
     mongodb+srv://oauth_xyz_c:${MONGO_PW}@cluster0.39rin.mongodb.net/oauth_xyz_c?retryWrites=true&w=majority
 
 oauth.xyz:
-  root: https://xyz-c.herokuapp.com/
-  asEndpoint: https://xyz-as.herokuapp.com/api/as/transaction
-  rsEndpoint: https://xyz-rs.herokuapp.com/api/rs
+  root: https://gnap-c.herokuapp.com/
+  asEndpoint: https://gnap-as.herokuapp.com/api/as/transaction
+  rsEndpoint: https://gnap-rs.herokuapp.com/api/rs
