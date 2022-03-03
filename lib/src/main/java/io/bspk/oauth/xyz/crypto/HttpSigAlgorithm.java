@@ -1,4 +1,4 @@
-package io.bspk.oauth.xyz.http;
+package io.bspk.oauth.xyz.crypto;
 
 import com.fasterxml.jackson.annotation.JsonValue;
 
@@ -24,5 +24,43 @@ public class HttpSigAlgorithm {
 
 	@JsonValue
 	private String explicitAlg;
+
+	/**
+	 * @param item
+	 * @return
+	 */
+	public static HttpSigAlgorithm of(String alg) {
+		return new HttpSigAlgorithm(alg);
+	}
+
+	@Override
+	public boolean equals(Object obj) {
+		if (this == obj) {
+			return true;
+		}
+		if (obj == null) {
+			return false;
+		}
+		if (getClass() != obj.getClass()) {
+			return false;
+		}
+		HttpSigAlgorithm other = (HttpSigAlgorithm) obj;
+		if (explicitAlg == null) {
+			if (other.explicitAlg != null) {
+				return false;
+			}
+		} else if (!explicitAlg.equals(other.explicitAlg)) {
+			return false;
+		}
+		return true;
+	}
+
+	@Override
+	public int hashCode() {
+		final int prime = 31;
+		int result = 1;
+		result = prime * result + ((explicitAlg == null) ? 0 : explicitAlg.hashCode());
+		return result;
+	}
 
 }

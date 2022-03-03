@@ -35,6 +35,8 @@ import com.sailpoint.ietf.subjectidentifiers.model.SubjectIdentifierFormats;
 
 import io.bspk.oauth.xyz.client.repository.PendingTransactionRepository;
 import io.bspk.oauth.xyz.crypto.Hash;
+import io.bspk.oauth.xyz.crypto.HttpSigAlgorithm;
+import io.bspk.oauth.xyz.crypto.KeyProofParameters;
 import io.bspk.oauth.xyz.data.Interact.InteractStart;
 import io.bspk.oauth.xyz.data.InteractFinish;
 import io.bspk.oauth.xyz.data.Key;
@@ -53,8 +55,6 @@ import io.bspk.oauth.xyz.data.api.TransactionContinueRequest;
 import io.bspk.oauth.xyz.data.api.TransactionRequest;
 import io.bspk.oauth.xyz.data.api.TransactionResponse;
 import io.bspk.oauth.xyz.data.api.UserRequest;
-import io.bspk.oauth.xyz.http.HttpSigAlgorithm;
-import io.bspk.oauth.xyz.http.KeyProofParameters;
 import io.bspk.oauth.xyz.http.SigningRestTemplateService;
 
 /**

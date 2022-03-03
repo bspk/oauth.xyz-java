@@ -1,4 +1,4 @@
-package io.bspk.oauth.xyz.http;
+package io.bspk.oauth.xyz.crypto;
 
 import java.util.List;
 import java.util.stream.Collectors;

@@ -54,6 +54,10 @@ import com.nimbusds.jose.jwk.JWK;
 import com.nimbusds.jose.jwk.RSAKey;
 
 import io.bspk.oauth.xyz.crypto.Hash;
+import io.bspk.oauth.xyz.crypto.HttpSigAlgorithm;
+import io.bspk.oauth.xyz.crypto.KeyProofParameters;
+import io.bspk.oauth.xyz.crypto.SignatureContext;
+import io.bspk.oauth.xyz.crypto.SignatureParameters;
 import io.bspk.oauth.xyz.data.Key.Proof;
 
 /**

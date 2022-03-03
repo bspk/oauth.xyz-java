@@ -1,4 +1,4 @@
-package io.bspk.oauth.xyz.http;
+package io.bspk.oauth.xyz.crypto;
 
 import com.fasterxml.jackson.databind.PropertyNamingStrategy;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;

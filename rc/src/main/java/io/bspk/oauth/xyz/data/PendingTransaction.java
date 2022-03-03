@@ -12,6 +12,8 @@ import org.springframework.data.annotation.Id;
 import com.fasterxml.jackson.databind.PropertyNamingStrategy;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
 
+import io.bspk.oauth.xyz.crypto.HttpSigAlgorithm;
+import io.bspk.oauth.xyz.crypto.KeyProofParameters;
 import io.bspk.oauth.xyz.crypto.Hash.HashMethod;
 import io.bspk.oauth.xyz.data.api.AccessTokenRequest.TokenFlag;
 import io.bspk.oauth.xyz.data.api.AccessTokenResponse;
@@ -19,8 +21,6 @@ import io.bspk.oauth.xyz.data.api.InteractResponse;
 import io.bspk.oauth.xyz.data.api.TransactionContinueRequest;
 import io.bspk.oauth.xyz.data.api.TransactionRequest;
 import io.bspk.oauth.xyz.data.api.TransactionResponse;
-import io.bspk.oauth.xyz.http.HttpSigAlgorithm;
-import io.bspk.oauth.xyz.http.KeyProofParameters;
 import lombok.Data;
 import lombok.experimental.Accessors;
 

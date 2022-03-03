@@ -1,7 +1,6 @@
 package io.bspk.oauth.xyz.crypto;
 
 import java.io.UnsupportedEncodingException;
-import java.net.URI;
 import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
 import java.security.InvalidAlgorithmParameterException;
@@ -19,7 +18,6 @@ import java.util.Base64;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -29,8 +27,6 @@ import org.bouncycastle.jcajce.provider.digest.SHA256;
 import org.bouncycastle.jcajce.provider.digest.SHA512;
 import org.greenbytes.http.sfv.ByteSequenceItem;
 import org.greenbytes.http.sfv.Dictionary;
-import org.greenbytes.http.sfv.InnerList;
-import org.greenbytes.http.sfv.Item;
 import org.greenbytes.http.sfv.ListElement;
 import org.greenbytes.http.sfv.StringItem;
 import org.slf4j.Logger;
@@ -38,6 +34,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.web.util.UriUtils;
 
 import com.google.common.base.Joiner;
+import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
 import com.google.common.net.HttpHeaders;
 import com.nimbusds.jose.JOSEException;
@@ -116,91 +113,56 @@ public class SignatureVerifier {
 					throw new RuntimeException("Didn't find signature for id " + sigId);
 				}
 
-				// TODO: cast is ok?
-				InnerList sigParams = (InnerList) signatureInput.get().get(sigId);
+				SignatureParameters sigParams = SignatureParameters.fromDictionaryEntry(signatureInput, sigId);
 				ByteSequenceItem sigBytes = (ByteSequenceItem) signature.get().get(sigId);
 
 				// ensure proper coverage
-				// get components as strings for comparison
-				Set<String> components = sigParams.get().stream()
-					.map(StringItem.class::cast)
-					.map(StringItem::get)
-					.collect(Collectors.toSet());
-
 
 				byte[] savedBody = (byte[]) request.getAttribute(DigestWrappingFilter.BODY_BYTES);
 
 				if (savedBody != null && savedBody.length > 0
-					&& !(components.contains("content-digest"))) {
+					&& !(sigParams.containsComponentIdentifier("content-digest"))) {
 					// missing the content-digest header
 					throw new RuntimeException("Missing content-digest header on non-empty body");
 				}
 
 				if (request.getHeader(HttpHeaders.AUTHORIZATION) != null
-					&& !(components.contains("authorization"))) {
-					throw new RuntimeException("Missing authorizaiton header on a protected call");
+					&& !(sigParams.containsComponentIdentifier("authorization"))) {
+					throw new RuntimeException("Missing authorizaiton header on a token-protected call");
 				}
 
-				if (components.contains("@method")
-					&& (components.contains("@target-uri") ||
-						(components.containsAll(Set.of("@authority", "@path", "@query", "@scheme"))))) { // we allow the URI in parts?
+				if (sigParams.containsComponentIdentifier("@method")
+					&& (sigParams.containsComponentIdentifier("@target-uri"))) { // we allow the URI in parts?
+
+					SignatureContext ctx = new HttpServletRequestSignatureContext(request);
 
 					// collect the base string
-					Map<Item<?>, String> signatureBlock = new LinkedHashMap<>();
+					StringBuilder base = new StringBuilder();
 
-					sigParams.get().forEach((c) -> {
-						if (c instanceof StringItem) {
-							String h = ((StringItem)c).get();
-							URI uri = URI.create(request.getRequestURL().toString()
-								+ (request.getQueryString() != null ? "?" + request.getQueryString() : ""));
-							if (h.equals("@method")) {
-								signatureBlock.put(c, request.getMethod());
-							} else if (h.equals("@authority")) {
-								signatureBlock.put(c, uri.getHost());
-							} else if (h.equals("@path")) {
-								signatureBlock.put(c,  uri.getRawPath());
-							} else if (h.equals("@query")) {
-								signatureBlock.put(c, uri.getRawQuery());
-							} else if (h.equals("@target-uri")) {
-								signatureBlock.put(c, uri.toString());
-							} else if (h.equals("@scheme")) {
-								signatureBlock.put(c, uri.getScheme());
-							} else if (h.equals("@request-target")) {
-								String reqt = "";
-								if (uri.getRawPath() != null) {
-									reqt += uri.getRawPath();
-								}
-								if (uri.getRawQuery() != null) {
-									reqt += "?" + uri.getRawQuery();
-								}
-								signatureBlock.put(c, reqt);
-							} else if (!h.startsWith("@") && request.getHeader(h) != null) {
-								signatureBlock.put(
-									c,
-									request.getHeader(h).trim());
-							} else {
-								throw new RuntimeException("Couldn't find covered component: " + c);
-							}
+					for (StringItem componentIdentifier : sigParams.getComponentIdentifiers()) {
+
+						String componentValue = ctx.getComponentValue(componentIdentifier);
+
+						if (componentValue != null) {
+							// write out the line to the base
+							componentIdentifier.serializeTo(base)
+								.append(": ")
+								.append(componentValue)
+								.append('\n');
 						} else {
-							throw new RuntimeException("Unknown covered component type for: " + c);
+							// FIXME: be more graceful about bailing
+							throw new RuntimeException("Couldn't find a value for required parameter: " + componentIdentifier.serialize());
 						}
-					});
-
-					if (signatureBlock.entrySet().stream()
-						.anyMatch(e -> e.getValue() == null)) {
-						// there was a problem adding a value to the stream
-						throw new RuntimeException("Bad Signature input, couldn't derive a component value");
 					}
 
-					signatureBlock.put(
-						StringItem.valueOf("@signature-params"),
-						sigParams.serialize());
+					// add the signature parameters line
+					sigParams.toComponentIdentifier().serializeTo(base)
+						.append(": ");
+					sigParams.toComponentValue().serializeTo(base);
 
+					log.info("~~~ Signature Base  :\n ~~~ : {}", Joiner.on("\n~~~ : ").join(Splitter.on("\n").split(base.toString())));
 
-					String input = signatureBlock.entrySet().stream()
-						.map(e -> e.getKey().serialize() + ": " + e.getValue().strip())
-						.collect(Collectors.joining("\n"));
-
+					byte[] baseBytes = base.toString().getBytes();
 
 					// TODO: algorithm agility
 
@@ -211,7 +173,7 @@ public class SignatureVerifier {
 						new PSSParameterSpec("SHA-512", "MGF1", MGF1ParameterSpec.SHA512, 64, 1));
 
 					MessageDigest sha = new SHA512.Digest();
-					byte[] hash = sha.digest(input.getBytes());
+					byte[] hash = sha.digest(baseBytes);
 
 					RSAKey rsaKey = clientKey.toRSAKey();
 
@@ -222,7 +184,7 @@ public class SignatureVerifier {
 						throw new RuntimeException("Bad Signature, no biscuit");
 					}
 				} else {
-					throw new RuntimeException("Missing required covered component, found: " + components);
+					throw new RuntimeException("Missing required covered component, found: " + sigParams.getComponentIdentifiers());
 				}
 
 				log.info("++ Verified HTTP Message signature " + sigId);
