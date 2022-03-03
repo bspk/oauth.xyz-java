@@ -1,7 +1,6 @@
 package io.bspk.oauth.xyz.http;
 
 import java.io.IOException;
-import java.net.URI;
 import java.nio.charset.Charset;
 import java.security.InvalidAlgorithmParameterException;
 import java.security.InvalidKeyException;
@@ -12,23 +11,14 @@ import java.security.SignatureException;
 import java.security.spec.MGF1ParameterSpec;
 import java.security.spec.PSSParameterSpec;
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.Base64;
-import java.util.Date;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
-import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.RandomStringUtils;
+import org.bouncycastle.jcajce.provider.digest.SHA256;
 import org.bouncycastle.jcajce.provider.digest.SHA512;
 import org.greenbytes.http.sfv.ByteSequenceItem;
 import org.greenbytes.http.sfv.Dictionary;
-import org.greenbytes.http.sfv.InnerList;
-import org.greenbytes.http.sfv.IntegerItem;
-import org.greenbytes.http.sfv.Item;
-import org.greenbytes.http.sfv.Parameters;
 import org.greenbytes.http.sfv.StringItem;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -43,11 +33,8 @@ import org.springframework.http.client.ClientHttpResponse;
 import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
 import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
 import org.springframework.stereotype.Service;
-import org.springframework.util.MultiValueMap;
 import org.springframework.util.StreamUtils;
 import org.springframework.web.client.RestTemplate;
-import org.springframework.web.util.UriComponentsBuilder;
-import org.springframework.web.util.UriUtils;
 
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -55,7 +42,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Joiner;
 import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
-import com.google.common.collect.Lists;
 import com.nimbusds.jose.JOSEException;
 import com.nimbusds.jose.JOSEObjectType;
 import com.nimbusds.jose.JWSAlgorithm;
@@ -66,11 +52,8 @@ import com.nimbusds.jose.Payload;
 import com.nimbusds.jose.crypto.factories.DefaultJWSSignerFactory;
 import com.nimbusds.jose.jwk.JWK;
 import com.nimbusds.jose.jwk.RSAKey;
-import com.nimbusds.jwt.JWTClaimsSet;
-import com.nimbusds.jwt.JWTClaimsSet.Builder;
 
 import io.bspk.oauth.xyz.crypto.Hash;
-import io.bspk.oauth.xyz.data.Key;
 import io.bspk.oauth.xyz.data.Key.Proof;
 
 /**
@@ -84,17 +67,16 @@ public class SigningRestTemplateService {
 
 	private ClientHttpRequestFactory factory = new BufferingClientHttpRequestFactory(new HttpComponentsClientHttpRequestFactory());
 
-	// TODO: cache and memoize this per key/proof and access token
-	public RestTemplate getSignerFor(Key key, String accessTokenValue) {
+	public RestTemplate getSignerFor(KeyProofParameters params, String accessTokenValue) {
 
-		if (key == null) {
+		if (params.getSigningKey() == null || params.getProof() == null) {
 			return createRestTemplate(List.of(
-				new AccessTokenInjectingInterceptor(key, accessTokenValue),
+				new AccessTokenInjectingInterceptor(null, accessTokenValue),
 				new RequestResponseLoggingInterceptor()
 			));
 		}
 
-		Proof proof = key.getProof();
+		Proof proof = params.getProof();
 
 		if (proof == null) {
 			throw new IllegalArgumentException("Key proof must not be null.");
@@ -104,26 +86,15 @@ public class SigningRestTemplateService {
 			case JWS:
 			case JWSD:
 				return createRestTemplate(List.of(
-					new AccessTokenInjectingInterceptor(key, accessTokenValue),
-					new JwsSigningInterceptor(key, accessTokenValue),
-					new RequestResponseLoggingInterceptor()
-				));
-			case DPOP:
-				return createRestTemplate(List.of(
-					new AccessTokenInjectingInterceptor(key, accessTokenValue),
-					new DpopInterceptor(key, accessTokenValue),
+					new AccessTokenInjectingInterceptor(params, accessTokenValue),
+					new JwsSigningInterceptor(params, accessTokenValue),
 					new RequestResponseLoggingInterceptor()
 				));
 			case HTTPSIG:
 				return createRestTemplate(List.of(
-					new ContentDigestInterceptor(),
-					new AccessTokenInjectingInterceptor(key, accessTokenValue),
-					new HttpMessageSigningInterceptor(key, accessTokenValue),
-					new RequestResponseLoggingInterceptor()
-				));
-			case OAUTHPOP:
-				return createRestTemplate(List.of(
-					new OAuthPoPSigningInterceptor(key, accessTokenValue),
+					new ContentDigestInterceptor(params.getDigestAlgorithm()),
+					new AccessTokenInjectingInterceptor(params, accessTokenValue),
+					new HttpMessageSigningInterceptor(params, accessTokenValue),
 					new RequestResponseLoggingInterceptor()
 				));
 			case MTLS:
@@ -198,9 +169,9 @@ public class SigningRestTemplateService {
 
 	private abstract class KeyAndTokenAwareInterceptor {
 		private final String accessTokenValue;
-		private final Key key;
+		private final KeyProofParameters params;
 
-		public KeyAndTokenAwareInterceptor(Key key, String accessTokenValue) {
+		public KeyAndTokenAwareInterceptor(KeyProofParameters params, String accessTokenValue) {
 			// Either field may be null for different request types
 			//
 			//         | token        | no token         |
@@ -208,22 +179,22 @@ public class SigningRestTemplateService {
 			//  no key | bearer token | unsigned request |
 			//
 			this.accessTokenValue = accessTokenValue;
-			this.key = key;
+			this.params = params;
 		}
 
 		public String getAccessTokenValue() {
 			return accessTokenValue;
 		}
-
-		public Key getKey() {
-			return key;
+		public KeyProofParameters getParams() {
+			return params;
 		}
+
 		public boolean hasAccessToken() {
 			return !Strings.isNullOrEmpty(accessTokenValue);
 		}
 
 		public boolean isBearerToken() {
-			if (key == null || key.getProof() == null) {
+			if (params == null || params.getSigningKey() == null || params.getProof() == null) {
 				return true;
 			} else {
 				return false;
@@ -232,8 +203,9 @@ public class SigningRestTemplateService {
 	}
 
 	private class AccessTokenInjectingInterceptor extends KeyAndTokenAwareInterceptor implements ClientHttpRequestInterceptor {
-		public AccessTokenInjectingInterceptor(Key key, String accessTokenValue) {
-			super(key, accessTokenValue);
+		public AccessTokenInjectingInterceptor(KeyProofParameters params, String accessTokenValue) {
+			super(params, accessTokenValue);
+			// TODO Auto-generated constructor stub
 		}
 
 		@Override
@@ -252,37 +224,24 @@ public class SigningRestTemplateService {
 		}
 	}
 
-	private class DigestInterceptor implements ClientHttpRequestInterceptor {
-
-		private final Logger log = LoggerFactory.getLogger(this.getClass());
-
-		@Override
-		public ClientHttpResponse intercept(HttpRequest request, byte[] body, ClientHttpRequestExecution execution) throws IOException {
-			if (body != null && body.length > 0) {
-				// add the digest header
-				/*
-				log.info(IntStream.range(0, body.length)
-					.map(idx -> Byte.toUnsignedInt(body[idx]))
-					.mapToObj(i -> Integer.toHexString(i))
-					.collect(Collectors.joining(", ")));
-				*/
-				String hash = Hash.SHA1_digest(body);
-				request.getHeaders().add("Digest", "SHA=" + hash);
-			}
-
-			return execution.execute(request, body);
-		}
-
-	}
-
 	private class ContentDigestInterceptor implements ClientHttpRequestInterceptor {
 		private final Logger log = LoggerFactory.getLogger(this.getClass());
+		private String digestMethod;
+
+		public ContentDigestInterceptor(String digestMethod) {
+			this.digestMethod = digestMethod;
+		}
 
 		@Override
 		public ClientHttpResponse intercept(HttpRequest request, byte[] body, ClientHttpRequestExecution execution) throws IOException {
 			if (body != null && body.length > 0) {
 
-				MessageDigest sha = new SHA512.Digest();
+				MessageDigest sha = null;
+				if ("sha-512".equals(digestMethod)) {
+					sha = new SHA512.Digest();
+				} else if ("sha-256".equals(digestMethod)) {
+					sha = new SHA256.Digest();
+				}
 
 				byte[] digest = sha.digest(body);
 
@@ -303,8 +262,8 @@ public class SigningRestTemplateService {
 	// this handles both the detached and attached versions
 	private class JwsSigningInterceptor extends KeyAndTokenAwareInterceptor implements ClientHttpRequestInterceptor {
 
-		public JwsSigningInterceptor(Key key, String accessTokenValue) {
-			super(key, accessTokenValue);
+		public JwsSigningInterceptor(KeyProofParameters params, String accessTokenValue) {
+			super(params, accessTokenValue);
 		}
 
 		private final Logger log = LoggerFactory.getLogger(this.getClass());
@@ -313,12 +272,12 @@ public class SigningRestTemplateService {
 		public ClientHttpResponse intercept(HttpRequest request, byte[] body, ClientHttpRequestExecution execution) throws IOException {
 
 			// are we doing attached or not?
-			boolean attached = (getKey().getProof() == Proof.JWS &&
+			boolean attached = (getParams().getProof() == Proof.JWS &&
 				(request.getMethod() == HttpMethod.PUT ||
 				request.getMethod() == HttpMethod.PATCH ||
 				request.getMethod() == HttpMethod.POST));
 
-			JWK clientKey = getKey().getJwk();
+			JWK clientKey = getParams().getSigningKey();
 
 			JWSHeader.Builder headerBuilder = new JWSHeader.Builder(JWSAlgorithm.parse(clientKey.getAlgorithm().getName()))
 				.type(new JOSEObjectType("gnap-binding+jwsd"))
@@ -382,8 +341,8 @@ public class SigningRestTemplateService {
 
 		private final Logger log = LoggerFactory.getLogger(this.getClass());
 
-		public HttpMessageSigningInterceptor(Key key, String accessTokenValue) {
-			super(key, accessTokenValue);
+		public HttpMessageSigningInterceptor(KeyProofParameters params, String accessTokenValue) {
+			super(params, accessTokenValue);
 		}
 
 		@Override
@@ -391,85 +350,82 @@ public class SigningRestTemplateService {
 
 			try {
 
-				// TODO: update with new signature mechanisms, right now we only lock on RSA-PSS
-				Parameters sigParameters = Parameters.valueOf(Map.of(
-					"keyid", StringItem.valueOf(getKey().getJwk().getKeyID()),
-					"created", IntegerItem.valueOf(Instant.now().getEpochSecond())
-					));
+				SignatureParameters sigParams = new SignatureParameters()
+					.setCreated(Instant.now())
+					.setKeyid(getParams().getSigningKey().getKeyID())
+					.setNonce(RandomStringUtils.randomAlphanumeric(13));
 
-				// collect the base string
-				Map<Item<?>, String> signatureBlock = new LinkedHashMap<>();
-
-				URI uri = request.getURI();
-
-				signatureBlock.put(StringItem.valueOf("@method"), request.getMethod().toString());
-				signatureBlock.put(StringItem.valueOf("@target-uri"), uri.toString());
-				signatureBlock.put(StringItem.valueOf("@authority"), uri.getHost());
-				signatureBlock.put(StringItem.valueOf("@path"), uri.getRawPath());
-				signatureBlock.put(StringItem.valueOf("@query"), uri.getRawQuery());
-				signatureBlock.put(StringItem.valueOf("@scheme"), uri.getScheme());
-
-				String reqt = "";
-				if (uri.getRawPath() != null) {
-					reqt += uri.getRawPath();
+				if (getParams().getHttpSigAlgorithm() != null) {
+					sigParams.setAlg(getParams().getHttpSigAlgorithm());
 				}
-				if (uri.getRawQuery() != null) {
-					reqt += "?" + uri.getRawQuery();
-				}
-				signatureBlock.put(StringItem.valueOf("@request-target"), reqt);
 
-				List<String> headersToSign = Lists.newArrayList();
+				sigParams.addComponentIdentifier("@target-uri");
+				sigParams.addComponentIdentifier("@method");
 
 				if (request.getMethod() == HttpMethod.PUT ||
 					request.getMethod() == HttpMethod.PATCH ||
 					request.getMethod() == HttpMethod.POST) {
-					headersToSign.add("Content-Length");
-					headersToSign.add("Content-Type");
-					headersToSign.add("Content-Digest");
+					if (body != null && body.length > 0) {
+						sigParams.addComponentIdentifier("Content-Length");
+						sigParams.addComponentIdentifier("Content-Type");
+						sigParams.addComponentIdentifier("Content-Digest");
+					}
 				}
 
 				if (hasAccessToken()) {
-					headersToSign.add("Authorization");
+					sigParams.addComponentIdentifier("Authorization");
 				}
 
-				headersToSign.forEach((h) -> {
-					if (request.getHeaders().getFirst(h) != null) {
-						signatureBlock.put(
-							StringItem.valueOf(h.toLowerCase()),
-							request.getHeaders().getFirst(h).strip());
+				SignatureContext ctx = new RestTemplateRequestSignatureContext(request);
+
+				StringBuilder base = new StringBuilder();
+
+				for (StringItem componentIdentifier : sigParams.getComponentIdentifiers()) {
+
+					String componentValue = ctx.getComponentValue(componentIdentifier);
+
+					if (componentValue != null) {
+						// write out the line to the base
+						componentIdentifier.serializeTo(base)
+							.append(": ")
+							.append(componentValue)
+							.append('\n');
+					} else {
+						// FIXME: be more graceful about bailing
+						throw new RuntimeException("Couldn't find a value for required parameter: " + componentIdentifier.serialize());
 					}
-				});
+				}
 
-				// strip out all the null values from the map (we couldn't derive a value)
-				signatureBlock.values().removeIf(Objects::isNull);
+				// add the signature parameters line
+				sigParams.toComponentIdentifier().serializeTo(base)
+					.append(": ");
+				sigParams.toComponentValue().serializeTo(base);
 
-				// TODO: ensure basic coverage here
+				log.info("~~~ Signature Base  :\n ~~~ : {}", Joiner.on("\n~~~ : ").join(Splitter.on("\n").split(base.toString())));
 
-				// copy over the items we've added to the signature block so far
-				InnerList coveredContent = InnerList.valueOf(List.copyOf(signatureBlock.keySet()))
-					.withParams(sigParameters);
+				byte[] baseBytes = base.toString().getBytes();
 
-				signatureBlock.put(
-					StringItem.valueOf("@signature-params"),
-					coveredContent.serialize());
+				// holder for signed bytes
+				byte[] s = null;
 
-				String input = signatureBlock.entrySet().stream()
-					.filter(e -> e.getValue() != null)
-					.map(e -> e.getKey().serialize() + ": " + e.getValue())
-					.collect(Collectors.joining("\n"));
+				if (getParams().getHttpSigAlgorithm().equals(HttpSigAlgorithm.RSAPSS)) {
 
-				RSAKey rsaKey = getKey().getJwk().toRSAKey();
+					RSAKey rsaKey = getParams().getSigningKey().toRSAKey();
 
-				Signature signer = Signature.getInstance("RSASSA-PSS");
-				signer.setParameter(
-					new PSSParameterSpec("SHA-512", "MGF1", MGF1ParameterSpec.SHA512, 64, 1));
+					Signature signer = Signature.getInstance("RSASSA-PSS");
+					signer.setParameter(
+						new PSSParameterSpec("SHA-512", "MGF1", MGF1ParameterSpec.SHA512, 64, 1));
 
-				MessageDigest sha = new SHA512.Digest();
-				byte[] hash = sha.digest(input.getBytes());
+					MessageDigest sha = new SHA512.Digest();
+					byte[] hash = sha.digest(baseBytes);
 
-				signer.initSign(rsaKey.toPrivateKey());
-				signer.update(hash);
-				byte[] s = signer.sign();
+					signer.initSign(rsaKey.toPrivateKey());
+					signer.update(hash);
+					s = signer.sign();
+				} else {
+					// FIXME: other signature methods
+					throw new RuntimeException("Unknown signature method: " + getParams().getHttpSigAlgorithm());
+				}
 
 				String sigId = RandomStringUtils.randomAlphabetic(5).toLowerCase();
 
@@ -477,7 +433,7 @@ public class SigningRestTemplateService {
 					sigId, ByteSequenceItem.valueOf(s)));
 
 				Dictionary sigInputHeader = Dictionary.valueOf(Map.of(
-					sigId, coveredContent));
+					sigId, sigParams.toComponentValue()));
 
 				request.getHeaders().add("Signature", sigHeader.serialize());
 				request.getHeaders().add("Signature-Input", sigInputHeader.serialize());
@@ -490,230 +446,4 @@ public class SigningRestTemplateService {
 		}
 
 	}
-
-	private class CavageSigningInterceptor extends KeyAndTokenAwareInterceptor implements ClientHttpRequestInterceptor {
-
-		private final Logger log = LoggerFactory.getLogger(this.getClass());
-
-		public CavageSigningInterceptor(Key key, String accessTokenValue) {
-			super(key, accessTokenValue);
-		}
-
-		@Override
-		public ClientHttpResponse intercept(HttpRequest request, byte[] body, ClientHttpRequestExecution execution) throws IOException {
-
-			try {
-
-				// TODO: update with new signature mechanisms, right now we only lock on RSA-256
-				String alg = "rsa-sha256";
-
-				// collect the base string
-				Map<String, String> signatureBlock = new LinkedHashMap<>();
-				String requestTarget = request.getMethodValue().toLowerCase() + " " + request.getURI().getRawPath();
-				signatureBlock.put("(request-target)", requestTarget);
-
-				List<String> headersToSign = Lists.newArrayList("Host", "Date");
-
-				if (request.getMethod() == HttpMethod.PUT ||
-					request.getMethod() == HttpMethod.PATCH ||
-					request.getMethod() == HttpMethod.POST) {
-					headersToSign.add("Content-Length");
-					headersToSign.add("Digest");
-				}
-
-				if (hasAccessToken()) {
-					headersToSign.add("Authorization");
-				}
-
-				headersToSign.forEach((h) -> {
-					if (request.getHeaders().getFirst(h) != null) {
-						signatureBlock.put(h.toLowerCase(), request.getHeaders().getFirst(h));
-					}
-				});
-
-				String input = signatureBlock.entrySet().stream()
-					.map(e -> e.getKey().strip().toLowerCase() + ": " + e.getValue().strip())
-					.collect(Collectors.joining("\n"));
-
-				RSAKey rsaKey = getKey().getJwk().toRSAKey();
-
-				Signature signature = Signature.getInstance("SHA256withRSA");
-
-				signature.initSign(rsaKey.toPrivateKey());
-				signature.update(input.getBytes("UTF-8"));
-				byte[] s = signature.sign();
-
-				String encoded = Base64.getEncoder().encodeToString(s);
-
-				String headers = signatureBlock.keySet().stream()
-					.map(String::toLowerCase)
-					.collect(Collectors.joining(" "));
-
-				Map<String, String> signatureHeader = new LinkedHashMap<>();
-
-				signatureHeader.put("keyId", getKey().getJwk().getKeyID());
-				signatureHeader.put("algorithm", alg);
-				signatureHeader.put("headers", headers);
-				signatureHeader.put("signature", encoded);
-
-
-				String signatureHeaderPayload = signatureHeader.entrySet()
-					.stream().map(e -> e.getKey() + "=\"" + e.getValue() + "\"") // TODO: the value should likely be encoded
-					.collect(Collectors.joining(","));
-
-				request.getHeaders().add("Signature", signatureHeaderPayload);
-
-			} catch (NoSuchAlgorithmException | InvalidKeyException | JOSEException | SignatureException e) {
-				throw new RuntimeException(e);
-			}
-
-			return execution.execute(request, body);
-		}
-
-	}
-
-	private class DpopInterceptor extends KeyAndTokenAwareInterceptor implements ClientHttpRequestInterceptor {
-
-		private final Logger log = LoggerFactory.getLogger(this.getClass());
-
-		public DpopInterceptor(Key key, String accessTokenValue) {
-			super(key, accessTokenValue);
-		}
-
-		@Override
-		public ClientHttpResponse intercept(HttpRequest request, byte[] body, ClientHttpRequestExecution execution) throws IOException {
-
-			JWK clientKey = getKey().getJwk();
-
-			JWSHeader header = new JWSHeader.Builder(JWSAlgorithm.parse(clientKey.getAlgorithm().getName()))
-				.type(new JOSEObjectType("dpop+jwt"))
-				.jwk(clientKey.toPublicJWK())
-				.build();
-
-			JWTClaimsSet claims = new JWTClaimsSet.Builder()
-				.jwtID(RandomStringUtils.randomAlphanumeric(20))
-				.issueTime(Date.from(Instant.now()))
-				.claim("htm", request.getMethodValue())
-				.claim("htu", request.getURI().toString())
-				.build();
-
-			try {
-				JWSSigner signer = new DefaultJWSSignerFactory().createJWSSigner(clientKey);
-
-				JWSObject jwsObject = new JWSObject(header, new Payload(claims.toJSONObject()));
-
-				jwsObject.sign(signer);
-
-				String signature = jwsObject.serialize();
-
-				request.getHeaders().add("DPoP", signature);
-
-			} catch (JOSEException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
-
-			return execution.execute(request, body);
-		}
-
-	}
-
-	private class OAuthPoPSigningInterceptor extends KeyAndTokenAwareInterceptor implements ClientHttpRequestInterceptor {
-
-		public OAuthPoPSigningInterceptor(Key key, String accessTokenValue) {
-			super(key, accessTokenValue);
-		}
-
-		@Override
-		public ClientHttpResponse intercept(HttpRequest request, byte[] body, ClientHttpRequestExecution execution) throws IOException {
-
-			JWK clientKey = getKey().getJwk();
-
-			JWSHeader header = new JWSHeader.Builder(JWSAlgorithm.parse(clientKey.getAlgorithm().getName()))
-				.jwk(clientKey.toPublicJWK())
-				.build();
-
-			Builder claimsSetBuilder = new JWTClaimsSet.Builder();
-
-			String bodyHash = Hash.SHA256_encode(new String(body));
-			claimsSetBuilder.claim("b", bodyHash);
-
-			calculateQueryHash(request, claimsSetBuilder);
-			calculateHeaderHash(request, claimsSetBuilder);
-
-			claimsSetBuilder.claim("m", request.getMethod().toString().toUpperCase());
-			claimsSetBuilder.claim("u", request.getURI().getHost());
-			claimsSetBuilder.claim("p", request.getURI().getPath());
-			claimsSetBuilder.claim("ts", Instant.now().getEpochSecond());
-
-			if (hasAccessToken()) {
-				claimsSetBuilder.claim("at", getAccessTokenValue());
-			}
-
-			try {
-				JWSSigner signer = new DefaultJWSSignerFactory().createJWSSigner(clientKey);
-
-				JWSObject jwsObject = new JWSObject(header, new Payload(claimsSetBuilder.build().toJSONObject()));
-
-				jwsObject.sign(signer);
-
-				String signature = jwsObject.serialize();
-
-				request.getHeaders().add("PoP", signature);
-
-			} catch (JOSEException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
-
-
-			return execution.execute(request, body);
-		}
-
-		private void calculateQueryHash(HttpRequest request, Builder claimsSetBuilder) {
-			String query = request.getURI().getQuery();
-			if (!Strings.isNullOrEmpty(query)) {
-				MultiValueMap<String,String> queryParams = UriComponentsBuilder.newInstance().replaceQuery(query).build().getQueryParams();
-
-				List<String> names = new ArrayList<>();
-				List<String> hashBase = new ArrayList<>();
-
-				queryParams.entrySet().forEach((e) -> {
-					names.add(e.getKey());
-					String first = e.getValue().get(0); // TODO: make sure other values don't exist
-					hashBase.add(UriUtils.encodeQueryParam(e.getKey(), Charset.defaultCharset())
-						+ "="
-						+ UriUtils.encodeQueryParam(first, Charset.defaultCharset()));
-				});
-
-				String hash = Hash.SHA256_encode(Joiner.on("&").join(hashBase));
-
-				claimsSetBuilder.claim("q", List.of(
-					names,
-					hash));
-			}
-		}
-
-		private void calculateHeaderHash(HttpRequest request, Builder claimsSetBuilder) {
-			if (request.getHeaders() != null) {
-				List<String> names = new ArrayList<>();
-				List<String> hashBase = new ArrayList<>();
-
-				request.getHeaders().entrySet().forEach((e) -> {
-					names.add(e.getKey());
-					String first = e.getValue().get(0); // TODO: make sure other values don't exist
-					hashBase.add(e.getKey().toLowerCase()
-						+ ": "
-						+ first);
-				});
-
-				String hash = Hash.SHA256_encode(Joiner.on("\n").join(hashBase));
-
-				claimsSetBuilder.claim("h", List.of(
-					names,
-					hash));
-			}
-		}
-	}
-
 }

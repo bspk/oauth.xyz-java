@@ -19,6 +19,8 @@ import io.bspk.oauth.xyz.data.api.InteractResponse;
 import io.bspk.oauth.xyz.data.api.TransactionContinueRequest;
 import io.bspk.oauth.xyz.data.api.TransactionRequest;
 import io.bspk.oauth.xyz.data.api.TransactionResponse;
+import io.bspk.oauth.xyz.http.HttpSigAlgorithm;
+import io.bspk.oauth.xyz.http.KeyProofParameters;
 import lombok.Data;
 import lombok.experimental.Accessors;
 
@@ -48,18 +50,18 @@ public class PendingTransaction {
 	private String clientNonce;
 	private String serverNonce;
 	private HashMethod hashMethod;
-	private Key key;
+	private KeyProofParameters proofParams;
 	private String keyHandle;
 	private String continueUri;
 	private String continueToken;
 	private String accessToken;
-	private Key accessTokenKey;
+	private KeyProofParameters accessTokenProofParams;
 	private String rsResponse;
 	private String userCode;
 	private String userCodeUrl;
 	private String interactionUrl;
 	private Map<String, String> multipleAccessTokens;
-	private Map<String, Key> multipleAccessTokenKeys;
+	private Map<String, KeyProofParameters> multipleAccessTokenProofParams;
 	private Map<String, String> multipleRsResponse;
 
 	public PendingTransaction add (TransactionResponse response) {
@@ -88,7 +90,15 @@ public class PendingTransaction {
 
 				// set the key if an explicit one is given, otherwise keep what we have
 				if (response.getCont().getAccessToken().getKey() != null) {
-					setKey(response.getCont().getAccessToken().getKey());
+					KeyProofParameters params = new KeyProofParameters()
+						.setSigningKey(response.getCont().getAccessToken().getKey().getJwk())
+						.setProof(response.getCont().getAccessToken().getKey().getProof())
+						// FIXME: these should be parameters, probably under "proof"
+						.setDigestAlgorithm("sha-512")
+						.setHttpSigAlgorithm(HttpSigAlgorithm.RSAPSS);
+
+
+					setProofParams(params);
 				}
 			}
 
@@ -97,7 +107,7 @@ public class PendingTransaction {
 			// otherwise clear it out
 			setContinueToken(null);
 			setContinueUri(null);
-			setKey(null);
+			setProofParams(null);
 		}
 
 		if (response.getAccessToken() != null) {
@@ -109,16 +119,22 @@ public class PendingTransaction {
 						t -> t.getLabel(),
 						t -> t.getValue())));
 
-				setMultipleAccessTokenKeys(tokenResponses.stream()
+				setMultipleAccessTokenProofParams(tokenResponses.stream()
 					.collect(Collectors.toMap(
 						t -> t.getLabel(),
 						t -> {
 							if (t.getFlags() != null && !t.getFlags().contains(TokenFlag.BEARER)) {
 								if (t.getKey() == null) {
 									// the token is bound but there's no other key, use the client's key
-									return getKey();
+									return getProofParams();
 								} else {
-									return t.getKey();
+									KeyProofParameters params = new KeyProofParameters()
+										.setSigningKey(t.getKey().getJwk())
+										.setProof(t.getKey().getProof())
+										// FIXME: these should be parameters, probably under "proof"
+										.setDigestAlgorithm("sha-512")
+										.setHttpSigAlgorithm(HttpSigAlgorithm.RSAPSS);
+									return params;
 								}
 							} else {
 								return null;
@@ -130,9 +146,16 @@ public class PendingTransaction {
 				setAccessToken(tokenResponse.getValue());
 				if (tokenResponse.getFlags() != null && !tokenResponse.getFlags().contains(TokenFlag.BEARER)) {
 					if (tokenResponse.getKey() != null) {
-						setAccessTokenKey(tokenResponse.getKey());
+						KeyProofParameters params = new KeyProofParameters()
+							.setSigningKey(tokenResponse.getKey().getJwk())
+							.setProof(tokenResponse.getKey().getProof())
+							// FIXME: these should be parameters, probably under "proof"
+							.setDigestAlgorithm("sha-512")
+							.setHttpSigAlgorithm(HttpSigAlgorithm.RSAPSS);
+						setAccessTokenProofParams(params);
 					} else {
-						setAccessTokenKey(getKey());
+						// otherwise set it to the token used on request
+						setAccessTokenProofParams(getProofParams());
 					}
 				}
 			}

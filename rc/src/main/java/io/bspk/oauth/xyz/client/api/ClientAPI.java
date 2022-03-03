@@ -42,6 +42,7 @@ import io.bspk.oauth.xyz.data.Key.Proof;
 import io.bspk.oauth.xyz.data.PendingTransaction;
 import io.bspk.oauth.xyz.data.PendingTransaction.Entry;
 import io.bspk.oauth.xyz.data.api.AccessTokenRequest;
+import io.bspk.oauth.xyz.data.api.ClientApiRequest;
 import io.bspk.oauth.xyz.data.api.ClientRequest;
 import io.bspk.oauth.xyz.data.api.DisplayRequest;
 import io.bspk.oauth.xyz.data.api.InteractRequest;
@@ -52,6 +53,8 @@ import io.bspk.oauth.xyz.data.api.TransactionContinueRequest;
 import io.bspk.oauth.xyz.data.api.TransactionRequest;
 import io.bspk.oauth.xyz.data.api.TransactionResponse;
 import io.bspk.oauth.xyz.data.api.UserRequest;
+import io.bspk.oauth.xyz.http.HttpSigAlgorithm;
+import io.bspk.oauth.xyz.http.KeyProofParameters;
 import io.bspk.oauth.xyz.http.SigningRestTemplateService;
 
 /**
@@ -98,6 +101,41 @@ public class ClientAPI {
 	@Autowired
 	@Qualifier("clientKey2")
 	private JWK clientKey2;
+
+	@PostMapping(path = "/parameterized", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
+	public ResponseEntity<?> startParameterizedFlow(@RequestBody ClientApiRequest req, HttpSession session) {
+
+		TransactionRequest request = new TransactionRequest()
+			.setInteract(req.getRequest().getInteract())
+			.setClient(req.getRequest().getClient())
+			.setSubject(req.getRequest().getSubject())
+			.setAccessToken(req.getRequest().getAccessToken())
+			.setUser(req.getRequest().getUser())
+			;
+
+//		RestTemplate restTemplate = requestSigners.getSignerFor(req.getc, null);
+//
+//		ResponseEntity<TransactionResponse> responseEntity = restTemplate.postForEntity(asEndpoint, request, TransactionResponse.class);
+//
+//		TransactionResponse response = responseEntity.getBody();
+//
+//
+//		PendingTransaction pending = new PendingTransaction()
+//			.setCallbackId(callbackId)
+//			.setClientNonce(nonce)
+//			.setHashMethod(request.getInteract().getFinish().getHashMethod())
+//			.setOwner(session.getId())
+//			.setKey(key)
+//			.add(request, response);
+//
+//		if (!Strings.isNullOrEmpty(response.getInstanceId())) {
+//			session.setAttribute(AUTH_CODE_ID, response.getInstanceId());
+//		}
+//
+//		pendingTransactionRepository.save(pending);
+
+		return ResponseEntity.noContent().build();
+	}
 
 	@PostMapping(path = "/authcode", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
 	public ResponseEntity<?> startAuthorizationCodeFlow(HttpSession session) {
@@ -166,7 +204,13 @@ public class ClientAPI {
 				.setKey(KeyRequest.of(key)));
 		}
 
-		RestTemplate restTemplate = requestSigners.getSignerFor(key, null);
+		KeyProofParameters params = new KeyProofParameters()
+			.setSigningKey(clientKey)
+			.setProof(Proof.HTTPSIG)
+			.setDigestAlgorithm("sha-512")
+			.setHttpSigAlgorithm(HttpSigAlgorithm.RSAPSS);
+
+		RestTemplate restTemplate = requestSigners.getSignerFor(params, null);
 
 		ResponseEntity<TransactionResponse> responseEntity = restTemplate.postForEntity(asEndpoint, request, TransactionResponse.class);
 
@@ -177,7 +221,7 @@ public class ClientAPI {
 			.setClientNonce(nonce)
 			.setHashMethod(request.getInteract().getFinish().getHashMethod())
 			.setOwner(session.getId())
-			.setKey(key)
+			.setProofParams(params)
 			.add(request, response);
 
 		if (!Strings.isNullOrEmpty(response.getInstanceId())) {
@@ -215,7 +259,14 @@ public class ClientAPI {
 				.setKey(KeyRequest.of(key)));
 		}
 
-		RestTemplate restTemplate = requestSigners.getSignerFor(key, null);
+		KeyProofParameters params = new KeyProofParameters()
+			.setSigningKey(clientKey)
+			.setProof(Proof.HTTPSIG)
+			.setDigestAlgorithm("sha-512")
+			.setHttpSigAlgorithm(HttpSigAlgorithm.RSAPSS);
+
+
+		RestTemplate restTemplate = requestSigners.getSignerFor(params, null);
 
 		ResponseEntity<TransactionResponse> responseEntity = restTemplate.postForEntity(asEndpoint, request, TransactionResponse.class);
 
@@ -227,7 +278,7 @@ public class ClientAPI {
 
 		PendingTransaction pending = new PendingTransaction()
 			.setOwner(session.getId())
-			.setKey(key)
+			.setProofParams(params)
 			.add(request, response);
 
 		pendingTransactionRepository.save(pending);
@@ -289,7 +340,11 @@ public class ClientAPI {
 				);
 		 */
 
-		RestTemplate restTemplate = requestSigners.getSignerFor(key, null);
+		KeyProofParameters params = new KeyProofParameters()
+			.setSigningKey(clientKey)
+			.setProof(Proof.JWSD);
+
+		RestTemplate restTemplate = requestSigners.getSignerFor(params, null);
 
 		ResponseEntity<TransactionResponse> responseEntity = restTemplate.postForEntity(asEndpoint, request, TransactionResponse.class);
 
@@ -300,7 +355,7 @@ public class ClientAPI {
 			.setClientNonce(nonce)
 			.setHashMethod(request.getInteract().getFinish().getHashMethod())
 			.setOwner(session.getId())
-			.setKey(key)
+			.setProofParams(params)
 			.add(request, response);
 
 		if (!Strings.isNullOrEmpty(response.getInstanceId())) {
@@ -341,7 +396,7 @@ public class ClientAPI {
 				.setInteractRef(interact)
 				;
 
-			RestTemplate restTemplate = requestSigners.getSignerFor(pending.getKey(), pending.getContinueToken());
+			RestTemplate restTemplate = requestSigners.getSignerFor(pending.getProofParams(), pending.getContinueToken());
 
 			ResponseEntity<TransactionResponse> responseEntity = restTemplate.postForEntity(pending.getContinueUri(), request, TransactionResponse.class);
 
@@ -384,7 +439,7 @@ public class ClientAPI {
 				.setInteractRef(pushback.getInteractRef())
 				;
 
-			RestTemplate restTemplate = requestSigners.getSignerFor(pending.getKey(), pending.getContinueToken());
+			RestTemplate restTemplate = requestSigners.getSignerFor(pending.getProofParams(), pending.getContinueToken());
 
 			ResponseEntity<TransactionResponse> responseEntity = restTemplate.postForEntity(pending.getContinueUri(), request, TransactionResponse.class);
 
@@ -421,7 +476,7 @@ public class ClientAPI {
 				return ResponseEntity.notFound().build();
 			}
 
-			RestTemplate restTemplate = requestSigners.getSignerFor(pending.getKey(), pending.getContinueToken());
+			RestTemplate restTemplate = requestSigners.getSignerFor(pending.getProofParams(), pending.getContinueToken());
 
 			ResponseEntity<TransactionResponse> responseEntity = restTemplate.exchange(pending.getContinueUri(), HttpMethod.POST, null, TransactionResponse.class);
 
@@ -494,21 +549,21 @@ public class ClientAPI {
 			}
 
 			String token = null;
-			Key key = null;
+			KeyProofParameters params = null;
 			if (!Strings.isNullOrEmpty(tokenId)) {
 				token = pending.getMultipleAccessTokens().get(tokenId);
-				key = pending.getMultipleAccessTokenKeys().get(tokenId);
+				params = pending.getMultipleAccessTokenProofParams().get(tokenId);
 
 			} else {
 				token = pending.getAccessToken();
-				key = pending.getAccessTokenKey();
+				params = pending.getAccessTokenProofParams();
 			}
 
 			if (token == null) {
 				return ResponseEntity.badRequest().build();
 			}
 
-			RestTemplate restTemplate = requestSigners.getSignerFor(key, token);
+			RestTemplate restTemplate = requestSigners.getSignerFor(params, token);
 
 			ResponseEntity<?> entity = restTemplate.getForEntity(rsEndpoint, String.class);
 
