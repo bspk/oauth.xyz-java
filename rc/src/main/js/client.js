@@ -201,6 +201,13 @@ const UseButtons = ({...props}) => {
 class PendingTransactionEntry extends React.Component {
 	render() {
 		const elements = [];
+
+		elements.push(
+			...[
+				<dt key="token-label" className="col-sm-3">Grant Endpoint</dt>,
+				<dd key="token-value" className="col-sm-9">{this.props.transaction.grant_endpoint}</dd>
+			]
+		);
 		
 		if (this.props.transaction.access_token) {
 			elements.push(

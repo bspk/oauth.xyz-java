@@ -1,5 +1,6 @@
 package io.bspk.oauth.xyz.crypto;
 
+import java.net.URI;
 import java.security.MessageDigest;
 import java.util.Base64;
 import java.util.function.Function;
@@ -74,13 +75,13 @@ public abstract class Hash {
 		return output;
 	}
 
-	public static String calculateInteractHash(String clientNonce, String serverNonce, String interact, String endpointUri, HashMethod hashMethod) {
+	public static String calculateInteractHash(String clientNonce, String serverNonce, String interact, URI endpointUri, HashMethod hashMethod) {
 		return hashMethod.getFunction().apply(
 			Joiner.on('\n')
 			.join(clientNonce,
 				serverNonce,
 				interact,
-				endpointUri));
+				endpointUri.toString()));
 	}
 
 	public static String SHA256_encode(String input) {

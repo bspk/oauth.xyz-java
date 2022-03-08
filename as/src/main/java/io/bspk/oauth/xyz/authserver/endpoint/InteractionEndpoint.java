@@ -116,9 +116,9 @@ public class InteractionEndpoint {
 				String serverNonce = transaction.getInteract().getServerNonce();
 				HashMethod hashMethod = transaction.getInteract().getCallbackHashMethod();
 
-				String txEndpoint = UriComponentsBuilder.fromHttpUrl(baseUrl)
+				URI txEndpoint = UriComponentsBuilder.fromHttpUrl(baseUrl)
 					.path("/api/as/transaction")
-					.build().toUriString();
+					.build().toUri();
 
 				String hash = Hash.calculateInteractHash(clientNonce,
 						serverNonce,

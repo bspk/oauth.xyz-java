@@ -1,5 +1,6 @@
 package io.bspk.oauth.xyz.data;
 
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -12,9 +13,9 @@ import org.springframework.data.annotation.Id;
 import com.fasterxml.jackson.databind.PropertyNamingStrategy;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
 
+import io.bspk.oauth.xyz.crypto.Hash.HashMethod;
 import io.bspk.oauth.xyz.crypto.HttpSigAlgorithm;
 import io.bspk.oauth.xyz.crypto.KeyProofParameters;
-import io.bspk.oauth.xyz.crypto.Hash.HashMethod;
 import io.bspk.oauth.xyz.data.api.AccessTokenRequest.TokenFlag;
 import io.bspk.oauth.xyz.data.api.AccessTokenResponse;
 import io.bspk.oauth.xyz.data.api.InteractResponse;
@@ -22,6 +23,7 @@ import io.bspk.oauth.xyz.data.api.TransactionContinueRequest;
 import io.bspk.oauth.xyz.data.api.TransactionRequest;
 import io.bspk.oauth.xyz.data.api.TransactionResponse;
 import lombok.Data;
+import lombok.NonNull;
 import lombok.experimental.Accessors;
 
 /**
@@ -63,6 +65,8 @@ public class PendingTransaction {
 	private Map<String, String> multipleAccessTokens;
 	private Map<String, KeyProofParameters> multipleAccessTokenProofParams;
 	private Map<String, String> multipleRsResponse;
+	@NonNull
+	private final URI grantEndpoint;
 
 	public PendingTransaction add (TransactionResponse response) {
 		entries.add(new Entry().setResponse(response));
