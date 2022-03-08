@@ -2,14 +2,7 @@ package io.bspk.oauth.xyz.http;
 
 import java.io.IOException;
 import java.nio.charset.Charset;
-import java.security.InvalidAlgorithmParameterException;
-import java.security.InvalidKeyException;
 import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.security.Signature;
-import java.security.SignatureException;
-import java.security.spec.MGF1ParameterSpec;
-import java.security.spec.PSSParameterSpec;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -19,7 +12,6 @@ import org.bouncycastle.jcajce.provider.digest.SHA256;
 import org.bouncycastle.jcajce.provider.digest.SHA512;
 import org.greenbytes.http.sfv.ByteSequenceItem;
 import org.greenbytes.http.sfv.Dictionary;
-import org.greenbytes.http.sfv.StringItem;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpMethod;
@@ -51,11 +43,11 @@ import com.nimbusds.jose.JWSSigner;
 import com.nimbusds.jose.Payload;
 import com.nimbusds.jose.crypto.factories.DefaultJWSSignerFactory;
 import com.nimbusds.jose.jwk.JWK;
-import com.nimbusds.jose.jwk.RSAKey;
 
 import io.bspk.oauth.xyz.crypto.Hash;
-import io.bspk.oauth.xyz.crypto.HttpSigAlgorithm;
+import io.bspk.oauth.xyz.crypto.HttpSign;
 import io.bspk.oauth.xyz.crypto.KeyProofParameters;
+import io.bspk.oauth.xyz.crypto.SignatureBaseBuilder;
 import io.bspk.oauth.xyz.crypto.SignatureContext;
 import io.bspk.oauth.xyz.crypto.SignatureParameters;
 import io.bspk.oauth.xyz.data.Key.Proof;
@@ -70,6 +62,10 @@ public class SigningRestTemplateService {
 	private final Logger log = LoggerFactory.getLogger(this.getClass());
 
 	private ClientHttpRequestFactory factory = new BufferingClientHttpRequestFactory(new HttpComponentsClientHttpRequestFactory());
+
+	public RestTemplate getSignerFor(KeyProofParameters params) {
+		return getSignerFor(params, null);
+	}
 
 	public RestTemplate getSignerFor(KeyProofParameters params, String accessTokenValue) {
 
@@ -233,6 +229,9 @@ public class SigningRestTemplateService {
 		private String digestMethod;
 
 		public ContentDigestInterceptor(String digestMethod) {
+			if (Strings.isNullOrEmpty(digestMethod)) {
+				digestMethod = "sha-256";
+			}
 			this.digestMethod = digestMethod;
 		}
 
@@ -247,12 +246,18 @@ public class SigningRestTemplateService {
 					sha = new SHA256.Digest();
 				}
 
+				if (sha == null) {
+					throw new RuntimeException("unknown digest algorithm: " + digestMethod);
+				}
+
 				byte[] digest = sha.digest(body);
 
 				ByteSequenceItem seq = ByteSequenceItem.valueOf(digest);
 
+				log.info("^^ Content Digest: " + seq.serialize());
+
 				Dictionary dict = Dictionary.valueOf(Map.of(
-					"sha-512", seq
+					digestMethod, seq
 					));
 
 				request.getHeaders().add("Content-Digest", dict.serialize());
@@ -301,9 +306,12 @@ public class SigningRestTemplateService {
 			if (body == null || body.length == 0) {
 				// if the body is empty, use an empty payload
 				payload = new Payload(new byte[0]);
-			} else {
+			} else if (!attached) {
 				// if the body's not empty, the payload is a hash of the body
 				payload = new Payload(Hash.SHA256_encode_url(body));
+			} else {
+				// the body's not empty and it's an attached request, just use the body as the payload
+				payload = new Payload(body);
 			}
 
 			//log.info(">> " + payload.toBase64URL().toString());
@@ -352,99 +360,58 @@ public class SigningRestTemplateService {
 		@Override
 		public ClientHttpResponse intercept(HttpRequest request, byte[] body, ClientHttpRequestExecution execution) throws IOException {
 
-			try {
+			SignatureParameters sigParams = new SignatureParameters()
+				.setCreated(Instant.now())
+				.setKeyid(getParams().getSigningKey().getKeyID())
+				.setNonce(RandomStringUtils.randomAlphanumeric(13));
 
-				SignatureParameters sigParams = new SignatureParameters()
-					.setCreated(Instant.now())
-					.setKeyid(getParams().getSigningKey().getKeyID())
-					.setNonce(RandomStringUtils.randomAlphanumeric(13));
-
-				if (getParams().getHttpSigAlgorithm() != null) {
-					sigParams.setAlg(getParams().getHttpSigAlgorithm());
-				}
-
-				sigParams.addComponentIdentifier("@target-uri");
-				sigParams.addComponentIdentifier("@method");
-
-				if (request.getMethod() == HttpMethod.PUT ||
-					request.getMethod() == HttpMethod.PATCH ||
-					request.getMethod() == HttpMethod.POST) {
-					if (body != null && body.length > 0) {
-						sigParams.addComponentIdentifier("Content-Length");
-						sigParams.addComponentIdentifier("Content-Type");
-						sigParams.addComponentIdentifier("Content-Digest");
-					}
-				}
-
-				if (hasAccessToken()) {
-					sigParams.addComponentIdentifier("Authorization");
-				}
-
-				SignatureContext ctx = new RestTemplateRequestSignatureContext(request);
-
-				StringBuilder base = new StringBuilder();
-
-				for (StringItem componentIdentifier : sigParams.getComponentIdentifiers()) {
-
-					String componentValue = ctx.getComponentValue(componentIdentifier);
-
-					if (componentValue != null) {
-						// write out the line to the base
-						componentIdentifier.serializeTo(base)
-							.append(": ")
-							.append(componentValue)
-							.append('\n');
-					} else {
-						// FIXME: be more graceful about bailing
-						throw new RuntimeException("Couldn't find a value for required parameter: " + componentIdentifier.serialize());
-					}
-				}
-
-				// add the signature parameters line
-				sigParams.toComponentIdentifier().serializeTo(base)
-					.append(": ");
-				sigParams.toComponentValue().serializeTo(base);
-
-				log.info("~~~ Signature Base  :\n ~~~ : {}", Joiner.on("\n~~~ : ").join(Splitter.on("\n").split(base.toString())));
-
-				byte[] baseBytes = base.toString().getBytes();
-
-				// holder for signed bytes
-				byte[] s = null;
-
-				if (getParams().getHttpSigAlgorithm().equals(HttpSigAlgorithm.RSAPSS)) {
-
-					RSAKey rsaKey = getParams().getSigningKey().toRSAKey();
-
-					Signature signer = Signature.getInstance("RSASSA-PSS");
-					signer.setParameter(
-						new PSSParameterSpec("SHA-512", "MGF1", MGF1ParameterSpec.SHA512, 64, 1));
-
-					MessageDigest sha = new SHA512.Digest();
-					byte[] hash = sha.digest(baseBytes);
-
-					signer.initSign(rsaKey.toPrivateKey());
-					signer.update(hash);
-					s = signer.sign();
-				} else {
-					// FIXME: other signature methods
-					throw new RuntimeException("Unknown signature method: " + getParams().getHttpSigAlgorithm());
-				}
-
-				String sigId = RandomStringUtils.randomAlphabetic(5).toLowerCase();
-
-				Dictionary sigHeader = Dictionary.valueOf(Map.of(
-					sigId, ByteSequenceItem.valueOf(s)));
-
-				Dictionary sigInputHeader = Dictionary.valueOf(Map.of(
-					sigId, sigParams.toComponentValue()));
-
-				request.getHeaders().add("Signature", sigHeader.serialize());
-				request.getHeaders().add("Signature-Input", sigInputHeader.serialize());
-
-			} catch (NoSuchAlgorithmException | InvalidKeyException | JOSEException | SignatureException | InvalidAlgorithmParameterException e) {
-				throw new RuntimeException(e);
+			if (getParams().getHttpSigAlgorithm() != null) {
+				sigParams.setAlg(getParams().getHttpSigAlgorithm());
 			}
+
+			sigParams.addComponentIdentifier("@target-uri");
+			sigParams.addComponentIdentifier("@method");
+
+			if (request.getMethod() == HttpMethod.PUT ||
+				request.getMethod() == HttpMethod.PATCH ||
+				request.getMethod() == HttpMethod.POST) {
+				if (body != null && body.length > 0) {
+					sigParams.addComponentIdentifier("Content-Length");
+					sigParams.addComponentIdentifier("Content-Type");
+					sigParams.addComponentIdentifier("Content-Digest");
+				}
+			}
+
+			if (hasAccessToken()) {
+				sigParams.addComponentIdentifier("Authorization");
+			}
+
+			SignatureContext ctx = new RestTemplateRequestSignatureContext(request);
+
+			SignatureBaseBuilder baseBuilder = new SignatureBaseBuilder(sigParams, ctx);
+
+			byte[] baseBytes = baseBuilder.createSignatureBase();
+
+			// holder for signed bytes
+
+			HttpSign httpSign = new HttpSign(getParams().getHttpSigAlgorithm(), getParams().getSigningKey());
+
+			byte[] s = httpSign.sign(baseBytes);
+
+			if (s == null) {
+				throw new RuntimeException("Could not sign message.");
+			}
+
+			String sigId = RandomStringUtils.randomAlphabetic(5).toLowerCase();
+
+			Dictionary sigHeader = Dictionary.valueOf(Map.of(
+				sigId, ByteSequenceItem.valueOf(s)));
+
+			Dictionary sigInputHeader = Dictionary.valueOf(Map.of(
+				sigId, sigParams.toComponentValue()));
+
+			request.getHeaders().add("Signature", sigHeader.serialize());
+			request.getHeaders().add("Signature-Input", sigInputHeader.serialize());
 
 			return execution.execute(request, body);
 		}

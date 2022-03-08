@@ -1,5 +1,6 @@
 package io.bspk.oauth.xyz.client.api;
 
+import java.net.URI;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -39,6 +40,7 @@ import io.bspk.oauth.xyz.crypto.HttpSigAlgorithm;
 import io.bspk.oauth.xyz.crypto.KeyProofParameters;
 import io.bspk.oauth.xyz.data.Interact.InteractStart;
 import io.bspk.oauth.xyz.data.InteractFinish;
+import io.bspk.oauth.xyz.data.InteractFinish.CallbackMethod;
 import io.bspk.oauth.xyz.data.Key;
 import io.bspk.oauth.xyz.data.Key.Proof;
 import io.bspk.oauth.xyz.data.PendingTransaction;
@@ -105,34 +107,67 @@ public class ClientAPI {
 	@PostMapping(path = "/parameterized", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
 	public ResponseEntity<?> startParameterizedFlow(@RequestBody ClientApiRequest req, HttpSession session) {
 
-		TransactionRequest request = new TransactionRequest()
-			.setInteract(req.getRequest().getInteract())
-			.setClient(req.getRequest().getClient())
-			.setSubject(req.getRequest().getSubject())
-			.setAccessToken(req.getRequest().getAccessToken())
-			.setUser(req.getRequest().getUser())
-			;
+		InteractRequest interact = new InteractRequest();
 
-//		RestTemplate restTemplate = requestSigners.getSignerFor(req.getc, null);
-//
-//		ResponseEntity<TransactionResponse> responseEntity = restTemplate.postForEntity(asEndpoint, request, TransactionResponse.class);
-//
-//		TransactionResponse response = responseEntity.getBody();
-//
-//
-//		PendingTransaction pending = new PendingTransaction()
-//			.setCallbackId(callbackId)
-//			.setClientNonce(nonce)
-//			.setHashMethod(request.getInteract().getFinish().getHashMethod())
-//			.setOwner(session.getId())
-//			.setKey(key)
-//			.add(request, response);
-//
-//		if (!Strings.isNullOrEmpty(response.getInstanceId())) {
-//			session.setAttribute(AUTH_CODE_ID, response.getInstanceId());
-//		}
-//
-//		pendingTransactionRepository.save(pending);
+		if (req.getInteractStart() != null) {
+			interact.setStart(req.getInteractStart());
+		}
+
+		String callbackId = RandomStringUtils.randomAlphanumeric(30);
+		String nonce = RandomStringUtils.randomAlphanumeric(20);
+		if (req.isInteractFinish()) {
+			interact.setFinish(new InteractFinish()
+				.setMethod(CallbackMethod.REDIRECT)
+				.setNonce(nonce)
+				.setUri(callbackBaseUrl + "/" + callbackId));
+		}
+
+		// translate our key to a public key and set the proofing parameters
+		KeyRequest key = new KeyRequest()
+			.setJwk(req.getPrivateKey().toPublicJWK())
+			.setProof(req.getProof());
+		ClientRequest client = new ClientRequest()
+			.setDisplay(req.getDisplay())
+			.setKey(key);
+
+
+		TransactionRequest request = new TransactionRequest()
+			.setSubject(req.getSubject())
+			.setAccessToken(req.getAccessToken())
+			.setUser(req.getUser())
+			.setClient(client)
+			.setInteract(interact);
+
+
+		KeyProofParameters proofParams = new KeyProofParameters()
+			.setHttpSigAlgorithm(Optional.ofNullable(req.getHttpSigAlgorithm()).orElse(HttpSigAlgorithm.JOSE))
+			.setSigningKey(req.getPrivateKey())
+			.setProof(req.getProof());
+
+		RestTemplate restTemplate = requestSigners.getSignerFor(proofParams);
+
+		ResponseEntity<TransactionResponse> responseEntity = restTemplate.postForEntity(req.getGrantEndpoint(), request, TransactionResponse.class);
+
+		TransactionResponse response = responseEntity.getBody();
+
+
+		PendingTransaction pending = new PendingTransaction(req.getGrantEndpoint())
+			.setHashMethod(request.getInteract().getFinish().getHashMethod())
+			.setOwner(session.getId())
+			.setProofParams(proofParams)
+			.add(request, response);
+
+		if (req.isInteractFinish()) {
+			pending
+				.setCallbackId(callbackId)
+				.setClientNonce(nonce);
+		}
+
+		if (!Strings.isNullOrEmpty(response.getInstanceId())) {
+			session.setAttribute(AUTH_CODE_ID, response.getInstanceId());
+		}
+
+		pendingTransactionRepository.save(pending);
 
 		return ResponseEntity.noContent().build();
 	}
@@ -216,7 +251,7 @@ public class ClientAPI {
 
 		TransactionResponse response = responseEntity.getBody();
 
-		PendingTransaction pending = new PendingTransaction()
+		PendingTransaction pending = new PendingTransaction(URI.create(asEndpoint))
 			.setCallbackId(callbackId)
 			.setClientNonce(nonce)
 			.setHashMethod(request.getInteract().getFinish().getHashMethod())
@@ -276,7 +311,7 @@ public class ClientAPI {
 			session.setAttribute(DEVICE_ID, response.getInstanceId());
 		}
 
-		PendingTransaction pending = new PendingTransaction()
+		PendingTransaction pending = new PendingTransaction(URI.create(asEndpoint))
 			.setOwner(session.getId())
 			.setProofParams(params)
 			.add(request, response);
@@ -350,7 +385,7 @@ public class ClientAPI {
 
 		TransactionResponse response = responseEntity.getBody();
 
-		PendingTransaction pending = new PendingTransaction()
+		PendingTransaction pending = new PendingTransaction(URI.create(asEndpoint))
 			.setCallbackId(callbackId)
 			.setClientNonce(nonce)
 			.setHashMethod(request.getInteract().getFinish().getHashMethod())
@@ -386,7 +421,7 @@ public class ClientAPI {
 
 			// check the incoming hash
 
-			String expectedHash = Hash.calculateInteractHash(pending.getClientNonce(), pending.getServerNonce(), interact, asEndpoint, pending.getHashMethod());
+			String expectedHash = Hash.calculateInteractHash(pending.getClientNonce(), pending.getServerNonce(), interact, pending.getGrantEndpoint(), pending.getHashMethod());
 
 			if (!expectedHash.equals(interactHash)) {
 				return ResponseEntity.badRequest().build(); // TODO: redirect this someplace useful?
@@ -429,7 +464,7 @@ public class ClientAPI {
 
 			// check the incoming hash
 
-			String expectedHash = Hash.calculateInteractHash(pending.getClientNonce(), pending.getServerNonce(), pushback.getInteractRef(), asEndpoint, pending.getHashMethod());
+			String expectedHash = Hash.calculateInteractHash(pending.getClientNonce(), pending.getServerNonce(), pushback.getInteractRef(), pending.getGrantEndpoint(), pending.getHashMethod());
 
 			if (!expectedHash.equals(pushback.getHash())) {
 				return ResponseEntity.badRequest().build(); // TODO: redirect this someplace useful?

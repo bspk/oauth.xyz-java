@@ -3,14 +3,11 @@ package io.bspk.oauth.xyz.crypto;
 import java.io.UnsupportedEncodingException;
 import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
-import java.security.InvalidAlgorithmParameterException;
 import java.security.InvalidKeyException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.Signature;
 import java.security.SignatureException;
-import java.security.spec.MGF1ParameterSpec;
-import java.security.spec.PSSParameterSpec;
 import java.text.ParseException;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -28,13 +25,11 @@ import org.bouncycastle.jcajce.provider.digest.SHA512;
 import org.greenbytes.http.sfv.ByteSequenceItem;
 import org.greenbytes.http.sfv.Dictionary;
 import org.greenbytes.http.sfv.ListElement;
-import org.greenbytes.http.sfv.StringItem;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.web.util.UriUtils;
 
 import com.google.common.base.Joiner;
-import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
 import com.google.common.net.HttpHeaders;
 import com.nimbusds.jose.JOSEException;
@@ -104,95 +99,60 @@ public class SignatureVerifier {
 		}
 
 
-		try {
-			// all signatures have to pass
+		// all signatures have to pass, check all of them
 
-			for (String sigId : signatureInput.get().keySet()) {
+		for (String sigId : signatureInput.get().keySet()) {
 
-				if (!signature.get().containsKey(sigId)) {
-					throw new RuntimeException("Didn't find signature for id " + sigId);
-				}
-
-				SignatureParameters sigParams = SignatureParameters.fromDictionaryEntry(signatureInput, sigId);
-				ByteSequenceItem sigBytes = (ByteSequenceItem) signature.get().get(sigId);
-
-				// ensure proper coverage
-
-				byte[] savedBody = (byte[]) request.getAttribute(DigestWrappingFilter.BODY_BYTES);
-
-				if (savedBody != null && savedBody.length > 0
-					&& !(sigParams.containsComponentIdentifier("content-digest"))) {
-					// missing the content-digest header
-					throw new RuntimeException("Missing content-digest header on non-empty body");
-				}
-
-				if (request.getHeader(HttpHeaders.AUTHORIZATION) != null
-					&& !(sigParams.containsComponentIdentifier("authorization"))) {
-					throw new RuntimeException("Missing authorizaiton header on a token-protected call");
-				}
-
-				if (sigParams.containsComponentIdentifier("@method")
-					&& (sigParams.containsComponentIdentifier("@target-uri"))) { // we allow the URI in parts?
-
-					SignatureContext ctx = new HttpServletRequestSignatureContext(request);
-
-					// collect the base string
-					StringBuilder base = new StringBuilder();
-
-					for (StringItem componentIdentifier : sigParams.getComponentIdentifiers()) {
-
-						String componentValue = ctx.getComponentValue(componentIdentifier);
-
-						if (componentValue != null) {
-							// write out the line to the base
-							componentIdentifier.serializeTo(base)
-								.append(": ")
-								.append(componentValue)
-								.append('\n');
-						} else {
-							// FIXME: be more graceful about bailing
-							throw new RuntimeException("Couldn't find a value for required parameter: " + componentIdentifier.serialize());
-						}
-					}
-
-					// add the signature parameters line
-					sigParams.toComponentIdentifier().serializeTo(base)
-						.append(": ");
-					sigParams.toComponentValue().serializeTo(base);
-
-					log.info("~~~ Signature Base  :\n ~~~ : {}", Joiner.on("\n~~~ : ").join(Splitter.on("\n").split(base.toString())));
-
-					byte[] baseBytes = base.toString().getBytes();
-
-					// TODO: algorithm agility
-
-					// Right now this locks to RSA-PSS
-
-					Signature signer = Signature.getInstance("RSASSA-PSS");
-					signer.setParameter(
-						new PSSParameterSpec("SHA-512", "MGF1", MGF1ParameterSpec.SHA512, 64, 1));
-
-					MessageDigest sha = new SHA512.Digest();
-					byte[] hash = sha.digest(baseBytes);
-
-					RSAKey rsaKey = clientKey.toRSAKey();
-
-					signer.initVerify(rsaKey.toPublicKey());
-					signer.update(hash);
-
-					if (!signer.verify(sigBytes.get().array())) {
-						throw new RuntimeException("Bad Signature, no biscuit");
-					}
-				} else {
-					throw new RuntimeException("Missing required covered component, found: " + sigParams.getComponentIdentifiers());
-				}
-
-				log.info("++ Verified HTTP Message signature " + sigId);
+			if (!signature.get().containsKey(sigId)) {
+				throw new RuntimeException("Didn't find signature for id " + sigId);
 			}
 
+			SignatureParameters sigParams = SignatureParameters.fromDictionaryEntry(signatureInput, sigId);
+			ByteSequenceItem sigValue = (ByteSequenceItem) signature.get().get(sigId);
 
-		} catch (NoSuchAlgorithmException | InvalidKeyException | JOSEException | SignatureException | InvalidAlgorithmParameterException e) {
-			throw new RuntimeException("Bad crypto, no biscuit", e);
+			// ensure proper coverage
+
+			byte[] savedBody = (byte[]) request.getAttribute(DigestWrappingFilter.BODY_BYTES);
+
+			if (savedBody != null && savedBody.length > 0
+				&& !(sigParams.containsComponentIdentifier("content-digest"))) {
+				// missing the content-digest header
+				throw new RuntimeException("Missing content-digest header on non-empty body");
+			}
+
+			if (request.getHeader(HttpHeaders.AUTHORIZATION) != null
+				&& !(sigParams.containsComponentIdentifier("authorization"))) {
+				throw new RuntimeException("Missing authorizaiton header on a token-protected call");
+			}
+
+			if (sigParams.containsComponentIdentifier("@method")
+				&& (sigParams.containsComponentIdentifier("@target-uri"))) { // should we allow the URI in parts?
+
+				SignatureContext ctx = new HttpServletRequestSignatureContext(request);
+
+				// collect the base string
+				SignatureBaseBuilder baseBuilder = new SignatureBaseBuilder(sigParams, ctx);
+
+				byte[] baseBytes = baseBuilder.createSignatureBase();
+
+				HttpSigAlgorithm alg = sigParams.getAlg();
+				if (alg == null) {
+					alg = HttpSigAlgorithm.JOSE; // FIXME: this needs to be signaled better
+				}
+				HttpVerify verify = new HttpVerify(alg, clientKey);
+
+				ByteBuffer bb = sigValue.get();
+				byte[] sigBytes = new byte[bb.remaining()];
+				bb.get(sigBytes);
+
+				if (!verify.verify(baseBytes, sigBytes)) {
+					throw new RuntimeException("Bad Signature, no biscuit");
+				}
+			} else {
+				throw new RuntimeException("Missing required covered component, found: " + sigParams.getComponentIdentifiers());
+			}
+
+			log.info("++ Verified HTTP Message signature " + sigId);
 		}
 	}
 
@@ -528,7 +488,7 @@ public class SignatureVerifier {
 			if (contentDigestHeader == null) {
 				return;
 			} else {
-				throw new RuntimeException("Bad Digest, no body");
+				throw new RuntimeException("Bad Content Digest, no body");
 			}
 		} else {
 
@@ -544,7 +504,7 @@ public class SignatureVerifier {
 					ByteBuffer actual = ((ByteSequenceItem)m.get(alg)).get();
 
 					if (!expected.equals(actual)) {
-						throw new RuntimeException("Bad Digest, no biscuit");
+						throw new RuntimeException("Bad Content Digest, no biscuit");
 					}
 
 				} else if (alg.equals("sha-256")) {
@@ -556,15 +516,15 @@ public class SignatureVerifier {
 					ByteBuffer actual = ((ByteSequenceItem)m.get(alg)).get();
 
 					if (!expected.equals(actual)) {
-						throw new RuntimeException("Bad Digest, no biscuit");
+						throw new RuntimeException("Bad Content Digest, no biscuit");
 					}
 
 				} else {
-					throw new RuntimeException("Bad digest, unknown algorithm: " + alg);
+					throw new RuntimeException("Bad Content digest, unknown algorithm: " + alg);
 				}
 			}
 
-			log.info("++ Verified body digest");
+			log.info("++ Verified body content-digest");
 
 		}
 

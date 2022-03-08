@@ -1,5 +1,6 @@
 package io.bspk.oauth.xyz.crypto;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
 
 import lombok.AccessLevel;
@@ -29,8 +30,15 @@ public class HttpSigAlgorithm {
 	 * @param item
 	 * @return
 	 */
+	@JsonCreator
 	public static HttpSigAlgorithm of(String alg) {
-		return new HttpSigAlgorithm(alg);
+		if (alg == null) {
+			return null;
+		} else if (alg.equalsIgnoreCase("jose")) {
+			return JOSE;
+		} else {
+			return new HttpSigAlgorithm(alg);
+		}
 	}
 
 	@Override

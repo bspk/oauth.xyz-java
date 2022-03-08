@@ -21,6 +21,9 @@ public class Display {
 	private String logoUri;
 
 	public static Display of(DisplayRequest displayRequest) {
+		if (displayRequest == null) {
+			return null;
+		}
 		return new Display()
 			.setName(displayRequest.getName())
 			.setUri(displayRequest.getUri())
