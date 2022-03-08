@@ -87,7 +87,7 @@
 				<configuration>
 					<appName>gnap-as</appName>
 					<processTypes>
-						<web>java -Dserver.port=$PORT -Dspring.profiles.active=heroku $JAVA_OPTS -jar target/*.jar</web>
+						<web>java -Dserver.port=$PORT -Dspring.profiles.active=heroku -agentlib:jdwp=transport=dt_socket,server=y,address=9090,suspend=n $JAVA_OPTS -jar target/*.jar</web>
 					</processTypes>
 				</configuration>
 			</plugin>
