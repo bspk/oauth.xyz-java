@@ -142,7 +142,8 @@ public class ClientAPI {
 		KeyProofParameters proofParams = new KeyProofParameters()
 			.setHttpSigAlgorithm(Optional.ofNullable(req.getHttpSigAlgorithm()).orElse(HttpSigAlgorithm.JOSE))
 			.setSigningKey(req.getPrivateKey())
-			.setProof(req.getProof());
+			.setProof(req.getProof())
+			.setDigestAlgorithm(req.getDigest());
 
 		RestTemplate restTemplate = requestSigners.getSignerFor(proofParams);
 

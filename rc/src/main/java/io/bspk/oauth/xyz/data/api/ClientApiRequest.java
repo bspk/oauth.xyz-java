@@ -32,5 +32,6 @@ public class ClientApiRequest {
 	private UserRequest user;
 	private SubjectRequest subject;
 	private HttpSigAlgorithm httpSigAlgorithm;
+	private String digest;
 
 }

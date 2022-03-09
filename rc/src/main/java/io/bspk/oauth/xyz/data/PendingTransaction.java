@@ -1,6 +1,7 @@
 package io.bspk.oauth.xyz.data;
 
 import java.net.URI;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -67,6 +68,7 @@ public class PendingTransaction {
 	private Map<String, String> multipleRsResponse;
 	@NonNull
 	private final URI grantEndpoint;
+	private Instant createdAt;
 
 	public PendingTransaction add (TransactionResponse response) {
 		entries.add(new Entry().setResponse(response));
