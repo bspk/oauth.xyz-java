@@ -1,5 +1,7 @@
 package io.bspk.oauth.xyz.data.api;
 
+import java.net.URI;
+
 import com.fasterxml.jackson.databind.PropertyNamingStrategy;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
 
@@ -16,7 +18,7 @@ import lombok.experimental.Accessors;
 public class ContinueResponse {
 
 	private Integer wait;
-	private String uri;
+	private URI uri;
 	private AccessTokenResponse accessToken;
 
 }

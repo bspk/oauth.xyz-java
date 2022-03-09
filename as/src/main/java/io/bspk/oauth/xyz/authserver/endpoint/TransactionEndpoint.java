@@ -1,5 +1,6 @@
 package io.bspk.oauth.xyz.authserver.endpoint;
 
+import java.net.URI;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -30,6 +31,7 @@ import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import com.google.common.base.Strings;
+import com.sailpoint.ietf.subjectidentifiers.model.SubjectIdentifierFormats;
 
 import io.bspk.oauth.xyz.authserver.repository.ClientRepository;
 import io.bspk.oauth.xyz.authserver.repository.TransactionRepository;
@@ -39,6 +41,7 @@ import io.bspk.oauth.xyz.data.Client;
 import io.bspk.oauth.xyz.data.Display;
 import io.bspk.oauth.xyz.data.Interact;
 import io.bspk.oauth.xyz.data.Interact.InteractStart;
+import io.bspk.oauth.xyz.data.InteractFinish;
 import io.bspk.oauth.xyz.data.Key;
 import io.bspk.oauth.xyz.data.Key.Proof;
 import io.bspk.oauth.xyz.data.Subject;
@@ -46,6 +49,7 @@ import io.bspk.oauth.xyz.data.Transaction;
 import io.bspk.oauth.xyz.data.Transaction.Status;
 import io.bspk.oauth.xyz.data.api.AccessTokenRequest;
 import io.bspk.oauth.xyz.data.api.ClientRequest;
+import io.bspk.oauth.xyz.data.api.ErrorCode;
 import io.bspk.oauth.xyz.data.api.HandleAwareField;
 import io.bspk.oauth.xyz.data.api.TransactionContinueRequest;
 import io.bspk.oauth.xyz.data.api.TransactionRequest;
@@ -86,13 +90,13 @@ public class TransactionEndpoint {
 
 		disco.put("grant_request_endpoint", txEndpoint);
 
-		disco.put("interact_start_methods_supported", Set.of(
-			"redirect",
-			"app",
-			"user_code"
-		));
+		disco.put("interact_start_modes_supported", InteractStart.values());
 
-		disco.put("interact_finish_methods_supported", Set.of("redirect", "push"));
+		disco.put("interact_finish_methods_supported", InteractFinish.CallbackMethod.values());
+
+		disco.put("sub_id_formats_supported", SubjectIdentifierFormats.values());
+
+		disco.put("assertion_formats_supported", Set.of("id_token"));
 
 		return ResponseEntity.ok(disco);
 	}
@@ -184,11 +188,11 @@ public class TransactionEndpoint {
 				if (t.getInteract() != null && t.getInteract().getInteractRef() != null) {
 
 					if (Strings.isNullOrEmpty(incoming.getInteractRef())) {
-						return ResponseEntity.badRequest().build(); // missing interaction ref (one is required)
+						return ResponseEntity.badRequest().body(TransactionResponse.of(ErrorCode.INVALID_REQUEST, "Missing required interaction reference.")); // missing interaction ref (one is required)
 					}
 
 					if (!incoming.getInteractRef().equals(t.getInteract().getInteractRef())) {
-						return ResponseEntity.badRequest().build(); // bad interaction ref
+						return ResponseEntity.badRequest().body(TransactionResponse.of(ErrorCode.INVALID_REQUEST, "Interaction reference not found.")); // invalid interaction ref
 					}
 
 				}
@@ -197,7 +201,7 @@ public class TransactionEndpoint {
 			}
 
 		} else {
-			return ResponseEntity.notFound().build();
+			return ResponseEntity.status(HttpStatus.NOT_FOUND).body(TransactionResponse.of(ErrorCode.INVALID_REQUEST));
 		}
 
 	}
@@ -214,38 +218,42 @@ public class TransactionEndpoint {
 		String accessToken) {
 
 		// validate the method signing as appropriate
-		if (t.getKey() != null) {
-			switch (t.getKey().getProof()) {
-				case HTTPSIG:
-					SignatureVerifier.ensureContentDigest(contentDigest, req); // make sure the digest header is accurate
-					SignatureVerifier.checkHttpMessageSignature(signature, signatureInput, req, t.getKey().getJwk());
-					break;
-				case JWSD:
-					SignatureVerifier.checkDetachedJws(jwsd, req, t.getKey().getJwk(), accessToken);
-					break;
-				case DPOP:
-					SignatureVerifier.checkDpop(dpop, req, t.getKey().getJwk(), accessToken);
-					break;
-				case OAUTHPOP:
-					SignatureVerifier.checkOAuthPop(oauthPop, req, t.getKey().getJwk(), accessToken);
-					break;
-				case JWS:
-					if (req.getMethod().equals(HttpMethod.GET.toString())
-						|| req.getMethod().equals(HttpMethod.OPTIONS.toString())
-						|| req.getMethod().equals(HttpMethod.DELETE.toString())
-						|| req.getMethod().equals(HttpMethod.HEAD.toString())
-						|| req.getMethod().equals(HttpMethod.TRACE.toString())) {
-
-						// a body-less method was used, check the header instead
+		try {
+			if (t.getKey() != null) {
+				switch (t.getKey().getProof()) {
+					case HTTPSIG:
+						SignatureVerifier.ensureContentDigest(contentDigest, req); // make sure the digest header is accurate
+						SignatureVerifier.checkHttpMessageSignature(signature, signatureInput, req, t.getKey().getJwk());
+						break;
+					case JWSD:
 						SignatureVerifier.checkDetachedJws(jwsd, req, t.getKey().getJwk(), accessToken);
-					} else {
-						SignatureVerifier.checkAttachedJws(req, t.getKey().getJwk(), accessToken);
-					}
-					break;
-				case MTLS:
-				default:
-					throw new RuntimeException("Unsupported Key Proof Type");
+						break;
+					case DPOP:
+						SignatureVerifier.checkDpop(dpop, req, t.getKey().getJwk(), accessToken);
+						break;
+					case OAUTHPOP:
+						SignatureVerifier.checkOAuthPop(oauthPop, req, t.getKey().getJwk(), accessToken);
+						break;
+					case JWS:
+						if (req.getMethod().equals(HttpMethod.GET.toString())
+							|| req.getMethod().equals(HttpMethod.OPTIONS.toString())
+							|| req.getMethod().equals(HttpMethod.DELETE.toString())
+							|| req.getMethod().equals(HttpMethod.HEAD.toString())
+							|| req.getMethod().equals(HttpMethod.TRACE.toString())) {
+
+							// a body-less method was used, check the header instead
+							SignatureVerifier.checkDetachedJws(jwsd, req, t.getKey().getJwk(), accessToken);
+						} else {
+							SignatureVerifier.checkAttachedJws(req, t.getKey().getJwk(), accessToken);
+						}
+						break;
+					case MTLS:
+					default:
+						throw new RuntimeException("Unsupported Key Proof Type");
+				}
 			}
+		} catch (Exception e) {
+			return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(TransactionResponse.of(ErrorCode.INVALID_CLIENT, e.getMessage()));
 		}
 
 		// rotate the transaction's own handle every time it's used (this creates one on the first time through)
@@ -286,15 +294,18 @@ public class TransactionEndpoint {
 				// TODO: see if the client should back off
 
 				transactionRepository.save(t);
-				return ResponseEntity.status(HttpStatus.ACCEPTED).body(TransactionResponse.of(t, baseUrl + "/api/as/transaction/continue"));
+				return ResponseEntity.status(HttpStatus.ACCEPTED).body(TransactionResponse.of(t, URI.create(baseUrl + "/api/as/transaction/continue")));
 
 				//break;
 			case DENIED:
 
 				// the user said no, not much to do here
 
+				// invalidate any pending interaction stuff
+				t.setInteract(null);
+
 				transactionRepository.save(t);
-				return ResponseEntity.ok(TransactionResponse.of(t, baseUrl + "/api/as/transaction/continue"));
+				return ResponseEntity.ok(TransactionResponse.of(t, URI.create(baseUrl + "/api/as/transaction/continue")));
 
 			case NEW:
 
@@ -308,9 +319,9 @@ public class TransactionEndpoint {
 
 						String interactId = RandomStringUtils.randomAlphanumeric(10);
 
-						String interactionEndpoint = UriComponentsBuilder.fromHttpUrl(baseUrl)
+						URI interactionEndpoint = UriComponentsBuilder.fromHttpUrl(baseUrl)
 							.path("/api/as/interact/" + interactId) // this is unique per transaction
-							.build().toUriString();
+							.build().toUri();
 
 						t.getInteract().setInteractionUrl(interactionEndpoint)
 							.setInteractId(interactId);
@@ -330,11 +341,19 @@ public class TransactionEndpoint {
 					if (t.getInteract().getStartMethods().contains(InteractStart.USER_CODE)) {
 						String userCode = RandomStringUtils.random(8, USER_CODE_CHARS);
 
+						t.getInteract().setStandaloneUserCode(userCode);
+
+						t.setStatus(Status.WAITING);
+					}
+
+					if (t.getInteract().getStartMethods().contains(InteractStart.USER_CODE_URI)) {
+						String userCode = RandomStringUtils.random(8, USER_CODE_CHARS);
+
 						t.getInteract().setUserCode(userCode);
 
-						String deviceInteractionEndpoint = UriComponentsBuilder.fromHttpUrl(baseUrl)
+						URI deviceInteractionEndpoint = UriComponentsBuilder.fromHttpUrl(baseUrl)
 							.path("/device") // this is the same every time
-							.build().toUriString();
+							.build().toUri();
 
 
 						t.getInteract().setUserCodeUrl(deviceInteractionEndpoint);
@@ -353,7 +372,7 @@ public class TransactionEndpoint {
 		}
 
 		transactionRepository.save(t);
-		return ResponseEntity.ok(TransactionResponse.of(t, instanceId, baseUrl + "/api/as/transaction/continue"));
+		return ResponseEntity.ok(TransactionResponse.of(t, instanceId, URI.create(baseUrl + "/api/as/transaction/continue")));
 	}
 
 	private void createNewAccessTokens(Transaction t) {

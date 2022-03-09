@@ -9,6 +9,7 @@ import com.fasterxml.jackson.databind.annotation.JsonNaming;
 import com.sailpoint.ietf.subjectidentifiers.model.SubjectIdentifier;
 import com.sailpoint.ietf.subjectidentifiers.model.SubjectIdentifierFormats;
 
+import io.bspk.oauth.xyz.data.Assertion.AssertionFormat;
 import io.bspk.oauth.xyz.data.api.SubjectRequest;
 import lombok.Data;
 import lombok.experimental.Accessors;
@@ -23,12 +24,12 @@ import lombok.experimental.Accessors;
 public class Subject {
 
 	private List<SubjectIdentifier> subIds;
-	private AssertionSet assertions;
+	private List<Assertion> assertions;
 	private Instant updatedAt;
 
 	public static Subject of(SubjectRequest request, User user) {
 		Subject c = new Subject();
-		List<SubjectIdentifierFormats> subIdsRequest = request.getSubIds();
+		List<SubjectIdentifierFormats> subIdsRequest = request.getSubIdFormats();
 		List<SubjectIdentifier> subIds = new ArrayList<>();
 
 		if (subIdsRequest != null) {
@@ -61,14 +62,20 @@ public class Subject {
 
 			c.setSubIds(subIds);
 		}
-		if (request.getAssertions() != null) {
-			AssertionSet a = new AssertionSet();
-			if (request.getAssertions().contains("oidc_id_token")) {
-				a.setOidcIdToken(user.getIdToken());
+
+		List<AssertionFormat> assertionRequest = request.getAssertionFormats();
+		List<Assertion> assertions = new ArrayList<>();
+
+		if (assertionRequest != null) {
+			if (assertionRequest.contains(AssertionFormat.OIDC_ID_TOKEN) && user.getIdToken() != null) {
+				assertions.add(new Assertion()
+					.setFormat(AssertionFormat.OIDC_ID_TOKEN)
+					.setValue(user.getIdToken().serialize()));
 			}
+			// TODO, add additional formats
+			c.setAssertions(assertions);
 		}
 
-		// TODO: this should be an additional field, somehow?
 		c.setUpdatedAt(user.getUpdatedAt());
 		return c;
 	}

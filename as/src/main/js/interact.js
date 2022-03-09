@@ -15,16 +15,40 @@ class Interact extends React.Component {
 				requireCode: props.requireCode,
 				redirectTo: null,
 				pending: null,
-				rtn: false
+				rtn: false,
+				userCode: undefined
 		};
 
 	}
 
+	setUserCode = (e) => {
+		var userCode = e.target.value;
+		
+		if (!userCode) {
+			userCode = '';
+		}
+		
+		userCode = userCode.replace(/l/, '1'); // lowercase ell is a one
+		userCode = userCode.toUpperCase(); // shift everything to uppercase
+		userCode = userCode.replace(/0/, 'O'); // oh is zero
+		userCode = userCode.replace(/I/, '1'); // aye is one
+		userCode = userCode.replaceAll(/[^123456789ABCDEFGHJKLMNOPQRSTUVWXYZ]/g, ""); // throw out all invalid characters
+
+		if (userCode) {
+			if (userCode.length > 4) {
+				userCode = userCode.slice(0, 4) + ' - ' + userCode.slice(4, 8);
+			}
+		} else {
+			userCode = undefined;
+		}
+		this.setState({
+			userCode: userCode
+		});
+	}
+
 	submit = () => {
 
-		var userCode = $('#userCode').val();
-
-		var data = {user_code: userCode};
+		var data = {user_code: this.state.userCode};
 
 		var _self = this;
 
@@ -128,7 +152,7 @@ class Interact extends React.Component {
 			);
 		} else if (this.state.requireCode) {
 			return (
-					<UserCodeForm submit={this.submit} />
+					<UserCodeForm submit={this.submit} setUserCode={this.setUserCode} userCode={this.state.userCode} />
 			);
 		} else if (this.state.pending && this.state.pending.transaction) {
 			return (
@@ -147,7 +171,7 @@ class UserCodeForm extends React.Component {
 		return (
 
 				<Card body>
-				<Input type="text" id="userCode" placeholder="XXXX - XXXX" />
+				<Input type="text" id="userCode" placeholder="XXXX - XXXX" onChange={this.props.setUserCode} value={this.props.userCode ? this.props.userCode : ''}/>
 					<Button color="success" onClick={this.props.submit}>Submit</Button>
 					</Card>
 
@@ -163,7 +187,7 @@ class ApprovalForm extends React.Component {
 
 				<CardBody>
 				<ClientInfo display={this.props.pending.transaction.display} />
-
+				<AccessRequestInfo access={this.props.pending.transaction.access_token_request} />
 				</CardBody>
 				<CardFooter>
 				<Button color="success" onClick={this.props.approve}>Approve</Button>
@@ -192,6 +216,25 @@ class ClientInfo extends React.Component {
 
 	}
 }
+
+class AccessRequestInfo extends React.Component {
+	render() {
+
+		if (this.props.access) {
+			return (
+					<div>
+					<h2>{this.props.display.name || "Client"}</h2>
+					<span>{this.props.display.uri}</span>
+					</div>
+			);
+		} else {
+			return null;
+		}
+
+
+	}
+}
+
 
 class Redirect extends React.Component {
 	constructor( props ){

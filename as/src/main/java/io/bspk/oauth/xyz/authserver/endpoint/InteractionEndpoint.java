@@ -130,8 +130,8 @@ public class InteractionEndpoint {
 				if (transaction.getInteract().getCallbackMethod().equals(CallbackMethod.REDIRECT)) {
 					// do a redirection
 
-					String callback = transaction.getInteract().getCallbackUri();
-					URI callbackUri = UriComponentsBuilder.fromUriString(callback)
+					URI callback = transaction.getInteract().getCallbackUri();
+					URI callbackUri = UriComponentsBuilder.fromUri(callback)
 						.queryParam("hash", hash)
 						.queryParam("interact_ref", interactRef)
 						.build().toUri();
@@ -174,6 +174,8 @@ public class InteractionEndpoint {
 		userCode = userCode.replace('0', 'O'); // oh is zero
 		userCode = userCode.replace('I', '1'); // aye is one
 		userCode = userCode.replaceAll("[^123456789ABCDEFGHJKLMNOPQRSTUVWXYZ]", ""); // throw out all invalid characters
+
+		userCode = userCode.substring(0, 8);
 
 		Transaction transaction = transactionRepository.findFirstByInteractUserCode(userCode);
 

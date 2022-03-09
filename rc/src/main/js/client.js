@@ -512,10 +512,18 @@ class PendingTransactionEntry extends React.Component {
 			);
 		}
 		
-		if (this.props.transaction.user_code) {
+		if (this.props.transaction.sandalone_user_code) {
 			elements.push(
 				...[
-					<dt key="code-url-label" className="col-sm-3">User Code URL</dt>,
+					<dt key="code-label" className="col-sm-3">User Code (standalone)</dt>,
+					<dd key="code-value" className="col-sm-9"><UserCode userCode={this.props.transaction.standalone_user_code} /></dd>
+				]
+			);
+		}
+		if (this.props.transaction.user_code_uri) {
+			elements.push(
+				...[
+					<dt key="code-url-label" className="col-sm-3">User Code URI</dt>,
 					<dd key="code-url-value" className="col-sm-9"><a href={this.props.transaction.user_code_url}>{this.props.transaction.user_code_url}</a></dd>,
 					<dt key="code-label" className="col-sm-3">User Code</dt>,
 					<dd key="code-value" className="col-sm-9"><UserCode userCode={this.props.transaction.user_code} /></dd>

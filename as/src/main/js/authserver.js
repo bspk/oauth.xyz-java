@@ -116,6 +116,8 @@ class Transaction extends React.Component{
 					<>
 						<dt className="col-sm-3">Interaction URL</dt>
 						<dd className="col-sm-9"><a href={this.props.transaction.interact.interaction_url}>{this.props.transaction.interact.interaction_url}</a></dd>
+						<dt className="col-sm-3">User Code (Standalone)</dt>
+						<dd className="col-sm-9">{this.props.transaction.interact.standalone_user_code}</dd>
 						<dt className="col-sm-3">User Code</dt>
 						<dd className="col-sm-9">{this.props.transaction.interact.user_code}</dd>
 						<dt className="col-sm-3">User Code URL</dt>

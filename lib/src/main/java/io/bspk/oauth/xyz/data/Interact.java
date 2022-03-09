@@ -1,5 +1,6 @@
 package io.bspk.oauth.xyz.data;
 
+import java.net.URI;
 import java.util.Collections;
 import java.util.Optional;
 import java.util.Set;
@@ -27,7 +28,8 @@ public class Interact {
 	public enum InteractStart {
 		REDIRECT,
 		APP,
-		USER_CODE;
+		USER_CODE,
+		USER_CODE_URI;
 
 		@JsonCreator
 		public static InteractStart fromJson(String key) {
@@ -42,15 +44,16 @@ public class Interact {
 	}
 
 	private Set<InteractStart> startMethods = Collections.emptySet();
-	private String interactionUrl;
-	private String appUrl;
+	private URI interactionUrl;
+	private URI appUrl;
 	private String interactId;
 	private String serverNonce;
 	private String clientNonce;
-	private String callbackUri;
+	private URI callbackUri;
 	private String interactRef;
+	private String standaloneUserCode;
 	private String userCode;
-	private String userCodeUrl;
+	private URI userCodeUrl;
 	private CallbackMethod callbackMethod;
 	private HashMethod callbackHashMethod;
 
