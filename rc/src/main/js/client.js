@@ -32,14 +32,15 @@ class Client extends React.Component {
 			proof: 'httpsig',
 			display: undefined,
 			accessToken: `{
-  "access": [ "foo", "bar", "baz" ]
+  "access": [ "foo", "bar", "baz"]
 }`,
 			interactStart: [ 'redirect' ],
 			interactFinish: true,
 			user: undefined,
 			subject: undefined,
 			httpSigAlgorithm: undefined,
-			digest: 'sha-512'
+			digest: 'sha-512',
+			showForm: true
 		};
 	}
 	
@@ -51,6 +52,10 @@ class Client extends React.Component {
 	
 	newTransaction = (e) => {
 		
+		this.setState({
+			showForm: false
+		});
+
 		const data = {
 			grant_endpoint: this.state.grantEndpoint,
 			private_key: this.state.privateKey ? JSON.parse(this.state.privateKey) : undefined,
@@ -73,6 +78,13 @@ class Client extends React.Component {
 			entity: data
 		}).done(response => {
 			this.loadPending();
+		});
+	}
+	
+	showForm = (e) => {
+		e.preventDefault();
+		this.setState({
+			showForm: true
 		});
 	}
 	
@@ -233,6 +245,7 @@ class Client extends React.Component {
 	
 		return (
 			<Container>
+				{ this.state.showForm &&
 				<Form>
 					<FormGroup>
 						<Label for="grantEndpoint">
@@ -401,6 +414,10 @@ class Client extends React.Component {
 						/>
 					</FormGroup>
 				</Form>
+				}
+				{ !this.state.showForm && 
+				<Button color="dark" onClick={this.showForm}>Show Client Instance Parameter Form</Button>
+				}
 				<Button color="info" onClick={this.newTransaction}>New Request</Button>
 				{' '}
 				<Button color="danger" size="sm" onClick={this.clearInstanceIds}>Clear Instance Ids</Button>

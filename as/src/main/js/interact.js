@@ -204,13 +204,17 @@ class ClientInfo extends React.Component {
 
 		if (this.props.display) {
 			return (
-					<div>
-					<h2>{this.props.display.name || "Client"}</h2>
-					<span>{this.props.display.uri}</span>
-					</div>
+	<div>
+		<h2>{this.props.display.name || "Client"}</h2>
+		<span>{this.props.display.uri}</span>
+	</div>
 			);
 		} else {
-			return null;
+			return(
+				<div>
+					<h2>"Client"</h2>
+				</div>
+			);
 		}
 
 
@@ -221,12 +225,66 @@ class AccessRequestInfo extends React.Component {
 	render() {
 
 		if (this.props.access) {
-			return (
-					<div>
-					<h2>{this.props.display.name || "Client"}</h2>
-					<span>{this.props.display.uri}</span>
-					</div>
-			);
+		
+			if (Array.isArray(this.props.access)) {
+				// multiple token request
+				const access = this.props.access.map(mt => {
+					
+					if (mt.access) {
+						const st = mt.access.map(a => {
+							if (typeof a === 'string' || a instanceof String) {
+								// it's a reference
+								return (
+									<li><i>{a}</i></li>
+								);
+							} else {
+								// it's an object, display the type
+								console.log(a);
+								return (
+									<li><b>{a.type}</b></li>
+								);
+							}
+						
+						});
+						return <li>Token {mt.label}:<ul>{st}</ul></li>;
+					} else {
+						return null;
+					}
+				});
+				return (
+						<div>
+						Access:
+						<ul>{access}</ul>
+						</div>
+				);
+			} else {
+				// single token request
+				if (this.props.access.access) {
+					const access = this.props.access.access.map(a => {
+						if (typeof a === 'string' || a instanceof String) {
+							// it's a reference
+							return (
+								<li><i>{a}</i></li>
+							);
+						} else {
+							// it's an object, display the type
+							console.log(a);
+							return (
+								<li><b>{a.type}</b></li>
+							);
+						}
+					
+					});
+					return (
+							<div>
+							Access:
+							<ul>{access}</ul>
+							</div>
+					);
+				} else {
+					return null;
+				}
+			}
 		} else {
 			return null;
 		}

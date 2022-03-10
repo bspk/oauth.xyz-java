@@ -59,7 +59,12 @@ public class MultipleAwareFieldDeserializer<T> extends StdDeserializer<MultipleA
 
 	@Override
 	public JsonDeserializer<?> createContextual(DeserializationContext ctxt, BeanProperty property) throws JsonMappingException {
-        JavaType wrapperType = property.getType();
+        JavaType wrapperType = null;
+        if (property != null) {
+        	wrapperType = property.getType();
+        } else {
+        	wrapperType = ctxt.getContextualType();
+        }
         JavaType valueType = wrapperType.containedType(0); // this is the parameterized value's type
 
         JavaType listValueType = ctxt.getTypeFactory().constructCollectionType(List.class, valueType); // this is a type for a list of the parameterized value's type

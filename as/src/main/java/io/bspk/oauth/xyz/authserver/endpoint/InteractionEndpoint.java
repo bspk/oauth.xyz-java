@@ -57,11 +57,15 @@ public class InteractionEndpoint {
 
 		Transaction transaction = transactionRepository.findFirstByInteractInteractId(id);
 
+//		if (true) {
+//			return ResponseEntity.noContent().build();
+//		}
+
 		if (transaction != null) {
 
 			// burn this interaction
-			transaction.getInteract().setInteractId(null);
-			transaction.getInteract().setInteractionUrl(null);
+//			transaction.getInteract().setInteractId(null);
+//			transaction.getInteract().setInteractionUrl(null);
 
 			transactionRepository.save(transaction);
 
@@ -86,6 +90,10 @@ public class InteractionEndpoint {
 		if (pending != null && pending.getTransaction() != null) {
 			// note we need to grab a fresh copy because we'll udpate it
 			Transaction transaction = transactionRepository.findById(pending.getTransaction().getId()).orElseThrow();
+
+			// burn this interaction now that a decision has been made
+			transaction.getInteract().setInteractId(null);
+			transaction.getInteract().setInteractionUrl(null);
 
 			if (approve.isApproved()) {
 				transaction.setStatus(Status.AUTHORIZED);

@@ -229,8 +229,8 @@ public class SignatureVerifier {
 			JWSObject jwsObject = JWSObject.parse(jwsd);
 
 			// ensure payloads match
-			if (!payload.equals(jwsObject.getPayload())) {
-				throw new RuntimeException("Body hash did not match. Expected " + payload.toString() + " received " + jwsObject.getPayload().toString());
+			if (!payload.toBase64URL().equals(jwsObject.getPayload().toBase64URL())) {
+				throw new RuntimeException("Body hash did not match. Expected " + payload.toBase64URL().toString() + " received " + jwsObject.getPayload().toBase64URL().toString());
 			}
 
 			verifyJWS(jwsObject, request, jwk, accessToken);

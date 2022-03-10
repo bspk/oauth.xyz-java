@@ -57,6 +57,7 @@ public class Application {
 	    	new JWKSerializer(),
 	    	new JWTDeserializer(),
 	    	new JWTSerializer());
+
 	    return new MongoCustomConversions(list);
 	}
 
