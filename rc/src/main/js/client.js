@@ -32,14 +32,15 @@ class Client extends React.Component {
 			proof: 'httpsig',
 			display: undefined,
 			accessToken: `{
-  "access": [ "foo", "bar", "baz" ]
+  "access": [ "foo", "bar", "baz"]
 }`,
 			interactStart: [ 'redirect' ],
 			interactFinish: true,
 			user: undefined,
 			subject: undefined,
 			httpSigAlgorithm: undefined,
-			digest: 'sha-512'
+			digest: 'sha-512',
+			showForm: true
 		};
 	}
 	
@@ -51,6 +52,10 @@ class Client extends React.Component {
 	
 	newTransaction = (e) => {
 		
+		this.setState({
+			showForm: false
+		});
+
 		const data = {
 			grant_endpoint: this.state.grantEndpoint,
 			private_key: this.state.privateKey ? JSON.parse(this.state.privateKey) : undefined,
@@ -73,6 +78,13 @@ class Client extends React.Component {
 			entity: data
 		}).done(response => {
 			this.loadPending();
+		});
+	}
+	
+	showForm = (e) => {
+		e.preventDefault();
+		this.setState({
+			showForm: true
 		});
 	}
 	
@@ -233,6 +245,7 @@ class Client extends React.Component {
 	
 		return (
 			<Container>
+				{ this.state.showForm &&
 				<Form>
 					<FormGroup>
 						<Label for="grantEndpoint">
@@ -401,6 +414,10 @@ class Client extends React.Component {
 						/>
 					</FormGroup>
 				</Form>
+				}
+				{ !this.state.showForm && 
+				<Button color="dark" onClick={this.showForm}>Show Client Instance Parameter Form</Button>
+				}
 				<Button color="info" onClick={this.newTransaction}>New Request</Button>
 				{' '}
 				<Button color="danger" size="sm" onClick={this.clearInstanceIds}>Clear Instance Ids</Button>
@@ -512,10 +529,18 @@ class PendingTransactionEntry extends React.Component {
 			);
 		}
 		
-		if (this.props.transaction.user_code) {
+		if (this.props.transaction.sandalone_user_code) {
 			elements.push(
 				...[
-					<dt key="code-url-label" className="col-sm-3">User Code URL</dt>,
+					<dt key="code-label" className="col-sm-3">User Code (standalone)</dt>,
+					<dd key="code-value" className="col-sm-9"><UserCode userCode={this.props.transaction.standalone_user_code} /></dd>
+				]
+			);
+		}
+		if (this.props.transaction.user_code_uri) {
+			elements.push(
+				...[
+					<dt key="code-url-label" className="col-sm-3">User Code URI</dt>,
 					<dd key="code-url-value" className="col-sm-9"><a href={this.props.transaction.user_code_url}>{this.props.transaction.user_code_url}</a></dd>,
 					<dt key="code-label" className="col-sm-3">User Code</dt>,
 					<dd key="code-value" className="col-sm-9"><UserCode userCode={this.props.transaction.user_code} /></dd>

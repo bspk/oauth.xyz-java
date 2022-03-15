@@ -57,11 +57,15 @@ public class InteractionEndpoint {
 
 		Transaction transaction = transactionRepository.findFirstByInteractInteractId(id);
 
+//		if (true) {
+//			return ResponseEntity.noContent().build();
+//		}
+
 		if (transaction != null) {
 
 			// burn this interaction
-			transaction.getInteract().setInteractId(null);
-			transaction.getInteract().setInteractionUrl(null);
+//			transaction.getInteract().setInteractId(null);
+//			transaction.getInteract().setInteractionUrl(null);
 
 			transactionRepository.save(transaction);
 
@@ -86,6 +90,10 @@ public class InteractionEndpoint {
 		if (pending != null && pending.getTransaction() != null) {
 			// note we need to grab a fresh copy because we'll udpate it
 			Transaction transaction = transactionRepository.findById(pending.getTransaction().getId()).orElseThrow();
+
+			// burn this interaction now that a decision has been made
+			transaction.getInteract().setInteractId(null);
+			transaction.getInteract().setInteractionUrl(null);
 
 			if (approve.isApproved()) {
 				transaction.setStatus(Status.AUTHORIZED);
@@ -130,8 +138,8 @@ public class InteractionEndpoint {
 				if (transaction.getInteract().getCallbackMethod().equals(CallbackMethod.REDIRECT)) {
 					// do a redirection
 
-					String callback = transaction.getInteract().getCallbackUri();
-					URI callbackUri = UriComponentsBuilder.fromUriString(callback)
+					URI callback = transaction.getInteract().getCallbackUri();
+					URI callbackUri = UriComponentsBuilder.fromUri(callback)
 						.queryParam("hash", hash)
 						.queryParam("interact_ref", interactRef)
 						.build().toUri();
@@ -174,6 +182,8 @@ public class InteractionEndpoint {
 		userCode = userCode.replace('0', 'O'); // oh is zero
 		userCode = userCode.replace('I', '1'); // aye is one
 		userCode = userCode.replaceAll("[^123456789ABCDEFGHJKLMNOPQRSTUVWXYZ]", ""); // throw out all invalid characters
+
+		userCode = userCode.substring(0, 8);
 
 		Transaction transaction = transactionRepository.findFirstByInteractUserCode(userCode);
 

@@ -1,5 +1,7 @@
 package io.bspk.oauth.xyz.data.api;
 
+import java.net.URI;
+
 import com.fasterxml.jackson.databind.PropertyNamingStrategy;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
 
@@ -16,10 +18,11 @@ import lombok.experimental.Accessors;
 @JsonNaming(PropertyNamingStrategy.SnakeCaseStrategy.class)
 public class InteractResponse {
 
-	private String redirect;
-	private String app;
+	private URI redirect;
+	private URI app;
 	private String finish;
 	private UserCodeResponse userCode;
+	private UserCodeUriResponse userCodeUri;
 
 
 	public static InteractResponse of (Interact interact) {
@@ -32,7 +35,8 @@ public class InteractResponse {
 			.setRedirect(interact.getInteractionUrl())
 			.setApp(interact.getAppUrl())
 			.setFinish(interact.getServerNonce())
-			.setUserCode(UserCodeResponse.of(interact));
+			.setUserCode(UserCodeResponse.of(interact))
+			.setUserCodeUri(UserCodeUriResponse.of(interact));
 
 
 	}

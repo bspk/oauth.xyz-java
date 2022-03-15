@@ -1,5 +1,7 @@
 package io.bspk.oauth.xyz.data.api;
 
+import java.net.URI;
+
 import org.springframework.beans.factory.annotation.Value;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
@@ -34,7 +36,8 @@ public class TransactionResponse {
 	private MultipleAwareField<AccessTokenResponse> accessToken;
 	private Subject subject;
 	private InteractResponse interact;
-
+	private ErrorCode error;
+	private String errorDescription;
 
 	@Value("${oauth.xyz.root}")
 	private String baseUrl;
@@ -51,12 +54,12 @@ public class TransactionResponse {
 		return setAccessToken(MultipleAwareField.of(accessToken));
 	}
 
-	public static TransactionResponse of(Transaction t, String continueUri) {
+	public static TransactionResponse of(Transaction t, URI continueUri) {
 		return of(t, null, continueUri);
 	}
 
 
-	public static TransactionResponse of(Transaction t, String instanceId, String continueUri) {
+	public static TransactionResponse of(Transaction t, String instanceId, URI continueUri) {
 
 		return new TransactionResponse()
 			.setAccessToken(MultipleAwareField.of(t.getAccessToken(), AccessTokenResponse::of))
@@ -67,6 +70,16 @@ public class TransactionResponse {
 			.setInstanceId(instanceId)
 			.setSubject(t.getSubject());
 
+	}
+
+	public static TransactionResponse of(ErrorCode e) {
+		return of(e, null);
+	}
+
+	public static TransactionResponse of(ErrorCode e, String errorDescription) {
+		return new TransactionResponse()
+			.setError(e)
+			.setErrorDescription(errorDescription);
 	}
 
 }

@@ -1,9 +1,12 @@
 package io.bspk.oauth.xyz.data.api;
 
+import java.util.List;
+
 import com.fasterxml.jackson.databind.PropertyNamingStrategy;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
+import com.sailpoint.ietf.subjectidentifiers.model.SubjectIdentifier;
 
-import io.bspk.oauth.xyz.data.AssertionType;
+import io.bspk.oauth.xyz.data.Assertion;
 import lombok.Data;
 import lombok.experimental.Accessors;
 
@@ -16,7 +19,7 @@ import lombok.experimental.Accessors;
 @JsonNaming(PropertyNamingStrategy.SnakeCaseStrategy.class)
 public class UserRequest {
 
-	private String assertion;
-	private AssertionType type;
+	private List<SubjectIdentifier> subIds;
+	private List<Assertion> assertions;
 
 }

@@ -9,6 +9,7 @@ import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.fasterxml.jackson.databind.util.StdConverter;
 import com.sailpoint.ietf.subjectidentifiers.model.SubjectIdentifierFormats;
 
+import io.bspk.oauth.xyz.data.Assertion.AssertionFormat;
 import lombok.Data;
 import lombok.experimental.Accessors;
 
@@ -38,11 +39,11 @@ public class SubjectRequest {
 
 	@JsonSerialize(contentConverter = SubjectIdentifierSerializer.class)
 	@JsonDeserialize(contentConverter = SubjectIdentifierDeserializer.class)
-	private List<SubjectIdentifierFormats> subIds;
-	private List<String> assertions;
+	private List<SubjectIdentifierFormats> subIdFormats;
+	private List<AssertionFormat> assertionFormats;
 
 	public static SubjectRequest ofSubjectFormats(SubjectIdentifierFormats... formats) {
 		return new SubjectRequest()
-			.setSubIds(List.of(formats));
+			.setSubIdFormats(List.of(formats));
 	}
 }

@@ -6,7 +6,7 @@ spring:
 
 spring.data.rest.base-path: /api
 
-oauth.xyz.root: http://host.docker.internal:9834/
+oauth.xyz.root: http://host.docker.internal:9834
 
 # spring.devtools.restart.exclude: 
 

@@ -1,27 +1,28 @@
 package io.bspk.oauth.xyz.data;
 
-import java.net.URI;
-
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
 import com.fasterxml.jackson.databind.PropertyNamingStrategy;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
 
-import io.bspk.oauth.xyz.crypto.Hash.HashMethod;
 import lombok.Data;
 import lombok.experimental.Accessors;
 
+/**
+ * @author jricher
+ *
+ */
 @Data
 @Accessors(chain = true)
 @JsonNaming(PropertyNamingStrategy.SnakeCaseStrategy.class)
-public class InteractFinish {
-	public enum CallbackMethod {
-		REDIRECT,
-		PUSH,
-		;
+public class Assertion {
+
+	public enum AssertionFormat {
+		OIDC_ID_TOKEN,
+		SAML2;
 
 		@JsonCreator
-		public static CallbackMethod fromJson(String key) {
+		public static AssertionFormat fromJson(String key) {
 			return key == null ? null :
 				valueOf(key.toUpperCase());
 		}
@@ -30,18 +31,11 @@ public class InteractFinish {
 		public String toJson() {
 			return name().toLowerCase();
 		}
+
 	}
 
-	private URI uri;
-	private String nonce;
-	private CallbackMethod method;
-	private HashMethod hashMethod = HashMethod.SHA3;
+	public AssertionFormat format;
+	public String value;
 
-	public static InteractFinish redirect() {
-		return new InteractFinish().setMethod(CallbackMethod.REDIRECT);
-	}
-
-	public static InteractFinish pushback() {
-		return new InteractFinish().setMethod(CallbackMethod.PUSH);
-	}
 }
+

@@ -73,10 +73,10 @@ public class ClientAPI {
 
 	private final Logger log = LoggerFactory.getLogger(this.getClass());
 
-	@Value("${oauth.xyz.root}api/client/callback")
+	@Value("${oauth.xyz.root}/api/client/callback")
 	private String callbackBaseUrl;
 
-	@Value("${oauth.xyz.root}api/client/pushback")
+	@Value("${oauth.xyz.root}/api/client/pushback")
 	private String pushbackBaseUrl;
 
 	@Value("${oauth.xyz.asEndpoint}")
@@ -119,7 +119,7 @@ public class ClientAPI {
 			interact.setFinish(new InteractFinish()
 				.setMethod(CallbackMethod.REDIRECT)
 				.setNonce(nonce)
-				.setUri(callbackBaseUrl + "/" + callbackId));
+				.setUri(URI.create(callbackBaseUrl + "/" + callbackId)));
 		}
 
 		// translate our key to a public key and set the proofing parameters
@@ -210,7 +210,7 @@ public class ClientAPI {
 		TransactionRequest request = new TransactionRequest()
 			.setInteract(new InteractRequest()
 				.setFinish(InteractFinish.redirect()
-					.setUri(callbackBaseUrl + "/" + callbackId)
+					.setUri(URI.create(callbackBaseUrl + "/" + callbackId))
 					.setNonce(nonce))
 				.setStart(InteractStart.REDIRECT))
 			.setAccessToken(AccessTokenRequest.ofReferences(
@@ -337,7 +337,7 @@ public class ClientAPI {
 		TransactionRequest request = new TransactionRequest()
 			.setInteract(new InteractRequest()
 				.setFinish(InteractFinish.pushback()
-					.setUri(pushbackBaseUrl + "/" + callbackId)
+					.setUri(URI.create(callbackBaseUrl + "/" + callbackId))
 					.setNonce(nonce))
 				.setStart(InteractStart.USER_CODE, InteractStart.REDIRECT))
 			.setAccessToken(

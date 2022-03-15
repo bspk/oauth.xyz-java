@@ -55,14 +55,16 @@ public class PendingTransaction {
 	private HashMethod hashMethod;
 	private KeyProofParameters proofParams;
 	private String keyHandle;
-	private String continueUri;
+	private URI continueUri;
 	private String continueToken;
 	private String accessToken;
 	private KeyProofParameters accessTokenProofParams;
 	private String rsResponse;
+
+	private String standaloneUserCode;
 	private String userCode;
-	private String userCodeUrl;
-	private String interactionUrl;
+	private URI userCodeUrl;
+	private URI interactionUrl;
 	private Map<String, String> multipleAccessTokens;
 	private Map<String, KeyProofParameters> multipleAccessTokenProofParams;
 	private Map<String, String> multipleRsResponse;
@@ -170,10 +172,12 @@ public class PendingTransaction {
 		if (response.getInteract() != null) {
 			InteractResponse interact = response.getInteract();
 			if (interact.getUserCode() != null) {
-				setUserCode(interact.getUserCode().getCode());
-				setUserCodeUrl(interact.getUserCode().getUrl());
+				setStandaloneUserCode(interact.getUserCode().getCode());
 			}
-
+			if (interact.getUserCodeUri() != null) {
+				setUserCode(interact.getUserCodeUri().getCode());
+				setUserCodeUrl(interact.getUserCodeUri().getUri());
+			}
 			if (interact.getRedirect() != null) {
 				setInteractionUrl(interact.getRedirect());
 			}
