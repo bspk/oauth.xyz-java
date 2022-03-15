@@ -73,10 +73,10 @@ public class ClientAPI {
 
 	private final Logger log = LoggerFactory.getLogger(this.getClass());
 
-	@Value("${oauth.xyz.root}api/client/callback")
+	@Value("${oauth.xyz.root}/api/client/callback")
 	private String callbackBaseUrl;
 
-	@Value("${oauth.xyz.root}api/client/pushback")
+	@Value("${oauth.xyz.root}/api/client/pushback")
 	private String pushbackBaseUrl;
 
 	@Value("${oauth.xyz.asEndpoint}")
