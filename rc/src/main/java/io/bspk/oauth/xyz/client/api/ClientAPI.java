@@ -153,7 +153,6 @@ public class ClientAPI {
 
 
 		PendingTransaction pending = new PendingTransaction(req.getGrantEndpoint())
-			.setHashMethod(request.getInteract().getFinish().getHashMethod())
 			.setOwner(session.getId())
 			.setProofParams(proofParams)
 			.add(request, response);
@@ -161,7 +160,8 @@ public class ClientAPI {
 		if (req.isInteractFinish()) {
 			pending
 				.setCallbackId(callbackId)
-				.setClientNonce(nonce);
+				.setClientNonce(nonce)
+				.setHashMethod(request.getInteract().getFinish().getHashMethod());
 		}
 
 		if (!Strings.isNullOrEmpty(response.getInstanceId())) {
