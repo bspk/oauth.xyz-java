@@ -7,7 +7,7 @@ import Dexie from 'dexie';
 
 import db from './db';
 
-import base64 from 'base-64';
+import base64url from 'base64url';
 
 import { serializeDictionary, serializeItem, serializeList, ByteSequence } from 'structured-headers';
 
@@ -76,7 +76,8 @@ class SPA extends React.Component {
 			awaitingCallback: false,
 			keypair: undefined,
 			generatedPublicKeyJwk: undefined,
-			savedState: undefined
+			savedState: undefined,
+			continue: undefined
 		};
 	}
 	
@@ -102,7 +103,9 @@ class SPA extends React.Component {
 					clientNonce: savedState.clientNonce,
 					redir: savedState.redir,
 					txHandle: savedState.txHandle,
-					serverNonce: savedState.serverNonce				
+					serverNonce: savedState.serverNonce,
+					continue: savedState.continue,
+					grantEndpoint: savedState.grantEndpoint		
 				}, () => this.checkCallback());
 			} else {
 				// clear the storage just in case
@@ -126,7 +129,9 @@ class SPA extends React.Component {
 				clientNonce: this.state.clientNonce,
 				redir: this.state.redir,
 				txHandle: this.state.txHandle,
-				serverNonce: this.state.serverNonce				
+				serverNonce: this.state.serverNonce,
+				continue: this.state.continue,
+				grantEndpoint: this.state.grantEndpoint		
 			}).then(id => {
 				this.setState({
 					savedState: id
@@ -263,7 +268,7 @@ class SPA extends React.Component {
 		});
 	};
 	
-	signedFetch = (uri, method, body, at) => {
+	signedFetch = (uri, method, body, httpSigAlg, digestAlg, at) => {
 	
 		var headers = {};
 	
@@ -413,7 +418,8 @@ class SPA extends React.Component {
 				{
 					method: 'redirect',
 					uri: window.location.href + '/' + redir,
-					nonce: nonce
+					nonce: nonce,
+					hash_method: 'sha2'
 				} : undefined
 		};
 		
@@ -430,6 +436,7 @@ class SPA extends React.Component {
 				clientNonce: nonce,
 				redir: redir,
 				continue: grantResponse.continue,
+				grantEndpoint: this.state.requestForm.grantEndpoint,
 				serverNonce: grantResponse.interact ? grantResponse.interact.finish : undefined,
 				awaitingCallback: true
 			}, () => {
@@ -440,72 +447,27 @@ class SPA extends React.Component {
 			});
 		}); 
 		
-		return;
-		
-		return crypto.subtle.exportKey('jwk', this.state.keypair.publicKey).then(jwk => {
-			const nonce = randomString();
-			const redir = randomString();
-			
-			const t = {
-				resources: ['foo', 'bar'],
-				keys: {
-					proof: 'jwsd',
-					jwk: jwk
-				},
-				interact: {
-					redirect: true,
-					callback: {
-						uri: 'http://host.docker.internal:9834/spa/' + redir,
-						nonce: nonce,
-						hash_method: 'sha2'
-					}
-				},
-				display: {
-					name: 'XYZ Single Page App',
-					uri: 'https://oauth.xyz/'
-				}
-			};
-			
-			const body = JSON.stringify(t);
-				
-			return this.fetchWithDJWS(this.txendpoint, 'POST', body).then(res => {
-				if (res.ok) {
-					res.json().then(data => {
-						// process the tx response
-						this.setState({
-							clientNonce: nonce,
-							redir: redir,
-							txHandle: data.handle.value, // this assumes a bearer handle
-							serverNonce: data.server_nonce,
-							awaitingCallback: true
-						}, () => {
-							this.saveState().then(() => {
-								// now that we've saved the state we can go to the interaction endpoint
-								window.location.assign(data.interaction_url);
-								
-							});
-						});
-					});
-				}
-			});
-		});
 	};
 
 	checkCallback = () => {
 		if (this.state.awaitingCallback) {
-			
+			console.log(this.state.redir);
+			console.log(window.location.pathname);
 			// first see if this is the callback we're expecting
 			if (window.location.pathname.endsWith(this.state.redir)) {
 				// get parameters
 				const query = new URLSearchParams(window.location.search);
 
 				const hash = query.get('hash');
-				const interactRef = query.get('interact');
+				const interactRef = query.get('interact_ref');
 				
 				// check the hash
 				const hashbase = this.state.clientNonce + '\n'
 					+ this.state.serverNonce + '\n'
-					+ interactRef;
+					+ interactRef + '\n'
+					+ this.state.requestForm.grantEndpoint;
+				
+				console.log(hashbase);
 				
 				const encoder = new TextEncoder();
 				
@@ -514,19 +476,24 @@ class SPA extends React.Component {
 					if (hash === expected) {
 						// hash matches, call the tx endpoint again to follow up
 						const t = {
-							handle: this.state.txHandle,
 							interact_ref: interactRef
 						};
 						
 						const body = JSON.stringify(t);
 						
-						return this.fetchWithDJWS(this.txendpoint, 'POST', body).then(res => {
+						this.signedFetch(this.state.continue.uri,
+							'POST',
+							body,
+							this.state.requestForm.httpSigAlgorithm,
+							this.state.requestForm.digest,
+							this.state.continue.access_token.value
+						).then(res => {
 							if (res.ok) {
 								res.json().then(data => {
 									// process the tx response
 									this.setState({
 										accessToken: data.access_token.value,
-										txHandle: data.handle.value,
+										continue: data.continue,
 										redir: undefined,
 										clientNonce: undefined,
 										serverNonce: undefined
@@ -540,11 +507,17 @@ class SPA extends React.Component {
 						
 					} else {
 						console.log('Hash did not match, got ' + hash + ' expected ' + expected);
+
+						window.history.pushState({}, 'post-redirect', '/spa');
+						this.saveState();
 					}
 				});
 				
 			} else {
 				console.log('Not the callback we are looking for');
+
+				window.history.pushState({}, 'post-redirect', '/spa');
+				this.saveState();
 			}
 		}
 	};
@@ -613,6 +586,14 @@ class SPA extends React.Component {
 					</CardHeader>
 					<CardBody>
 						<dl className="row">
+							<dt className="col-sm-3">Grant Endpoint</dt>
+							<dd className="col-sm-9">{this.state.grantEndpoint}</dd>
+							<dt className="col-sm-3">Awaiting Callback</dt>
+							<dd className="col-sm-9">{this.state.awaitingCallback}</dd>
+							<dt className="col-sm-3">Continue Token</dt>
+							<dd className="col-sm-9">{this.state.continue && this.state.continue.access_token ? this.state.continue.access_token.value : ''}</dd>
+							<dt className="col-sm-3">Access Token</dt>
+							<dd className="col-sm-9">{this.state.accessToken}</dd>
 						</dl>
 					</CardBody>
 				</Card>
