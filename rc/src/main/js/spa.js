@@ -136,7 +136,7 @@ class SPA extends React.Component {
 			});
 		});
 	};
-
+	
 	showForm = (e) => {
 		e.preventDefault();
 		this.setState({
@@ -144,7 +144,7 @@ class SPA extends React.Component {
 		});
 	}
 	
-		setGrantEndpoint = (e) => {
+	setGrantEndpoint = (e) => {
 		var requestForm = {...this.state.requestForm};
 		requestForm.grantEndpoint = e.target.value ? e.target.value : undefined;
 		
@@ -362,10 +362,6 @@ class SPA extends React.Component {
 					method: method,
 					body: body,
 					headers: headers
-				}).then(res => {
-					return res.json();
-				}).then(json => {
-					console.log(json);
 				});
 				
 			});
@@ -412,11 +408,11 @@ class SPA extends React.Component {
 		const redir = randomString();
 		
 		data['interact'] = {
-			start: this.state.interactStart,
-			finish: this.state.interactFinish ?
+			start: this.state.requestForm.interactStart,
+			finish: this.state.requestForm.interactFinish ?
 				{
 					method: 'redirect',
-					uri: 'http://localhost:9834/spa/' + redir,
+					uri: window.location.href + '/' + redir,
 					nonce: nonce
 				} : undefined
 		};
@@ -428,7 +424,21 @@ class SPA extends React.Component {
 			JSON.stringify(data),
 			this.state.requestForm.httpSigAlgorithm,
 			this.state.requestForm.digest
-		);
+		).then(res => { return res.json(); }).then(grantResponse => {
+			console.log(grantResponse);
+			this.setState({
+				clientNonce: nonce,
+				redir: redir,
+				continue: grantResponse.continue,
+				serverNonce: grantResponse.interact ? grantResponse.interact.finish : undefined,
+				awaitingCallback: true
+			}, () => {
+				this.saveState().then(() => {
+					// now that we've saved the state we can go to the interaction endpoint
+					window.location.assign(grantResponse.interact.redirect);					
+				});
+			});
+		}); 
 		
 		return;
 		

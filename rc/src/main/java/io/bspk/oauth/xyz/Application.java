@@ -82,6 +82,7 @@ public class Application {
 				// map all of the front-end pages to React
 
 				registry.addViewController("/spa").setViewName("/");
+				registry.addViewController("/spa/*").setViewName("/");
 			}
 		};
 
