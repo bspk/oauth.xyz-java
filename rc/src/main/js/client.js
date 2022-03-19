@@ -32,7 +32,22 @@ class Client extends React.Component {
 			proof: 'httpsig',
 			display: undefined,
 			accessToken: `{
-  "access": [ "foo", "bar", "baz"]
+  "access": [ "foo", "bar", "baz", {
+        "type": "photo-api",
+        "actions": [
+            "read",
+            "write",
+            "delete"
+        ],
+        "locations": [
+            "https://server.example.net/",
+            "https://resource.local/other"
+        ],
+        "datatypes": [
+            "metadata",
+            "images"
+        ]
+    }]
 }`,
 			interactStart: [ 'redirect' ],
 			interactFinish: true,
@@ -205,7 +220,7 @@ class Client extends React.Component {
 
 	setInteractFinish = (e) => {
 		this.setState({
-			interactFinish: e.target.selected
+			interactFinish: e.target.checked
 		});
 	}
 
@@ -246,6 +261,46 @@ class Client extends React.Component {
 		return (
 			<Container>
 				{ this.state.showForm &&
+					<RequestParameterForm
+						grantEndpoint={this.state.grantEndpoint}
+						setGrantEndpoint={this.setGrantEndpoint}
+						privateKey={this.state.privateKey}
+						setPrivateKey={this.setPrivateKey}
+						proof={this.state.proof}
+						setProof={this.setProof}
+						httpSigAlgorithm={this.state.httpSigAlgorithm}
+						setHttpSigAlgorithm={this.setHttpSigAlgorithm}
+						digest={this.state.digest}
+						setDigest={this.setDigest}
+						display={this.state.display}
+						setDisplay={this.setDisplay}
+						accessToken={this.state.accessToken}
+						setAccessToken={this.setAccessToken}
+						interactStart={this.state.interactStart}
+						setInteractStart={this.setInteractStart}
+						interactFinish={this.state.interactFinish}
+						setInteractFinish={this.setInteractFinish}
+						user={this.state.user}
+						setUser={this.setUser}
+						subject={this.state.subject}
+						setSubject={this.setSubject}
+					/>
+				}
+				{ !this.state.showForm && 
+				<Button color="dark" onClick={this.showForm}>Show Client Instance Parameter Form</Button>
+				}
+				<Button color="info" onClick={this.newTransaction}>New Request</Button>
+				{' '}
+				<Button color="danger" size="sm" onClick={this.clearInstanceIds}>Clear Instance Ids</Button>
+				<Button color="primary" size="sm" onClick={this.loadPending}>Refresh</Button>
+				{pending}
+			</Container>
+		);
+	}
+	
+}
+
+const RequestParameterForm = (props) => (
 				<Form>
 					<FormGroup>
 						<Label for="grantEndpoint">
@@ -256,8 +311,8 @@ class Client extends React.Component {
 							name="grantEndpoint"
 							placeholder=""
 							type="url"
-							value={this.state.grantEndpoint}
-							onChange={this.setGrantEndpoint}
+							value={props.grantEndpoint}
+							onChange={props.setGrantEndpoint}
 						/>
 					</FormGroup>
 					<FormGroup>
@@ -269,8 +324,8 @@ class Client extends React.Component {
 							name="privateKey"
 							placeholder=""
 							type="textarea"
-							value={this.state.privateKey}
-							onChange={this.setPrivateKey}
+							value={props.privateKey}
+							onChange={props.setPrivateKey}
 						/>
 					</FormGroup>
 					<FormGroup>
@@ -282,15 +337,15 @@ class Client extends React.Component {
 							name="proof"
 							placeholder=""
 							type="select"
-							value={this.state.proof}
-							onChange={this.setProof}
+							value={props.proof}
+							onChange={props.setProof}
 						>
 							<option>httpsig</option>
 							<option>jwsd</option>
 							<option>jws</option>
 						</Input>
 					</FormGroup>
-					{ this.state.proof == 'httpsig' && 
+					{ props.proof == 'httpsig' && 
 					<FormGroup>
 						<Label for="httpSigAlgorithm">
 							HTTP Signature Algorithm
@@ -300,8 +355,8 @@ class Client extends React.Component {
 							name="privateKey"
 							placeholder=""
 							type="select"
-							value={this.state.httpSigAlgorithm}
-							onChange={this.setHttpSigAlgorithm}
+							value={props.httpSigAlgorithm}
+							onChange={props.setHttpSigAlgorithm}
 						>
 							<option value="">(Use JOSE Algorithm from Key)</option>
 							<option>rsa-pss-sha512</option>
@@ -311,7 +366,7 @@ class Client extends React.Component {
 						</Input>
 					</FormGroup>
 					}
-					{ this.state.proof == 'httpsig' && 
+					{ props.proof == 'httpsig' && 
 					<FormGroup>
 						<Label for="digest">
 							HTTP Content Digest
@@ -321,8 +376,8 @@ class Client extends React.Component {
 							name="privateKey"
 							placeholder=""
 							type="select"
-							value={this.state.digest}
-							onChange={this.setDigest}
+							value={props.digest}
+							onChange={props.setDigest}
 						>
 							<option>sha-512</option>
 							<option>sha-256</option>
@@ -338,8 +393,8 @@ class Client extends React.Component {
 							name="display"
 							placeholder=""
 							type="textarea"
-							value={this.state.display}
-							onChange={this.setDisplay}
+							value={props.display}
+							onChange={props.setDisplay}
 						/>
 					</FormGroup>
 					<FormGroup>
@@ -351,8 +406,8 @@ class Client extends React.Component {
 							name="accesstoken"
 							placeholder=""
 							type="textarea"
-							value={this.state.accessToken}
-							onChange={this.setAccessToken}
+							value={props.accessToken}
+							onChange={props.setAccessToken}
 						/>
 					</FormGroup>
 					<FormGroup>
@@ -365,8 +420,8 @@ class Client extends React.Component {
 							placeholder=""
 							type="select"
 							multiple
-							value={this.state.interactStart}
-							onChange={this.setInteractStart}
+							value={props.interactStart}
+							onChange={props.setInteractStart}
 						>
 							<option>redirect</option>
 							<option>user_code</option>
@@ -379,8 +434,8 @@ class Client extends React.Component {
 							name="interactFinish"
 							placeholder=""
 							type="checkbox"
-							value={this.state.interactFinish}
-							onChange={this.setInteractFinish}
+							checked={props.interactFinish}
+							onChange={props.setInteractFinish}
 						/>
 						{' '}
 						<Label for="interactFinish" check>
@@ -389,15 +444,15 @@ class Client extends React.Component {
 					</FormGroup>
 					<FormGroup>
 						<Label for="user">
-							User information (provided)
+							User information (client-provided)
 						</Label>
 						<Input
 							id="user"
 							name="user"
 							placeholder=""
 							type="textarea"
-							value={this.state.user}
-							onChange={this.setUser}
+							value={props.user}
+							onChange={props.setUser}
 						/>
 					</FormGroup>
 					<FormGroup>
@@ -409,25 +464,13 @@ class Client extends React.Component {
 							name="privateKey"
 							placeholder=""
 							type="textarea"
-							value={this.state.subject}
-							onChange={this.setSubject}
+							value={props.subject}
+							onChange={props.setSubject}
 						/>
 					</FormGroup>
 				</Form>
-				}
-				{ !this.state.showForm && 
-				<Button color="dark" onClick={this.showForm}>Show Client Instance Parameter Form</Button>
-				}
-				<Button color="info" onClick={this.newTransaction}>New Request</Button>
-				{' '}
-				<Button color="danger" size="sm" onClick={this.clearInstanceIds}>Clear Instance Ids</Button>
-				<Button color="primary" size="sm" onClick={this.loadPending}>Refresh</Button>
-				{pending}
-			</Container>
-		);
-	}
-	
-}
+
+);
 
 class InstanceBadge extends React.Component{
 	render() {

@@ -29,7 +29,7 @@ class RootPage extends React.Component {
 			path: '/api/whoami'
 		}).done(response => {
 			this.setState({
-				rootUrl: response.entity.rootUrl + "api/as/transaction"
+				rootUrl: response.entity.rootUrl + "/api/as/transaction"
 			});
 		});	
 	}
