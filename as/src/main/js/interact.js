@@ -188,6 +188,7 @@ class ApprovalForm extends React.Component {
 				<CardBody>
 				<ClientInfo display={this.props.pending.transaction.display} />
 				<AccessRequestInfo access={this.props.pending.transaction.access_token_request} />
+				<SubjectRequestInfo subject={this.props.pending.transaction.subject_request} />
 				</CardBody>
 				<CardFooter>
 				<Button color="success" onClick={this.props.approve}>Approve</Button>
@@ -290,6 +291,31 @@ class AccessRequestInfo extends React.Component {
 		}
 
 
+	}
+}
+
+class SubjectRequestInfo extends React.Component {
+	render() {
+
+		if (this.props.subject) {
+			if (this.props.subject.sub_id_formats) {
+				const subj = this.props.subject.sub_id_formats.map(a => {
+					return (
+						<li><i>{a}</i></li>
+					);
+				});
+				return (
+						<div>
+						Subject Identifiers:
+						<ul>{subj}</ul>
+						</div>
+				);
+			} else {
+				return null;
+			}
+		} else {
+			return null;
+		}
 	}
 }
 

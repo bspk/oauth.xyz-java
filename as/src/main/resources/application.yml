@@ -16,4 +16,6 @@ spring.mvc.dispatch-options-request: true
 
 server.servlet.session.cookie.path: /api/as/interact
 
-# logging.level.org.springframework.web.filter.CommonsRequestLoggingFilter: DEBUG
+#logging.level.org.springframework.web.filter.CommonsRequestLoggingFilter: DEBUG
+#logging.level.org.apache.cxf=DEBUG
+#logging.level.org.springframework: TRACE

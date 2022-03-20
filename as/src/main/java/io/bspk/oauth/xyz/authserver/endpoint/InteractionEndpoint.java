@@ -57,10 +57,6 @@ public class InteractionEndpoint {
 
 		Transaction transaction = transactionRepository.findFirstByInteractInteractId(id);
 
-//		if (true) {
-//			return ResponseEntity.noContent().build();
-//		}
-
 		if (transaction != null) {
 
 			// burn this interaction
@@ -102,6 +98,7 @@ public class InteractionEndpoint {
 					.setId(session.getId())
 					.setEmail("user@example.com")
 					.setPhone("555-user")
+					.setIss(baseUrl)
 					.setUpdatedAt(Instant.ofEpochMilli(session.getCreationTime()))
 					);
 			} else {

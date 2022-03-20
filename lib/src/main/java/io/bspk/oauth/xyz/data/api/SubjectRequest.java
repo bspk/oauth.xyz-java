@@ -6,10 +6,11 @@ import com.fasterxml.jackson.databind.PropertyNamingStrategy;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
-import com.fasterxml.jackson.databind.util.StdConverter;
 import com.sailpoint.ietf.subjectidentifiers.model.SubjectIdentifierFormats;
 
 import io.bspk.oauth.xyz.data.Assertion.AssertionFormat;
+import io.bspk.oauth.xyz.json.SubjectIdentifierFormatDeserializer;
+import io.bspk.oauth.xyz.json.SubjectIdentifierFormatSerializer;
 import lombok.Data;
 import lombok.experimental.Accessors;
 
@@ -22,23 +23,8 @@ import lombok.experimental.Accessors;
 @JsonNaming(PropertyNamingStrategy.SnakeCaseStrategy.class)
 public class SubjectRequest {
 
-	private static class SubjectIdentifierSerializer extends StdConverter<SubjectIdentifierFormats, String> {
-		@Override
-		public String convert(SubjectIdentifierFormats value) {
-			return value.name().toLowerCase();
-		}
-	}
-
-	private static class SubjectIdentifierDeserializer extends StdConverter<String, SubjectIdentifierFormats> {
-		@Override
-		public SubjectIdentifierFormats convert(String value) {
-			return value == null ? null :
-				SubjectIdentifierFormats.valueOf(value.toUpperCase());
-		}
-	}
-
-	@JsonSerialize(contentConverter = SubjectIdentifierSerializer.class)
-	@JsonDeserialize(contentConverter = SubjectIdentifierDeserializer.class)
+	@JsonSerialize(contentUsing = SubjectIdentifierFormatSerializer.class)
+	@JsonDeserialize(contentUsing = SubjectIdentifierFormatDeserializer.class)
 	private List<SubjectIdentifierFormats> subIdFormats;
 	private List<AssertionFormat> assertionFormats;
 

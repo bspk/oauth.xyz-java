@@ -3,7 +3,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom';
 import http from './http';
-import { Button, Badge, Row, Col, Container, Card, CardImg, CardText, CardBody, CardTitle, CardSubtitle, CardHeader, Input, Form, FormGroup, Label, TextArea } from 'reactstrap';
+import { Button, Badge, Row, Col, Container, Card, CardImg, CardText, CardBody, CardTitle, CardSubtitle, CardHeader, Input, InputGroup, Form, FormGroup, Label, TextArea, ButtonDropdown, DropdownToggle, DropdownMenu, DropdownItem, UncontrolledDropdown } from 'reactstrap';
 import { FaClone } from 'react-icons/fa';
 import { BrowserRouter, Switch, Route } from 'react-router-dom';
 import QRCode from 'qrcode.react';
@@ -184,6 +184,15 @@ class Client extends React.Component {
 			requestForm: requestForm
 		});
 	}
+	
+	selectGrantEndpoint = (e) => {
+		var requestForm = {...this.state.requestForm};
+		requestForm.grantEndpoint = e.target.value ? e.target.value : undefined;
+		
+		this.setState({
+			requestForm: requestForm
+		});
+	}
 
 	setPrivateKey = (e) => {
 		var requestForm = {...this.state.requestForm};
@@ -299,6 +308,7 @@ class Client extends React.Component {
 					<RequestParameterForm
 						grantEndpoint={this.state.requestForm.grantEndpoint}
 						setGrantEndpoint={this.setGrantEndpoint}
+						selectGrantEndpoint={this.selectGrantEndpoint}
 						privateKey={this.state.requestForm.privateKey}
 						setPrivateKey={this.setPrivateKey}
 						privateKeyReadOnly={false}
@@ -342,18 +352,34 @@ const RequestParameterForm = (props) => (
 						<Label for="grantEndpoint">
 							Grant Endpoint URL
 						</Label>
-						<Input
-							id="grantEndpoint"
-							name="grantEndpoint"
-							placeholder=""
-							type="url"
-							value={props.grantEndpoint}
-							onChange={props.setGrantEndpoint}
-						/>
+						<InputGroup>
+							<Input
+								id="grantEndpoint"
+								name="grantEndpoint"
+								placeholder=""
+								type="url"
+								value={props.grantEndpoint}
+								onChange={props.setGrantEndpoint}
+							/>
+							<Input
+								id="grantEndpointSelect"
+								name="grantEndpointSelect"
+								placeholder=""
+								type="select"
+								value=''
+								onChange={props.selectGrantEndpoint}
+								className="col-sm-1"
+							>
+								<option value=""></option>
+								<option value="http://host.docker.internal:9834/api/as/transaction">Docker Internal</option>
+								<option value="http://localhost:9834/api/as/transaction">Localhost</option>
+								<option value="http://gnap-as.herokuapp.com/api/as/transaction">Heroku</option>
+							</Input>
+						</InputGroup>
 					</FormGroup>
 					<FormGroup>
 						<Label for="privateKey">
-							Private Signing Key (JWK Format)
+							Signing Key (JWK Format)
 						</Label>
 						<Input
 							id="privateKey"
@@ -643,6 +669,33 @@ class PendingTransactionEntry extends React.Component {
 					<dd key="qr-value" className="col-sm-9"><QRCode value={this.props.transaction.interaction_url} /></dd>
 				]
 			);
+		}
+
+		if (this.props.transaction.subject_info && this.props.transaction.subject_info.sub_ids) {
+			this.props.transaction.subject_info.sub_ids.forEach(subId => {
+				if (subId.format == 'opaque') {
+					elements.push(
+						...[
+							<dt key="qr-label" className="col-sm-3">Opaque Identifier</dt>,
+							<dd key="qr-value" className="col-sm-9">{subId.id}</dd>
+						]
+					);
+				} else if (subId.format == 'iss_sub') {
+					elements.push(
+						...[
+							<dt key="qr-label" className="col-sm-3">Issuer/Subject</dt>,
+							<dd key="qr-value" className="col-sm-9">{subId.iss} / {subId.sub}</dd>
+						]
+					);
+				} else if (subId.format == 'email') {
+					elements.push(
+						...[
+							<dt key="qr-label" className="col-sm-3">Email Address</dt>,
+							<dd key="qr-value" className="col-sm-9">{subId.email}</dd>
+						]
+					);
+				}
+			});
 		}
 		
 		return (
