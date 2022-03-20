@@ -3,7 +3,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom';
 import http from './http';
-import { Button, Badge, Row, Col, Container, Card, CardImg, CardText, CardBody, CardTitle, CardSubtitle, CardHeader, Input, Form, FormGroup, Label, TextArea } from 'reactstrap';
+import { Button, Badge, Row, Col, Container, Card, CardImg, CardText, CardBody, CardTitle, CardSubtitle, CardHeader, Input, InputGroup, Form, FormGroup, Label, TextArea, ButtonDropdown, DropdownToggle, DropdownMenu, DropdownItem, UncontrolledDropdown } from 'reactstrap';
 import { FaClone } from 'react-icons/fa';
 import { BrowserRouter, Switch, Route } from 'react-router-dom';
 import QRCode from 'qrcode.react';
@@ -15,31 +15,48 @@ class Client extends React.Component {
 		this.state = {
 			transactions: [],
 			instances: {},
-			grantEndpoint: 'https://gnap-as.herokuapp.com/api/as/transaction',
-			privateKey: `{
-    "p": "zA_NmnceZ4UEPwJvTfrGcRn4ZB855TVOgULtVRzbMcRXWnyDi9KDlKShIoXWxvCiwniP0fevRLQ-3L7iNfA7cLy7oIrJeGUmbpCSwhqzjZupcDVHxM8QdhFDTbjhv7s3zj3EC3iPih_lal7loUbzdyYA7mvu5THfWmfBJ9DBAuM",
-    "kty": "RSA",
-    "q": "o7-udAWbLhqKHGxWym6JWuxFc0Kyap2av5gb_sm2out17vN8gROnRhSKybodzWtwAIdb2s5hXyggyrPGPMsPncrvXJGgH3U14045aJ5-c1p5TqcQHmh604DCRbTwuhqJFkDhWtLR8u7WO4ZVXINZvoOtYaSaYHyVWjOCk6Mxd90",
-    "d": "gA-lFERDsbm3pX6QTc7eSzu7KGPkE_AyJ9waVp1cwMbYPWabrOgXv9WDpQl1IaW1k1HUr5G4wOynTYHO0E-ZCDNNJFuqXn10Sw3g7di_6hjIMCRtd5JWnnWMFLghF8HlJY908JT5wxgNgG103zHOvR5jTfHnUqCaTDghx8YbDGghLdCmIVvtm72V7EWsh0_OUHaCLfH8TZdlQxunYszLMwab4X8Lctp1Eqo5RsdctUm5XTmj9E8-dD2APCn89peL_anskrG7UrNXVcOODCT_Skw7YgGt4eoAwpfPSoKtQF8fyfmEbpDGuSRN9CzPdW7OH3-Kl-rkagqBk-oY2DnJaQ",
-    "e": "AQAB",
-    "kid": "gnap-public-client",
-    "qi": "fTyhRigvfKGGb4ok52bT2jVf5kPPuDkGoI40FfmDNxgF0qr0i5gVgHQJyxZUfemp15n331Iow5TTc4utBT4S19qm1_0nRVLI0fqgKEW67dxwDBxPAXbpyyPSQDSYIwwnlQKoZtDxuDXjEUoRaGwMl7jfLF0_WVNq5ur6RV0Un4U",
-    "dp": "x_bQdoY2ACFD2O7s3VBZ92kIlCxZUnebN2W7JkWBslIBe8U6LuEaWaW91ROsNQSHqeP0oz-Au-WZGD3hdBO2W7JGdnqqFNWiBISdm6IIw0J_llpPutdh_SDLgDUk2vp-JBc4rjj1B9hbupHFmfXqDJ7sGLchwezOP0we5oJVMRs",
-    "alg": "PS512",
-    "dq": "czgS5qxzLpOaDrnkr_frSkDp9Vo-9GoFUz8So8sHacfIaeSF_MT5dIRLy_nbsokgfB7CcUm6lhxERp0MpgYz7NG4byhAxSHSUyjdmFG9pClLJh7DZsIZeu0kxau1nx3AzBnG-ANTm16W-7dgJQJ_iWBaBVSvE6lV5exMutmfmzk",
-    "n": "gobawvl3Y-MRkyIp4LoPJUkxDih1-eTEgZRkOwj1qS4Urix16UPp0LraW6oGva1d7-_Jqt0GUjCM0p7V0Uq3X96T2Au_fnXiZ4BK5aFB9pUxL5eVD0KKuRyh5ImCQk1cuHwJ26xiTxoJZ-4nD2QMXrK19ZDJ5BL8q7xCrhssHrT24RXu-HF0DQBlIX5FJnoveQxqMcbU99hrXfTadjorGSo2XO_cnsfRGMcxdmVGZP5LwrPfUDlttzodiOxBggXVoO33_1JUdifKE77nctH-eWmZ6xMh4OuapmWZTIF1HPx3hS1DMdxiLcWoW5vDBZLg3Dcpaj00dCTcagmKBWoC9w"
-}`,
-			proof: 'httpsig',
-			display: undefined,
-			accessToken: `{
-  "access": [ "foo", "bar", "baz"]
-}`,
-			interactStart: [ 'redirect' ],
-			interactFinish: true,
-			user: undefined,
-			subject: undefined,
-			httpSigAlgorithm: undefined,
-			digest: 'sha-512',
+			requestForm: {
+				grantEndpoint: 'https://gnap-as.herokuapp.com/api/as/transaction',
+				privateKey: `{
+	    "p": "zA_NmnceZ4UEPwJvTfrGcRn4ZB855TVOgULtVRzbMcRXWnyDi9KDlKShIoXWxvCiwniP0fevRLQ-3L7iNfA7cLy7oIrJeGUmbpCSwhqzjZupcDVHxM8QdhFDTbjhv7s3zj3EC3iPih_lal7loUbzdyYA7mvu5THfWmfBJ9DBAuM",
+	    "kty": "RSA",
+	    "q": "o7-udAWbLhqKHGxWym6JWuxFc0Kyap2av5gb_sm2out17vN8gROnRhSKybodzWtwAIdb2s5hXyggyrPGPMsPncrvXJGgH3U14045aJ5-c1p5TqcQHmh604DCRbTwuhqJFkDhWtLR8u7WO4ZVXINZvoOtYaSaYHyVWjOCk6Mxd90",
+	    "d": "gA-lFERDsbm3pX6QTc7eSzu7KGPkE_AyJ9waVp1cwMbYPWabrOgXv9WDpQl1IaW1k1HUr5G4wOynTYHO0E-ZCDNNJFuqXn10Sw3g7di_6hjIMCRtd5JWnnWMFLghF8HlJY908JT5wxgNgG103zHOvR5jTfHnUqCaTDghx8YbDGghLdCmIVvtm72V7EWsh0_OUHaCLfH8TZdlQxunYszLMwab4X8Lctp1Eqo5RsdctUm5XTmj9E8-dD2APCn89peL_anskrG7UrNXVcOODCT_Skw7YgGt4eoAwpfPSoKtQF8fyfmEbpDGuSRN9CzPdW7OH3-Kl-rkagqBk-oY2DnJaQ",
+	    "e": "AQAB",
+	    "kid": "gnap-public-client",
+	    "qi": "fTyhRigvfKGGb4ok52bT2jVf5kPPuDkGoI40FfmDNxgF0qr0i5gVgHQJyxZUfemp15n331Iow5TTc4utBT4S19qm1_0nRVLI0fqgKEW67dxwDBxPAXbpyyPSQDSYIwwnlQKoZtDxuDXjEUoRaGwMl7jfLF0_WVNq5ur6RV0Un4U",
+	    "dp": "x_bQdoY2ACFD2O7s3VBZ92kIlCxZUnebN2W7JkWBslIBe8U6LuEaWaW91ROsNQSHqeP0oz-Au-WZGD3hdBO2W7JGdnqqFNWiBISdm6IIw0J_llpPutdh_SDLgDUk2vp-JBc4rjj1B9hbupHFmfXqDJ7sGLchwezOP0we5oJVMRs",
+	    "alg": "PS512",
+	    "dq": "czgS5qxzLpOaDrnkr_frSkDp9Vo-9GoFUz8So8sHacfIaeSF_MT5dIRLy_nbsokgfB7CcUm6lhxERp0MpgYz7NG4byhAxSHSUyjdmFG9pClLJh7DZsIZeu0kxau1nx3AzBnG-ANTm16W-7dgJQJ_iWBaBVSvE6lV5exMutmfmzk",
+	    "n": "gobawvl3Y-MRkyIp4LoPJUkxDih1-eTEgZRkOwj1qS4Urix16UPp0LraW6oGva1d7-_Jqt0GUjCM0p7V0Uq3X96T2Au_fnXiZ4BK5aFB9pUxL5eVD0KKuRyh5ImCQk1cuHwJ26xiTxoJZ-4nD2QMXrK19ZDJ5BL8q7xCrhssHrT24RXu-HF0DQBlIX5FJnoveQxqMcbU99hrXfTadjorGSo2XO_cnsfRGMcxdmVGZP5LwrPfUDlttzodiOxBggXVoO33_1JUdifKE77nctH-eWmZ6xMh4OuapmWZTIF1HPx3hS1DMdxiLcWoW5vDBZLg3Dcpaj00dCTcagmKBWoC9w"
+	}`,
+				proof: 'httpsig',
+				display: undefined,
+				accessToken: `{
+	  "access": [ "foo", "bar", "baz", {
+	        "type": "photo-api",
+	        "actions": [
+	            "read",
+	            "write",
+	            "delete"
+	        ],
+	        "locations": [
+	            "https://server.example.net/",
+	            "https://resource.local/other"
+	        ],
+	        "datatypes": [
+	            "metadata",
+	            "images"
+	        ]
+	    }]
+	}`,
+				interactStart: [ 'redirect' ],
+				interactFinish: true,
+				user: undefined,
+				subject: undefined,
+				httpSigAlgorithm: undefined,
+				digest: 'sha-512'
+			},
 			showForm: true
 		};
 	}
@@ -57,17 +74,17 @@ class Client extends React.Component {
 		});
 
 		const data = {
-			grant_endpoint: this.state.grantEndpoint,
-			private_key: this.state.privateKey ? JSON.parse(this.state.privateKey) : undefined,
-			proof: this.state.proof,
-			display: this.state.display ? JSON.parse(this.state.display) : undefined,
-			access_token: this.state.accessToken ? JSON.parse(this.state.accessToken) : undefined,
-			interact_start: this.state.interactStart,
-			interact_finish: this.state.interactFinish,
-			user: this.state.user ? JSON.parse(this.state.user) : undefined,
-			subject: this.state.subject ? JSON.parse(this.state.subject) : undefined,
-			http_sig_algorithm: this.state.httpSigAlgorithm,
-			digest: this.state.digest
+			grant_endpoint: this.state.requestForm.grantEndpoint,
+			private_key: this.state.requestForm.privateKey ? JSON.parse(this.state.requestForm.privateKey) : undefined,
+			proof: this.state.requestForm.proof,
+			display: this.state.requestForm.display ? JSON.parse(this.state.requestForm.display) : undefined,
+			access_token: this.state.requestForm.accessToken ? JSON.parse(this.state.requestForm.accessToken) : undefined,
+			interact_start: this.state.requestForm.interactStart,
+			interact_finish: this.state.requestForm.interactFinish,
+			user: this.state.requestForm.user ? JSON.parse(this.state.requestForm.user) : undefined,
+			subject: this.state.requestForm.subject ? JSON.parse(this.state.requestForm.subject) : undefined,
+			http_sig_algorithm: this.state.requestForm.httpSigAlgorithm,
+			digest: this.state.requestForm.digest
 		};
 
 		console.log(data);
@@ -160,32 +177,56 @@ class Client extends React.Component {
 	}
 	
 	setGrantEndpoint = (e) => {
+		var requestForm = {...this.state.requestForm};
+		requestForm.grantEndpoint = e.target.value ? e.target.value : undefined;
+		
 		this.setState({
-			grantEndpoint: e.target.value ? e.target.value : undefined
+			requestForm: requestForm
+		});
+	}
+	
+	selectGrantEndpoint = (e) => {
+		var requestForm = {...this.state.requestForm};
+		requestForm.grantEndpoint = e.target.value ? e.target.value : undefined;
+		
+		this.setState({
+			requestForm: requestForm
 		});
 	}
 
 	setPrivateKey = (e) => {
+		var requestForm = {...this.state.requestForm};
+		requestForm.privateKey = e.target.value ? e.target.value : undefined;
+		
 		this.setState({
-			privateKey: e.target.value ? e.target.value : undefined
+			requestForm: requestForm
 		});
 	}
 
 	setProof = (e) => {
+		var requestForm = {...this.state.requestForm};
+		requestForm.proof = e.target.value ? e.target.value : undefined;
+		
 		this.setState({
-			proof: e.target.value ? e.target.value : undefined
+			requestForm: requestForm
 		});
 	}
 
 	setDisplay = (e) => {
+		var requestForm = {...this.state.requestForm};
+		requestForm.display = e.target.value ? e.target.value : undefined;
+		
 		this.setState({
-			display: e.target.value ? e.target.value : undefined
+			requestForm: requestForm
 		});
 	}
 
 	setAccessToken = (e) => {
+		var requestForm = {...this.state.requestForm};
+		requestForm.accessToken = e.target.value ? e.target.value : undefined;
+		
 		this.setState({
-			accessToken: e.target.value ? e.target.value : undefined
+			requestForm: requestForm
 		});
 	}
 
@@ -198,38 +239,56 @@ class Client extends React.Component {
 			}
 		}
 	
+		var requestForm = {...this.state.requestForm};
+		requestForm.interactStart = opts;
+		
 		this.setState({
-			interactStart: opts
+			requestForm: requestForm
 		});
 	}
 
 	setInteractFinish = (e) => {
+		var requestForm = {...this.state.requestForm};
+		requestForm.interactFinish = e.target.checked;
+		
 		this.setState({
-			interactFinish: e.target.selected
+			requestForm: requestForm
 		});
 	}
 
 	setUser = (e) => {
+		var requestForm = {...this.state.requestForm};
+		requestForm.user = e.target.value ? e.target.value : undefined;
+		
 		this.setState({
-			user: e.target.value ? e.target.value : undefined
+			requestForm: requestForm
 		});
 	}
 
 	setSubject = (e) => {
+		var requestForm = {...this.state.requestForm};
+		requestForm.subject = e.target.value ? e.target.value : undefined;
+		
 		this.setState({
-			subject: e.target.value ? e.target.value : undefined
+			requestForm: requestForm
 		});
 	}
 
 	setHttpSigAlgorithm = (e) => {
+		var requestForm = {...this.state.requestForm};
+		requestForm.httpSigAlgorithm = e.target.value ? e.target.value : undefined;
+		
 		this.setState({
-			httpSigAlgorithm: e.target.value ? e.target.value : undefined
+			requestForm: requestForm
 		});
 	}
 	
 	setDigest = (e) => {
+		var requestForm = {...this.state.requestForm};
+		requestForm.digest = e.target.value ? e.target.value : undefined;
+		
 		this.setState({
-			digest: e.target.value ? e.target.value : undefined
+			requestForm: requestForm
 		});
 	}
 	
@@ -246,31 +305,90 @@ class Client extends React.Component {
 		return (
 			<Container>
 				{ this.state.showForm &&
+					<RequestParameterForm
+						grantEndpoint={this.state.requestForm.grantEndpoint}
+						setGrantEndpoint={this.setGrantEndpoint}
+						selectGrantEndpoint={this.selectGrantEndpoint}
+						privateKey={this.state.requestForm.privateKey}
+						setPrivateKey={this.setPrivateKey}
+						privateKeyReadOnly={false}
+						proof={this.state.requestForm.proof}
+						setProof={this.setProof}
+						httpSigAlgorithm={this.state.requestForm.httpSigAlgorithm}
+						setHttpSigAlgorithm={this.setHttpSigAlgorithm}
+						digest={this.state.requestForm.digest}
+						setDigest={this.setDigest}
+						display={this.state.requestForm.display}
+						setDisplay={this.setDisplay}
+						accessToken={this.state.requestForm.accessToken}
+						setAccessToken={this.setAccessToken}
+						interactStart={this.state.requestForm.interactStart}
+						setInteractStart={this.setInteractStart}
+						interactFinish={this.state.requestForm.interactFinish}
+						setInteractFinish={this.setInteractFinish}
+						user={this.state.requestForm.user}
+						setUser={this.setUser}
+						subject={this.state.requestForm.subject}
+						setSubject={this.setSubject}
+					/>
+				}
+				{ !this.state.showForm && 
+				<Button color="dark" onClick={this.showForm}>Show Client Instance Parameter Form</Button>
+				}
+				<Button color="info" onClick={this.newTransaction}>New Request</Button>
+				{' '}
+				<Button color="danger" size="sm" onClick={this.clearInstanceIds}>Clear Instance Ids</Button>
+				<Button color="primary" size="sm" onClick={this.loadPending}>Refresh</Button>
+				{pending}
+			</Container>
+		);
+	}
+	
+}
+
+const RequestParameterForm = (props) => (
 				<Form>
 					<FormGroup>
 						<Label for="grantEndpoint">
 							Grant Endpoint URL
 						</Label>
-						<Input
-							id="grantEndpoint"
-							name="grantEndpoint"
-							placeholder=""
-							type="url"
-							value={this.state.grantEndpoint}
-							onChange={this.setGrantEndpoint}
-						/>
+						<InputGroup>
+							<Input
+								id="grantEndpoint"
+								name="grantEndpoint"
+								placeholder=""
+								type="url"
+								value={props.grantEndpoint}
+								onChange={props.setGrantEndpoint}
+							/>
+							<Input
+								id="grantEndpointSelect"
+								name="grantEndpointSelect"
+								placeholder=""
+								type="select"
+								value=''
+								onChange={props.selectGrantEndpoint}
+								className="col-sm-1"
+							>
+								<option value=""></option>
+								<option value="http://host.docker.internal:9834/api/as/transaction">Docker Internal</option>
+								<option value="http://localhost:9834/api/as/transaction">Localhost</option>
+								<option value="http://gnap-as.herokuapp.com/api/as/transaction">Heroku</option>
+							</Input>
+						</InputGroup>
 					</FormGroup>
 					<FormGroup>
 						<Label for="privateKey">
-							Private Signing Key (JWK Format)
+							Signing Key (JWK Format)
 						</Label>
 						<Input
 							id="privateKey"
 							name="privateKey"
 							placeholder=""
 							type="textarea"
-							value={this.state.privateKey}
-							onChange={this.setPrivateKey}
+							value={props.privateKey}
+							onChange={props.setPrivateKey}
+							readOnly={props.privateKeyReadOnly}
 						/>
 					</FormGroup>
 					<FormGroup>
@@ -282,15 +400,15 @@ class Client extends React.Component {
 							name="proof"
 							placeholder=""
 							type="select"
-							value={this.state.proof}
-							onChange={this.setProof}
+							value={props.proof}
+							onChange={props.setProof}
 						>
 							<option>httpsig</option>
 							<option>jwsd</option>
 							<option>jws</option>
 						</Input>
 					</FormGroup>
-					{ this.state.proof == 'httpsig' && 
+					{ props.proof == 'httpsig' && 
 					<FormGroup>
 						<Label for="httpSigAlgorithm">
 							HTTP Signature Algorithm
@@ -300,8 +418,8 @@ class Client extends React.Component {
 							name="privateKey"
 							placeholder=""
 							type="select"
-							value={this.state.httpSigAlgorithm}
-							onChange={this.setHttpSigAlgorithm}
+							value={props.httpSigAlgorithm}
+							onChange={props.setHttpSigAlgorithm}
 						>
 							<option value="">(Use JOSE Algorithm from Key)</option>
 							<option>rsa-pss-sha512</option>
@@ -311,7 +429,7 @@ class Client extends React.Component {
 						</Input>
 					</FormGroup>
 					}
-					{ this.state.proof == 'httpsig' && 
+					{ props.proof == 'httpsig' && 
 					<FormGroup>
 						<Label for="digest">
 							HTTP Content Digest
@@ -321,8 +439,8 @@ class Client extends React.Component {
 							name="privateKey"
 							placeholder=""
 							type="select"
-							value={this.state.digest}
-							onChange={this.setDigest}
+							value={props.digest}
+							onChange={props.setDigest}
 						>
 							<option>sha-512</option>
 							<option>sha-256</option>
@@ -338,8 +456,8 @@ class Client extends React.Component {
 							name="display"
 							placeholder=""
 							type="textarea"
-							value={this.state.display}
-							onChange={this.setDisplay}
+							value={props.display}
+							onChange={props.setDisplay}
 						/>
 					</FormGroup>
 					<FormGroup>
@@ -351,8 +469,8 @@ class Client extends React.Component {
 							name="accesstoken"
 							placeholder=""
 							type="textarea"
-							value={this.state.accessToken}
-							onChange={this.setAccessToken}
+							value={props.accessToken}
+							onChange={props.setAccessToken}
 						/>
 					</FormGroup>
 					<FormGroup>
@@ -365,8 +483,8 @@ class Client extends React.Component {
 							placeholder=""
 							type="select"
 							multiple
-							value={this.state.interactStart}
-							onChange={this.setInteractStart}
+							value={props.interactStart}
+							onChange={props.setInteractStart}
 						>
 							<option>redirect</option>
 							<option>user_code</option>
@@ -379,8 +497,8 @@ class Client extends React.Component {
 							name="interactFinish"
 							placeholder=""
 							type="checkbox"
-							value={this.state.interactFinish}
-							onChange={this.setInteractFinish}
+							checked={props.interactFinish}
+							onChange={props.setInteractFinish}
 						/>
 						{' '}
 						<Label for="interactFinish" check>
@@ -389,15 +507,15 @@ class Client extends React.Component {
 					</FormGroup>
 					<FormGroup>
 						<Label for="user">
-							User information (provided)
+							User information (client-provided)
 						</Label>
 						<Input
 							id="user"
 							name="user"
 							placeholder=""
 							type="textarea"
-							value={this.state.user}
-							onChange={this.setUser}
+							value={props.user}
+							onChange={props.setUser}
 						/>
 					</FormGroup>
 					<FormGroup>
@@ -409,25 +527,13 @@ class Client extends React.Component {
 							name="privateKey"
 							placeholder=""
 							type="textarea"
-							value={this.state.subject}
-							onChange={this.setSubject}
+							value={props.subject}
+							onChange={props.setSubject}
 						/>
 					</FormGroup>
 				</Form>
-				}
-				{ !this.state.showForm && 
-				<Button color="dark" onClick={this.showForm}>Show Client Instance Parameter Form</Button>
-				}
-				<Button color="info" onClick={this.newTransaction}>New Request</Button>
-				{' '}
-				<Button color="danger" size="sm" onClick={this.clearInstanceIds}>Clear Instance Ids</Button>
-				<Button color="primary" size="sm" onClick={this.loadPending}>Refresh</Button>
-				{pending}
-			</Container>
-		);
-	}
-	
-}
+
+);
 
 class InstanceBadge extends React.Component{
 	render() {
@@ -529,7 +635,7 @@ class PendingTransactionEntry extends React.Component {
 			);
 		}
 		
-		if (this.props.transaction.sandalone_user_code) {
+		if (this.props.transaction.standalone_user_code) {
 			elements.push(
 				...[
 					<dt key="code-label" className="col-sm-3">User Code (standalone)</dt>,
@@ -537,7 +643,7 @@ class PendingTransactionEntry extends React.Component {
 				]
 			);
 		}
-		if (this.props.transaction.user_code_uri) {
+		if (this.props.transaction.user_code_url) {
 			elements.push(
 				...[
 					<dt key="code-url-label" className="col-sm-3">User Code URI</dt>,
@@ -563,6 +669,33 @@ class PendingTransactionEntry extends React.Component {
 					<dd key="qr-value" className="col-sm-9"><QRCode value={this.props.transaction.interaction_url} /></dd>
 				]
 			);
+		}
+
+		if (this.props.transaction.subject_info && this.props.transaction.subject_info.sub_ids) {
+			this.props.transaction.subject_info.sub_ids.forEach(subId => {
+				if (subId.format == 'opaque') {
+					elements.push(
+						...[
+							<dt key="qr-label" className="col-sm-3">Opaque Identifier</dt>,
+							<dd key="qr-value" className="col-sm-9">{subId.id}</dd>
+						]
+					);
+				} else if (subId.format == 'iss_sub') {
+					elements.push(
+						...[
+							<dt key="qr-label" className="col-sm-3">Issuer/Subject</dt>,
+							<dd key="qr-value" className="col-sm-9">{subId.iss} / {subId.sub}</dd>
+						]
+					);
+				} else if (subId.format == 'email') {
+					elements.push(
+						...[
+							<dt key="qr-label" className="col-sm-3">Email Address</dt>,
+							<dd key="qr-value" className="col-sm-9">{subId.email}</dd>
+						]
+					);
+				}
+			});
 		}
 		
 		return (
@@ -613,6 +746,8 @@ class UserCode extends React.Component {
 }
 
 
+
+export {RequestParameterForm, AccessToken, PendingTransactionEntry, PendingTransaction};
 
 
 

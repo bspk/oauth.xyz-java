@@ -71,6 +71,7 @@ public class PendingTransaction {
 	@NonNull
 	private final URI grantEndpoint;
 	private Instant createdAt;
+	private Subject subjectInfo;
 
 	public PendingTransaction add (TransactionResponse response) {
 		entries.add(new Entry().setResponse(response));
@@ -185,6 +186,16 @@ public class PendingTransaction {
 			if (interact.getFinish() != null) {
 				setServerNonce(interact.getFinish());
 			}
+		} else {
+			setStandaloneUserCode(null);
+			setUserCode(null);
+			setUserCodeUrl(null);
+			setInteractionUrl(null);
+			setServerNonce(null);
+		}
+
+		if (response.getSubject() != null) {
+			setSubjectInfo(response.getSubject());
 		}
 
 		return this;

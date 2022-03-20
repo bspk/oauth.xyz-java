@@ -12,7 +12,8 @@
     "react-icons": "3.11.0",
     "qrcode.react": "^0.9.3",
     "dexie": "^2.0.4",
-    "base64url": "^3.0.1"
+    "base64url": "^3.0.1",
+    "structured-headers": "^0.4.1"
   },
   "scripts": {
     "watch": "webpack --watch -d"

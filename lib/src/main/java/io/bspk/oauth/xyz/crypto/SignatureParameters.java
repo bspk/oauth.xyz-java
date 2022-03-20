@@ -29,6 +29,7 @@ import lombok.experimental.Accessors;
 public class SignatureParameters {
 
 	private List<StringItem> componentIdentifiers = new ArrayList<>();
+	private List<String> paramOrder = List.of("alg", "created", "expires", "keyid", "nonce");
 	private HttpSigAlgorithm alg;
 	private Instant created;
 	private Instant expires;
@@ -50,24 +51,28 @@ public class SignatureParameters {
 
 		Map<String, Object> params = new LinkedHashMap<>();
 
-		if (alg != null && alg.getExplicitAlg() != null) {
-			params.put("alg", alg.getExplicitAlg());
-		}
-
-		if (created != null) {
-			params.put("created", created.getEpochSecond());
-		}
-
-		if (expires != null) {
-			params.put("expires", expires.getEpochSecond());
-		}
-
-		if (keyid != null) {
-			params.put("keyid", keyid);
-		}
-
-		if (nonce != null) {
-			params.put("nonce", nonce);
+		for (String paramName : paramOrder) {
+			if (paramName.equals("alg")) {
+				if (alg != null && alg.getExplicitAlg() != null) {
+					params.put("alg", alg.getExplicitAlg());
+				}
+			} else if (paramName.equals("created")) {
+				if (created != null) {
+					params.put("created", created.getEpochSecond());
+				}
+			} else if (paramName.equals("expires")) {
+				if (expires != null) {
+					params.put("expires", expires.getEpochSecond());
+				}
+			} else if (paramName.equals("keyid")) {
+				if (keyid != null) {
+					params.put("keyid", keyid);
+				}
+			} else if (paramName.equals("nonce")) {
+				if (nonce != null) {
+					params.put("nonce", nonce);
+				}
+			}
 		}
 
 		list = list.withParams(Parameters.valueOf(params));
@@ -115,7 +120,8 @@ public class SignatureParameters {
 					.setComponentIdentifiers(
 						coveredComponents.get().stream()
 							.map(StringItem.class::cast)
-							.collect(Collectors.toList()));
+							.collect(Collectors.toList()))
+					.setParamOrder(List.copyOf(coveredComponents.getParams().keySet()));
 
 				if (coveredComponents.getParams().containsKey("alg")) {
 					params.setAlg(HttpSigAlgorithm.of(((StringItem)coveredComponents.getParams().get("alg")).get()));

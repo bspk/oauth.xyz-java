@@ -63,9 +63,14 @@ public final class HandleAwareField<T> {
 	}
 
 	public static <S> HandleAwareField<S> of (S data) {
-		return new HandleAwareField<S>()
-			.setData(data)
-			.setHandled(false);
+		// avoid double-wrapping that Jackson can sometimes try to do
+		if (data instanceof HandleAwareField) {
+			return (HandleAwareField<S>) data;
+		} else {
+			return new HandleAwareField<S>()
+				.setData(data)
+				.setHandled(false);
+		}
 	}
 
 

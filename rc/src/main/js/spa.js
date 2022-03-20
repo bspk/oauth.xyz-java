@@ -2,11 +2,14 @@ import React from 'react';
 
 import http from './http';
 import { Button, Badge, Row, Col, Container, Card, CardImg, CardText, CardBody, CardTitle, CardSubtitle, CardHeader, Input } from 'reactstrap';
-
+import {RequestParameterForm, AccessToken, PendingTransactionEntry, PendingTransaction} from './client';
 import Dexie from 'dexie';
 
 import db from './db';
+
 import base64url from 'base64url';
+
+import { serializeDictionary, serializeItem, serializeList, ByteSequence } from 'structured-headers';
 
 function randomString() {
 	return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
@@ -34,36 +37,75 @@ function _arrayBufferToBase64(buffer) {
 
 class SPA extends React.Component {
 	
-	alg = 'RS256'; // firefox doesn't like ES keys?
-	
-	txendpoint = 'http://host.docker.internal:9834/api/as/transaction';
-	
 	constructor(props) {
 		super(props);
     
 		this.state = {
-				transactions: [],
-				awaitingCallback: false,
-				keypair: undefined,
-				savedState: undefined
+			transactions: [],
+			instances: {},
+			requestForm: {
+				grantEndpoint: 'https://gnap-as.herokuapp.com/api/as/transaction',
+				proof: 'httpsig',
+				display: undefined,
+				accessToken: `{
+	  "access": [ "foo", "bar", "baz", {
+	        "type": "photo-api",
+	        "actions": [
+	            "read",
+	            "write",
+	            "delete"
+	        ],
+	        "locations": [
+	            "https://server.example.net/",
+	            "https://resource.local/other"
+	        ],
+	        "datatypes": [
+	            "metadata",
+	            "images"
+	        ]
+	    }]
+	}`,
+				interactStart: [ 'redirect' ],
+				interactFinish: true,
+				user: undefined,
+				subject: undefined,
+				httpSigAlgorithm: undefined,
+				digest: 'sha-512'
+			},
+			showForm: true,
+			awaitingCallback: false,
+			keypair: undefined,
+			generatedPublicKeyJwk: undefined,
+			savedState: undefined,
+			continue: undefined
 		};
 	}
 	
 	componentDidMount = () => {
+		document.title = 'XYZ SPA Client';
+		
 		db.savedState.toArray().then(dbs => {
 			if (dbs.length === 1) {
 				// get the only item
 				console.log('Loading previous configuration state...');
 				const savedState = dbs[0];
+				crypto.subtle.exportKey('jwk', savedState.keypair.publicKey).then(jwk => {
+					this.setState({
+						generatedPublicKeyJwk: JSON.stringify(jwk, null, 2)
+					});
+				});
 				this.setState({
 					savedState: savedState.id,
 					keypair: savedState.keypair,
+					requestForm: savedState.requestForm,
 					transactions: savedState.transactions,
 					awaitingCallback: savedState.awaitingCallback,
 					clientNonce: savedState.clientNonce,
 					redir: savedState.redir,
 					txHandle: savedState.txHandle,
-					serverNonce: savedState.serverNonce				
+					serverNonce: savedState.serverNonce,
+					continue: savedState.continue,
+					grantEndpoint: savedState.grantEndpoint		
 				}, () => this.checkCallback());
 			} else {
 				// clear the storage just in case
@@ -82,11 +124,14 @@ class SPA extends React.Component {
 			db.savedState.put({
 				awaitingCallback: this.state.awaitingCallback,
 				keypair: this.state.keypair,
+				requestForm: this.state.requestForm,
 				transactions: this.state.transactions,
 				clientNonce: this.state.clientNonce,
 				redir: this.state.redir,
 				txHandle: this.state.txHandle,
-				serverNonce: this.state.serverNonce				
+				serverNonce: this.state.serverNonce,
+				continue: this.state.continue,
+				grantEndpoint: this.state.grantEndpoint		
 			}).then(id => {
 				this.setState({
 					savedState: id
@@ -97,14 +142,125 @@ class SPA extends React.Component {
 		});
 	};
 	
+	showForm = (e) => {
+		e.preventDefault();
+		this.setState({
+			showForm: true
+		});
+	}
+	
+	setGrantEndpoint = (e) => {
+		var requestForm = {...this.state.requestForm};
+		requestForm.grantEndpoint = e.target.value ? e.target.value : undefined;
+		
+		this.setState({
+			requestForm: requestForm
+		});
+	}
+
+	setPrivateKey = (e) => {
+		// do nothing
+	}
+
+	setProof = (e) => {
+		var requestForm = {...this.state.requestForm};
+		requestForm.proof = e.target.value ? e.target.value : undefined;
+		
+		this.setState({
+			requestForm: requestForm
+		});
+	}
+
+	setDisplay = (e) => {
+		var requestForm = {...this.state.requestForm};
+		requestForm.display = e.target.value ? e.target.value : undefined;
+		
+		this.setState({
+			requestForm: requestForm
+		});
+	}
+
+	setAccessToken = (e) => {
+		var requestForm = {...this.state.requestForm};
+		requestForm.accessToken = e.target.value ? e.target.value : undefined;
+		
+		this.setState({
+			requestForm: requestForm
+		});
+	}
+
+	setInteractStart = (e) => {
+		var opts = [];
+
+		for (let i = 0; i < event.target.options.length; i++) {
+			if (event.target.options[i].selected) {
+				opts.push(event.target.options[i].value);
+			}
+		}
+	
+		var requestForm = {...this.state.requestForm};
+		requestForm.interactStart = opts;
+		
+		this.setState({
+			requestForm: requestForm
+		});
+	}
+
+	setInteractFinish = (e) => {
+		var requestForm = {...this.state.requestForm};
+		requestForm.interactFinish = e.target.checked;
+		
+		this.setState({
+			requestForm: requestForm
+		});
+	}
+
+	setUser = (e) => {
+		var requestForm = {...this.state.requestForm};
+		requestForm.user = e.target.value ? e.target.value : undefined;
+		
+		this.setState({
+			requestForm: requestForm
+		});
+	}
+
+	setSubject = (e) => {
+		var requestForm = {...this.state.requestForm};
+		requestForm.subject = e.target.value ? e.target.value : undefined;
+		
+		this.setState({
+			requestForm: requestForm
+		});
+	}
+
+	setHttpSigAlgorithm = (e) => {
+		var requestForm = {...this.state.requestForm};
+		requestForm.httpSigAlgorithm = e.target.value ? e.target.value : undefined;
+		
+		this.setState({
+			requestForm: requestForm
+		});
+	}
+	
+	setDigest = (e) => {
+		var requestForm = {...this.state.requestForm};
+		requestForm.digest = e.target.value ? e.target.value : undefined;
+		
+		this.setState({
+			requestForm: requestForm
+		});
+	}
+	
 	createKeys = () => {
-		return this.generateKeyPair().then(keypair => {
+		var keyParams = { name: 'RSA-PSS', hash: { name: 'SHA-512' }, modulusLength: 2048, publicExponent: new Uint8Array([0x01, 0x00, 0x01]) };
+		
+		return crypto.subtle.generateKey(keyParams, false, ['sign']).then(keypair => {
 			
-			/*
-			crypto.subtle.exportKey('jwk', this.state.keypair.privateKey).then(jwk => {
-				console.log(jwk);
+			crypto.subtle.exportKey('jwk', keypair.publicKey).then(jwk => {
+				this.setState({
+					generatedPublicKeyJwk: JSON.stringify(jwk, null, 2)
+				});
 			});
-			*/
 			
 			this.setState({
 				keypair: keypair
@@ -112,120 +268,206 @@ class SPA extends React.Component {
 		});
 	};
 	
-	// use an RSA signature
-	keyParams = { name: 'RSASSA-PKCS1-V1_5', hash: { name: 'SHA-256' }, modulusLength: 2048, publicExponent: new Uint8Array([0x01, 0x00, 0x01]) };
+	signedFetch = (uri, method, body, httpSigAlg, digestAlg, at) => {
 	
-	generateKeyPair = () => {
-		return crypto.subtle.generateKey(this.keyParams, false, ['sign']);
-	};
+		var headers = {};
 	
-	fetchWithDJWS = (url, method, body) => {
-		const h = {
-			alg: 'RS256',
-			b64: false,
-			typ: 'JOSE',
-			crit: ['b64']
-		};
+		var coveredComponents = [
+			'@method',
+			'@target-uri'
+		];
+
+		if (at) {
+			coveredComponents.push('authorization');
+			headers['authorization'] = 'GNAP ' + at;
+		}
+	
+		// create the body hash
+		if (body) {
+			const encoder = new TextEncoder();
+
+			return crypto.subtle.digest('SHA-512', encoder.encode(body)).then(hashBuffer => {
+				var bodyHash = _arrayBufferToBase64(hashBuffer);
+				console.log(bodyHash);
+				headers['content-digest'] = serializeDictionary(
+					new Map([
+						['sha-512', [new ByteSequence(bodyHash), new Map()]]
+					])
+				);
+				coveredComponents.push('content-digest');
+				
+				headers['content-type'] = 'application/json';
+				coveredComponents.push('content-type');
+				
+				return this.signedFetchInternal(uri, method, body, coveredComponents, headers);
+			});
+		} else {
+			return this.signedFetchInternal(uri, method, body, coveredComponents, headers);
+		}
+	}
 		
-		const header = JSON.stringify(h);
+	signedFetchInternal = (uri, method, body, coveredComponents, headers) => {
+		var sigBase = '';
+		coveredComponents.forEach(c => {
+			var componentValue = undefined;
+			if (c.startsWith('@')) {
+				// it's derived
+				if (c === '@method') {
+					componentValue = method;
+				} else if (c === '@target-uri') {
+					componentValue = uri;
+				}
+			} else {
+				// it's a header
+				componentValue = headers[c.toLowerCase()];
+			}
+			
+			if (componentValue) {
+				sigBase += serializeItem([c, new Map()]);
+				sigBase += ': ';
+				sigBase += componentValue;
+				sigBase += '\n';
+			}
+		});
 		
-		const base = base64url.encode(header)
-			+ '.'
-			+ body;
+		var params = new Map();
+		params.set('alg', 'rsa-pss-sha512');
+		params.set('created', Math.floor(Date.now() / 1000));
 		
-		//console.log(base);
+		var sigParamsRaw = [coveredComponents.map(c => [c, new Map()]), params];
+		var sigParams = serializeList([sigParamsRaw]);
+		
+		sigBase += serializeItem(['@signature-params', new Map()]);
+		sigBase += ': ';
+		sigBase += sigParams;
+		
+		console.log(sigBase);
 		
 		const encoder = new TextEncoder();
+		return crypto.subtle.digest('SHA-512', encoder.encode(sigBase)).then(hashedBase => {
 		
-		return crypto.subtle.sign(this.keyParams, this.state.keypair.privateKey, encoder.encode(base)).then(sig => {
-			
-			//console.log(base64url.fromBase64(_arrayBufferToBase64(sig)));
-			
-			const jwsd = base64url.encode(header) + '..' + base64url.fromBase64(_arrayBufferToBase64(sig));
+			var rsaPssParams = { name: 'RSA-PSS', saltLength: 64 };
 		
-			//console.log(jwsd);
-			//console.log(body);
-		
-			const headers = {
-				'Detached-JWS': jwsd,
-				'Content-Type': 'application/json'
-			};
-			
-			return fetch(url, {
-				method: method,
-				headers: headers,
-				body: body
+			return crypto.subtle.sign(rsaPssParams, this.state.keypair.privateKey, hashedBase).then(signature => {
+				var sigBytes = _arrayBufferToBase64(signature);
+				
+				headers['signature'] = serializeDictionary(
+					new Map([
+						['sig', [new ByteSequence(sigBytes), new Map()]]
+					])
+				);
+				headers['signature-input'] = serializeDictionary(
+					new Map([
+						['sig', sigParamsRaw]
+					])
+				);
+				console.log(headers);
+				
+				return fetch(uri, {
+					method: method,
+					body: body,
+					headers: headers
+				});
+				
 			});
+			
 		});
+		
+		
 	};
 	
 	newTransaction = (e) => {
 		e.preventDefault();
 		
-		return crypto.subtle.exportKey('jwk', this.state.keypair.publicKey).then(jwk => {
-			const nonce = randomString();
-			const redir = randomString();
-			
-			const t = {
-				resources: ['foo', 'bar'],
-				keys: {
-					proof: 'jwsd',
-					jwk: jwk
-				},
-				interact: {
-					redirect: true,
-					callback: {
-						uri: 'http://host.docker.internal:9834/spa/' + redir,
-						nonce: nonce,
-						hash_method: 'sha2'
-					}
-				},
-				display: {
-					name: 'XYZ Single Page App',
-					uri: 'https://oauth.xyz/'
-				}
-			};
-			
-			const body = JSON.stringify(t);
-				
-			return this.fetchWithDJWS(this.txendpoint, 'POST', body).then(res => {
-				if (res.ok) {
-					res.json().then(data => {
-						// process the tx response
-						this.setState({
-							clientNonce: nonce,
-							redir: redir,
-							txHandle: data.handle.value, // this assumes a bearer handle
-							serverNonce: data.server_nonce,
-							awaitingCallback: true
-						}, () => {
-							this.saveState().then(() => {
-								// now that we've saved the state we can go to the interaction endpoint
-								window.location.assign(data.interaction_url);
-								
-							});
-						});
-					});
-				}
+		/*
+		const data = {
+			grant_endpoint: this.state.requestForm.grantEndpoint,
+			private_key: this.state.requestForm.privateKey ? JSON.parse(this.state.requestForm.privateKey) : undefined,
+			proof: this.state.requestForm.proof,
+			display: this.state.requestForm.display ? JSON.parse(this.state.requestForm.display) : undefined,
+			access_token: this.state.requestForm.accessToken ? JSON.parse(this.state.requestForm.accessToken) : undefined,
+			interact_start: this.state.requestForm.interactStart,
+			interact_finish: this.state.requestForm.interactFinish,
+			user: this.state.requestForm.user ? JSON.parse(this.state.requestForm.user) : undefined,
+			subject: this.state.requestForm.subject ? JSON.parse(this.state.requestForm.subject) : undefined,
+			http_sig_algorithm: this.state.requestForm.httpSigAlgorithm,
+			digest: this.state.requestForm.digest
+		};
+		*/
+		
+		const data = {
+			access_token: this.state.requestForm.accessToken ? JSON.parse(this.state.requestForm.accessToken) : undefined,
+			subject: this.state.requestForm.subject ? JSON.parse(this.state.requestForm.subject) : undefined,
+			user: this.state.requestForm.user ? JSON.parse(this.state.requestForm.user) : undefined,
+		};
+		
+		data['client'] = {
+			key: {
+				proof: this.state.requestForm.proof,
+				jwk: JSON.parse(this.state.generatedPublicKeyJwk)
+			},
+			display: this.state.requestForm.display ? JSON.parse(this.state.requestForm.display) : undefined
+		};
+		
+		const nonce = randomString();
+		const redir = randomString();
+		
+		data['interact'] = {
+			start: this.state.requestForm.interactStart,
+			finish: this.state.requestForm.interactFinish ?
+				{
+					method: 'redirect',
+					uri: window.location.href + '/' + redir,
+					nonce: nonce,
+					hash_method: 'sha2'
+				} : undefined
+		};
+		
+		console.log(data);
+		
+		this.signedFetch(this.state.requestForm.grantEndpoint,
+			'POST',
+			JSON.stringify(data),
+			this.state.requestForm.httpSigAlgorithm,
+			this.state.requestForm.digest
+		).then(res => { return res.json(); }).then(grantResponse => {
+			console.log(grantResponse);
+			this.setState({
+				clientNonce: nonce,
+				redir: redir,
+				continue: grantResponse.continue,
+				grantEndpoint: this.state.requestForm.grantEndpoint,
+				serverNonce: grantResponse.interact ? grantResponse.interact.finish : undefined,
+				awaitingCallback: true
+			}, () => {
+				this.saveState().then(() => {
+					// now that we've saved the state we can go to the interaction endpoint
+					window.location.assign(grantResponse.interact.redirect);					
+				});
 			});
-		});
+		}); 
+		
 	};
 
 	checkCallback = () => {
 		if (this.state.awaitingCallback) {
-			
+			console.log(this.state.redir);
+			console.log(window.location.pathname);
 			// first see if this is the callback we're expecting
 			if (window.location.pathname.endsWith(this.state.redir)) {
 				// get parameters
 				const query = new URLSearchParams(window.location.search);
 
 				const hash = query.get('hash');
-				const interactRef = query.get('interact');
+				const interactRef = query.get('interact_ref');
 				
 				// check the hash
 				const hashbase = this.state.clientNonce + '\n'
 					+ this.state.serverNonce + '\n'
-					+ interactRef;
+					+ interactRef + '\n'
+					+ this.state.requestForm.grantEndpoint;
+				
+				console.log(hashbase);
 				
 				const encoder = new TextEncoder();
 				
@@ -234,19 +476,25 @@ class SPA extends React.Component {
 					if (hash === expected) {
 						// hash matches, call the tx endpoint again to follow up
 						const t = {
-							handle: this.state.txHandle,
 							interact_ref: interactRef
 						};
 						
 						const body = JSON.stringify(t);
 						
-						return this.fetchWithDJWS(this.txendpoint, 'POST', body).then(res => {
+						this.signedFetch(this.state.continue.uri,
+							'POST',
+							body,
+							this.state.requestForm.httpSigAlgorithm,
+							this.state.requestForm.digest,
+							this.state.continue.access_token.value
+						).then(res => {
 							if (res.ok) {
 								res.json().then(data => {
 									// process the tx response
 									this.setState({
 										accessToken: data.access_token.value,
-										txHandle: data.handle.value,
+										continue: data.continue,
+										subject: data.subject,
 										redir: undefined,
 										clientNonce: undefined,
 										serverNonce: undefined
@@ -260,11 +508,17 @@ class SPA extends React.Component {
 						
 					} else {
 						console.log('Hash did not match, got ' + hash + ' expected ' + expected);
+
+						window.history.pushState({}, 'post-redirect', '/spa');
+						this.saveState();
 					}
 				});
 				
 			} else {
 				console.log('Not the callback we are looking for');
+
+				window.history.pushState({}, 'post-redirect', '/spa');
+				this.saveState();
 			}
 		}
 	};
@@ -295,6 +549,36 @@ class SPA extends React.Component {
 	render() {
 		return (
 			<Container>
+				{ this.state.showForm &&
+					<RequestParameterForm
+						grantEndpoint={this.state.requestForm.grantEndpoint}
+						setGrantEndpoint={this.setGrantEndpoint}
+						privateKey={this.state.generatedPublicKeyJwk}
+						setPrivateKey={this.setPrivateKey}
+						privateKeyReadOnly={true}
+						proof={this.state.requestForm.proof}
+						setProof={this.setProof}
+						httpSigAlgorithm={this.state.requestForm.httpSigAlgorithm}
+						setHttpSigAlgorithm={this.setHttpSigAlgorithm}
+						digest={this.state.requestForm.digest}
+						setDigest={this.setDigest}
+						display={this.state.requestForm.display}
+						setDisplay={this.setDisplay}
+						accessToken={this.state.requestForm.accessToken}
+						setAccessToken={this.setAccessToken}
+						interactStart={this.state.requestForm.interactStart}
+						setInteractStart={this.setInteractStart}
+						interactFinish={this.state.requestForm.interactFinish}
+						setInteractFinish={this.setInteractFinish}
+						user={this.state.requestForm.user}
+						setUser={this.setUser}
+						subject={this.state.requestForm.subject}
+						setSubject={this.setSubject}
+					/>
+				}
+				{ !this.state.showForm && 
+				<Button color="dark" onClick={this.showForm}>Show Client Instance Parameter Form</Button>
+				}
 				<Button color="success" onClick={this.newTransaction}>New SPA Transaction</Button>
 				<KeyStatus keypair={this.state.keypair} createKeys={this.createKeys} />
 				<Card outline color="primary">
@@ -303,16 +587,36 @@ class SPA extends React.Component {
 					</CardHeader>
 					<CardBody>
 						<dl className="row">
-							<dt className="col-sm-3">Client nonce</dt>
-							<dd className="col-sm-9">{this.state.clientNonce}</dd>
-							<dt className="col-sm-3">Server nonce</dt>
-							<dd className="col-sm-9">{this.state.serverNonce}</dd>
-							<dt className="col-sm-3">Redir URL key</dt>
-							<dd className="col-sm-9">{this.state.redir}</dd>
-							<dt className="col-sm-3">Handle</dt>
-							<dd className="col-sm-9">{this.state.txHandle}</dd>
+							<dt className="col-sm-3">Grant Endpoint</dt>
+							<dd className="col-sm-9">{this.state.grantEndpoint}</dd>
+							<dt className="col-sm-3">Awaiting Callback</dt>
+							<dd className="col-sm-9">{this.state.awaitingCallback}</dd>
+							<dt className="col-sm-3">Continue Token</dt>
+							<dd className="col-sm-9">{this.state.continue && this.state.continue.access_token ? this.state.continue.access_token.value : ''}</dd>
 							<dt className="col-sm-3">Access Token</dt>
 							<dd className="col-sm-9">{this.state.accessToken}</dd>
+							{this.state.subject && this.state.subject.sub_ids &&
+								this.state.subject.sub_ids.map(subId => {
+									if (subId.format == 'opaque') {
+										return (<>
+												<dt key="qr-label" className="col-sm-3">Opaque Identifier</dt>
+												<dd key="qr-value" className="col-sm-9">{subId.id}</dd>
+												</>);
+									} else if (subId.format == 'iss_sub') {
+										return (<>
+												<dt key="qr-label" className="col-sm-3">Issuer/Subject</dt>
+												<dd key="qr-value" className="col-sm-9">{subId.iss} / {subId.sub}</dd>
+												</>);
+									} else if (subId.format == 'email') {
+										return (<>
+												<dt key="qr-label" className="col-sm-3">Email Address</dt>
+												<dd key="qr-value" className="col-sm-9">{subId.email}</dd>
+												</>);
+									} else {
+										return null;
+									}
+								})
+							}
 						</dl>
 					</CardBody>
 				</Card>
@@ -321,7 +625,6 @@ class SPA extends React.Component {
 	}
 	
 }
-
 
 const KeyStatus = ({...props}) => {
 	if (props.keypair) {
@@ -334,5 +637,7 @@ const KeyStatus = ({...props}) => {
 		);
 	}
 }
+
+
 
 export default SPA;
