@@ -26,7 +26,7 @@ public class UserCodeUriResponse {
 	 * @return
 	 */
 	public static UserCodeUriResponse of(Interact interact) {
-		if (interact == null || Strings.isNullOrEmpty(interact.getStandaloneUserCode())) {
+		if (interact == null || Strings.isNullOrEmpty(interact.getUserCode())) {
 			return null;
 		}
 

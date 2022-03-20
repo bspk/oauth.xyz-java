@@ -635,7 +635,7 @@ class PendingTransactionEntry extends React.Component {
 			);
 		}
 		
-		if (this.props.transaction.sandalone_user_code) {
+		if (this.props.transaction.standalone_user_code) {
 			elements.push(
 				...[
 					<dt key="code-label" className="col-sm-3">User Code (standalone)</dt>,
@@ -643,7 +643,7 @@ class PendingTransactionEntry extends React.Component {
 				]
 			);
 		}
-		if (this.props.transaction.user_code_uri) {
+		if (this.props.transaction.user_code_url) {
 			elements.push(
 				...[
 					<dt key="code-url-label" className="col-sm-3">User Code URI</dt>,

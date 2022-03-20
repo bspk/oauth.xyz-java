@@ -494,6 +494,7 @@ class SPA extends React.Component {
 									this.setState({
 										accessToken: data.access_token.value,
 										continue: data.continue,
+										subject: data.subject,
 										redir: undefined,
 										clientNonce: undefined,
 										serverNonce: undefined
@@ -594,6 +595,28 @@ class SPA extends React.Component {
 							<dd className="col-sm-9">{this.state.continue && this.state.continue.access_token ? this.state.continue.access_token.value : ''}</dd>
 							<dt className="col-sm-3">Access Token</dt>
 							<dd className="col-sm-9">{this.state.accessToken}</dd>
+							{this.state.subject && this.state.subject.sub_ids &&
+								this.state.subject.sub_ids.map(subId => {
+									if (subId.format == 'opaque') {
+										return (<>
+												<dt key="qr-label" className="col-sm-3">Opaque Identifier</dt>
+												<dd key="qr-value" className="col-sm-9">{subId.id}</dd>
+												</>);
+									} else if (subId.format == 'iss_sub') {
+										return (<>
+												<dt key="qr-label" className="col-sm-3">Issuer/Subject</dt>
+												<dd key="qr-value" className="col-sm-9">{subId.iss} / {subId.sub}</dd>
+												</>);
+									} else if (subId.format == 'email') {
+										return (<>
+												<dt key="qr-label" className="col-sm-3">Email Address</dt>
+												<dd key="qr-value" className="col-sm-9">{subId.email}</dd>
+												</>);
+									} else {
+										return null;
+									}
+								})
+							}
 						</dl>
 					</CardBody>
 				</Card>
