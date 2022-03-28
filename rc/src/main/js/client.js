@@ -105,6 +105,13 @@ class Client extends React.Component {
 		});
 	}
 	
+	hideForm = (e) => {
+		e.preventDefault();
+		this.setState({
+			showForm: false
+		});
+	}
+	
 	clearInstanceIds = (e) => {
 		http({
 			method: 'DELETE',
@@ -330,6 +337,7 @@ class Client extends React.Component {
 						setUser={this.setUser}
 						subject={this.state.requestForm.subject}
 						setSubject={this.setSubject}
+						hideForm={this.hideForm}
 					/>
 				}
 				{ !this.state.showForm && 
@@ -348,6 +356,7 @@ class Client extends React.Component {
 
 const RequestParameterForm = (props) => (
 				<Form>
+					<Button color="dark" onClick={props.hideForm}>Hide Form</Button>
 					<FormGroup>
 						<Label for="grantEndpoint">
 							Grant Endpoint URL

@@ -100,6 +100,7 @@ class SPA extends React.Component {
 					requestForm: savedState.requestForm,
 					transactions: savedState.transactions,
 					awaitingCallback: savedState.awaitingCallback,
+					showForm: !savedState.awaitingCallback,
 					clientNonce: savedState.clientNonce,
 					redir: savedState.redir,
 					txHandle: savedState.txHandle,
@@ -146,6 +147,13 @@ class SPA extends React.Component {
 		e.preventDefault();
 		this.setState({
 			showForm: true
+		});
+	}
+	
+	hideForm = (e) => {
+		e.preventDefault();
+		this.setState({
+			showForm: false
 		});
 	}
 	
@@ -574,6 +582,7 @@ class SPA extends React.Component {
 						setUser={this.setUser}
 						subject={this.state.requestForm.subject}
 						setSubject={this.setSubject}
+						hideForm={this.hideForm}
 					/>
 				}
 				{ !this.state.showForm && 
