@@ -29,12 +29,84 @@ import lombok.experimental.Accessors;
 public class SignatureParameters {
 
 	private List<StringItem> componentIdentifiers = new ArrayList<>();
-	private List<String> paramOrder = List.of("alg", "created", "expires", "keyid", "nonce");
-	private HttpSigAlgorithm alg;
-	private Instant created;
-	private Instant expires;
-	private String keyid;
-	private String nonce;
+
+	// this preserves insertion order
+	private Map<String, Object> parameters = new LinkedHashMap<>();
+
+	/**
+	 * @return the alg
+	 */
+	public HttpSigAlgorithm getAlg() {
+		return (HttpSigAlgorithm) parameters.get("alg");
+	}
+
+	/**
+	 * @param alg the alg to set
+	 */
+	public SignatureParameters setAlg(HttpSigAlgorithm alg) {
+		parameters.put("alg", alg);
+		return this;
+	}
+
+	/**
+	 * @return the created
+	 */
+	public Instant getCreated() {
+		return (Instant) parameters.get("created");
+	}
+
+	/**
+	 * @param created the created to set
+	 */
+	public SignatureParameters setCreated(Instant created) {
+		parameters.put("created", created);
+		return this;
+	}
+
+	/**
+	 * @return the expires
+	 */
+	public Instant getExpires() {
+		return (Instant) parameters.get("expires");
+	}
+
+	/**
+	 * @param expires the expires to set
+	 */
+	public SignatureParameters setExpires(Instant expires) {
+		parameters.put("expires", expires);
+		return this;
+	}
+
+	/**
+	 * @return the keyid
+	 */
+	public String getKeyid() {
+		return (String) parameters.get("keyid");
+	}
+
+	/**
+	 * @param keyid the keyid to set
+	 */
+	public SignatureParameters setKeyid(String keyid) {
+		parameters.put("keyid", keyid);
+		return this;
+	}
+
+	/**
+	 * @return the nonce
+	 */
+	public String getNonce() {
+		return (String) parameters.get("nonce");
+	}
+
+	/**
+	 * @param nonce the nonce to set
+	 */
+	public SignatureParameters setNonce(String nonce) {
+		parameters.put("nonce", nonce);
+		return this;
+	}
 
 	public StringItem toComponentIdentifier() {
 		return StringItem.valueOf("@signature-params");
@@ -51,27 +123,23 @@ public class SignatureParameters {
 
 		Map<String, Object> params = new LinkedHashMap<>();
 
-		for (String paramName : paramOrder) {
+		// preserve order
+		for (String paramName : parameters.keySet()) {
 			if (paramName.equals("alg")) {
-				if (alg != null && alg.getExplicitAlg() != null) {
+				HttpSigAlgorithm alg = getAlg();
+				if (alg.getExplicitAlg() != null) {
 					params.put("alg", alg.getExplicitAlg());
 				}
 			} else if (paramName.equals("created")) {
-				if (created != null) {
-					params.put("created", created.getEpochSecond());
-				}
+				params.put("created", getCreated().getEpochSecond());
 			} else if (paramName.equals("expires")) {
-				if (expires != null) {
-					params.put("expires", expires.getEpochSecond());
-				}
+				params.put("expires", getExpires().getEpochSecond());
 			} else if (paramName.equals("keyid")) {
-				if (keyid != null) {
-					params.put("keyid", keyid);
-				}
+				params.put("keyid", getKeyid());
 			} else if (paramName.equals("nonce")) {
-				if (nonce != null) {
-					params.put("nonce", nonce);
-				}
+				params.put("nonce", getNonce());
+			} else {
+				params.put(paramName, parameters.get(paramName));
 			}
 		}
 
@@ -120,29 +188,24 @@ public class SignatureParameters {
 					.setComponentIdentifiers(
 						coveredComponents.get().stream()
 							.map(StringItem.class::cast)
-							.collect(Collectors.toList()))
-					.setParamOrder(List.copyOf(coveredComponents.getParams().keySet()));
+							.collect(Collectors.toList()));
 
-				if (coveredComponents.getParams().containsKey("alg")) {
-					params.setAlg(HttpSigAlgorithm.of(((StringItem)coveredComponents.getParams().get("alg")).get()));
-				}
-
-				if (coveredComponents.getParams().containsKey("created")) {
-					params.setCreated(
-						Instant.ofEpochSecond(((NumberItem<?>)coveredComponents.getParams().get("created")).getAsLong()));
-				}
-
-				if (coveredComponents.getParams().containsKey("expires")) {
-					params.setCreated(
-						Instant.ofEpochSecond(((NumberItem<?>)coveredComponents.getParams().get("expires")).getAsLong()));
-				}
-
-				if (coveredComponents.getParams().containsKey("keyid")) {
-					params.setKeyid(((StringItem)coveredComponents.getParams().get("keyid")).get());
-				}
-
-				if (coveredComponents.getParams().containsKey("nonce")) {
-					params.setNonce(((StringItem)coveredComponents.getParams().get("nonce")).get());
+				for (String key : coveredComponents.getParams().keySet()) {
+					if (key.equals("alg")) {
+						params.setAlg(HttpSigAlgorithm.of(((StringItem)coveredComponents.getParams().get("alg")).get()));
+					} else if (key.equals("created")) {
+						params.setCreated(
+							Instant.ofEpochSecond(((NumberItem<?>)coveredComponents.getParams().get("created")).getAsLong()));
+					} else if (key.equals("expires")) {
+						params.setCreated(
+							Instant.ofEpochSecond(((NumberItem<?>)coveredComponents.getParams().get("expires")).getAsLong()));
+					} else  if (key.equals("keyid")) {
+						params.setKeyid(((StringItem)coveredComponents.getParams().get("keyid")).get());
+					} else if (key.equals("nonce")) {
+						params.setNonce(((StringItem)coveredComponents.getParams().get("nonce")).get());
+					} else {
+						params.getParameters().put(key, coveredComponents.getParams().get(key).serialize()); // store the serialized version
+					}
 				}
 
 				return params;
