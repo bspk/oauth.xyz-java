@@ -19,7 +19,7 @@ The authorization server is in the directory `/as/` and can be started using Spr
 The AS is accessible at <http://localhost:9834/as>
 
 
-The client instance is in the director `/c/` and can be started using Spring Boot from that directory:
+The client instance is in the directory `/rc/` and can be started using Spring Boot from that directory:
 
 `mvn spring-boot:run`
 
