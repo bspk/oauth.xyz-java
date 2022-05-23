@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.PropertyNamingStrategy;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
 import com.nimbusds.jose.jwk.JWK;
 
+import io.bspk.httpsig.HttpSigAlgorithm;
 import io.bspk.oauth.xyz.data.Key.Proof;
 import lombok.Data;
 import lombok.experimental.Accessors;

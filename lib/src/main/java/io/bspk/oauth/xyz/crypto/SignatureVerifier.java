@@ -48,6 +48,12 @@ import com.nimbusds.jose.util.Base64URL;
 import com.nimbusds.jwt.JWTClaimsSet;
 import com.nimbusds.jwt.SignedJWT;
 
+import io.bspk.httpsig.ComponentProvider;
+import io.bspk.httpsig.HttpSigAlgorithm;
+import io.bspk.httpsig.HttpVerify;
+import io.bspk.httpsig.SignatureBaseBuilder;
+import io.bspk.httpsig.SignatureParameters;
+import io.bspk.httpsig.servlet.HttpServletRequestProvider;
 import io.bspk.oauth.xyz.http.DigestWrappingFilter;
 import io.bspk.oauth.xyz.http.JoseUnwrappingFilter;
 
@@ -128,7 +134,7 @@ public class SignatureVerifier {
 			if (sigParams.containsComponentIdentifier("@method")
 				&& (sigParams.containsComponentIdentifier("@target-uri"))) { // should we allow the URI in parts?
 
-				SignatureContext ctx = new HttpServletRequestSignatureContext(request);
+				ComponentProvider ctx = new HttpServletRequestProvider(request);
 
 				// collect the base string
 				SignatureBaseBuilder baseBuilder = new SignatureBaseBuilder(sigParams, ctx);

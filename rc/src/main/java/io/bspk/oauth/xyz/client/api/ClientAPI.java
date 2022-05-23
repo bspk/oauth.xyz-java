@@ -34,9 +34,9 @@ import com.google.common.base.Strings;
 import com.nimbusds.jose.jwk.JWK;
 import com.sailpoint.ietf.subjectidentifiers.model.SubjectIdentifierFormats;
 
+import io.bspk.httpsig.HttpSigAlgorithm;
 import io.bspk.oauth.xyz.client.repository.PendingTransactionRepository;
 import io.bspk.oauth.xyz.crypto.Hash;
-import io.bspk.oauth.xyz.crypto.HttpSigAlgorithm;
 import io.bspk.oauth.xyz.crypto.KeyProofParameters;
 import io.bspk.oauth.xyz.data.Interact.InteractStart;
 import io.bspk.oauth.xyz.data.InteractFinish;

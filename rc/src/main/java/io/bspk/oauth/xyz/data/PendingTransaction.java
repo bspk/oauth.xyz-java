@@ -15,7 +15,7 @@ import com.fasterxml.jackson.databind.PropertyNamingStrategy;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
 
 import io.bspk.oauth.xyz.crypto.Hash.HashMethod;
-import io.bspk.oauth.xyz.crypto.HttpSigAlgorithm;
+import io.bspk.httpsig.HttpSigAlgorithm;
 import io.bspk.oauth.xyz.crypto.KeyProofParameters;
 import io.bspk.oauth.xyz.data.api.AccessTokenRequest.TokenFlag;
 import io.bspk.oauth.xyz.data.api.AccessTokenResponse;

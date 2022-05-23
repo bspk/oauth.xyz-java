@@ -44,12 +44,13 @@ import com.nimbusds.jose.Payload;
 import com.nimbusds.jose.crypto.factories.DefaultJWSSignerFactory;
 import com.nimbusds.jose.jwk.JWK;
 
+import io.bspk.httpsig.ComponentProvider;
+import io.bspk.httpsig.HttpSign;
+import io.bspk.httpsig.SignatureBaseBuilder;
+import io.bspk.httpsig.SignatureParameters;
+import io.bspk.httpsig.spring.RestTemplateRequestProvider;
 import io.bspk.oauth.xyz.crypto.Hash;
-import io.bspk.oauth.xyz.crypto.HttpSign;
 import io.bspk.oauth.xyz.crypto.KeyProofParameters;
-import io.bspk.oauth.xyz.crypto.SignatureBaseBuilder;
-import io.bspk.oauth.xyz.crypto.SignatureContext;
-import io.bspk.oauth.xyz.crypto.SignatureParameters;
 import io.bspk.oauth.xyz.data.Key.Proof;
 
 /**
@@ -386,7 +387,7 @@ public class SigningRestTemplateService {
 				sigParams.addComponentIdentifier("Authorization");
 			}
 
-			SignatureContext ctx = new RestTemplateRequestSignatureContext(request);
+			ComponentProvider ctx = new RestTemplateRequestProvider(request);
 
 			SignatureBaseBuilder baseBuilder = new SignatureBaseBuilder(sigParams, ctx);
 
