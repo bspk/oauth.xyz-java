@@ -46,8 +46,10 @@ import com.nimbusds.jose.jwk.JWK;
 
 import io.bspk.httpsig.ComponentProvider;
 import io.bspk.httpsig.HttpSign;
+import io.bspk.httpsig.MessageWrapper;
 import io.bspk.httpsig.SignatureBaseBuilder;
 import io.bspk.httpsig.SignatureParameters;
+import io.bspk.httpsig.spring.RestTemplateMessageWrapper;
 import io.bspk.httpsig.spring.RestTemplateRequestProvider;
 import io.bspk.oauth.xyz.crypto.Hash;
 import io.bspk.oauth.xyz.crypto.KeyProofParameters;
@@ -403,16 +405,9 @@ public class SigningRestTemplateService {
 				throw new RuntimeException("Could not sign message.");
 			}
 
-			String sigId = RandomStringUtils.randomAlphabetic(5).toLowerCase();
+			MessageWrapper wrapper = new RestTemplateMessageWrapper(request);
+			wrapper.addSignature(sigParams, s);
 
-			Dictionary sigHeader = Dictionary.valueOf(Map.of(
-				sigId, ByteSequenceItem.valueOf(s)));
-
-			Dictionary sigInputHeader = Dictionary.valueOf(Map.of(
-				sigId, sigParams.toComponentValue()));
-
-			request.getHeaders().add("Signature", sigHeader.serialize());
-			request.getHeaders().add("Signature-Input", sigInputHeader.serialize());
 
 			return execution.execute(request, body);
 		}
