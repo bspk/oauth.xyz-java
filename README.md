@@ -6,11 +6,9 @@ To run, first start a mongo DB instance for the items to connect to. One is prov
 
 All components connect to each other over local HTTP connections. To facilitate testing under containerization, everything has been configured to use the hostname `host.docker.internal`. To access the web interfaces from localhost, it is helpful to alias `host.docker.internal` to the loopback address of `127.0.0.1` to run this.
 
+To build use:
 
-To build locally, you'll need to install the library package from the `lib` directory by running this command from that directory:
-
-`mvn install`
-
+`mvn clean install`
 
 The authorization server is in the directory `/as/` and can be started using Spring Boot from that directory:
 
@@ -19,7 +17,7 @@ The authorization server is in the directory `/as/` and can be started using Spr
 The AS is accessible at <http://localhost:9834/as>
 
 
-The client instance is in the director `/c/` and can be started using Spring Boot from that directory:
+The client instance is in the directory `/rc/` and can be started using Spring Boot from that directory:
 
 `mvn spring-boot:run`
 
